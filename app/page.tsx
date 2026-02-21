@@ -40,7 +40,7 @@ export default async function Home({
   let query = supabase
     .from("posts")
     .select(
-      "id,host_id,start_at,format,level,needed,court_no,note,status,profiles!posts_host_id_fkey(display_name),joins(count)"
+      "id,host_id,start_at,format,level,needed,court_no,note,status,profiles!posts_host_id_fkey(display_name),joins(id,status)"
     )
     .eq("status", "open")
     .gte("start_at", expiryCutoffIso)
@@ -74,7 +74,7 @@ export default async function Home({
         court_no: post.court_no,
         note: post.note,
         status: post.status,
-        joinsCount: post.joins?.[0]?.count ?? 0,
+        joinsCount: post.joins?.filter((join) => join.status === "approved").length ?? 0,
         hostName: profile?.display_name || (lang === "ko" ? "호스트" : "Host"),
         isExpired: new Date(post.start_at).getTime() + 30 * 60 * 1000 < Date.now()
       };

@@ -28,12 +28,15 @@ export default async function PostDetailPage({
           emptyNote: "메모 없음",
           join: "참여하기",
           joined: "참여완료",
+          pending: "승인 대기",
           mine: "내 모집글",
           ask: "WhatsApp 문의",
           loginToAsk: "로그인하고 연락하기",
           noWhatsapp: "WhatsApp 없음",
           close: "모집 마감",
-          created: "작성 완료:"
+          created: "작성 완료:",
+          pendingRequests: "참여 요청",
+          approve: "승인"
         }
       : {
           title: "Detalle del partido",
@@ -44,12 +47,15 @@ export default async function PostDetailPage({
           emptyNote: "Sin nota",
           join: "Unirme",
           joined: "Ya participo",
+          pending: "Pendiente",
           mine: "Mi publicacion",
           ask: "Contactar por WhatsApp",
           loginToAsk: "Inicia sesión para contactar",
           noWhatsapp: "Sin WhatsApp",
           close: "Cerrar convocatoria",
-          created: "Publicado:"
+          created: "Publicado:",
+          pendingRequests: "Solicitudes pendientes",
+          approve: "Aprobar"
         };
 
   const supabase = createClient();
@@ -57,7 +63,7 @@ export default async function PostDetailPage({
   const { data: post } = await supabase
     .from("posts")
     .select(
-      "id,host_id,start_at,format,level,needed,court_no,note,status,profiles!posts_host_id_fkey(display_name,whatsapp),joins(id,user_id)"
+      "id,host_id,start_at,format,level,needed,court_no,note,status,profiles!posts_host_id_fkey(display_name,whatsapp),joins(id,user_id,status,profiles!joins_user_id_fkey(display_name))"
     )
     .eq("id", params.id)
     .maybeSingle();
@@ -70,11 +76,14 @@ export default async function PostDetailPage({
     data: { user }
   } = await supabase.auth.getUser();
 
-  const joinsCount = post.joins?.length ?? 0;
-  const currentPlayers = joinsCount + 1;
+  const approvedJoins = post.joins?.filter((join) => join.status === "approved") ?? [];
+  const pendingJoins = post.joins?.filter((join) => join.status === "pending") ?? [];
+  const currentPlayers = approvedJoins.length + 1;
   const recruitCount = Math.max(post.needed - 1, 0);
   const isHost = user?.id === post.host_id;
-  const isJoined = post.joins?.some((join) => join.user_id === user?.id) ?? false;
+  const myJoin = post.joins?.find((join) => join.user_id === user?.id);
+  const isJoined = !!myJoin;
+  const isPending = myJoin?.status === "pending";
   const isExpired = new Date(post.start_at).getTime() + 30 * 60 * 1000 < Date.now();
   const isCompleted = post.status === "closed" || currentPlayers >= post.needed || isExpired;
   const startHHMM = getCordobaHHMM(post.start_at);
@@ -99,6 +108,45 @@ export default async function PostDetailPage({
     }
 
     await supabase.from("posts").update({ status: "closed" }).eq("id", params.id);
+    redirect(`/post/${params.id}`);
+  }
+
+  async function approveJoin(formData: FormData) {
+    "use server";
+
+    const joinId = String(formData.get("join_id") || "");
+    if (!joinId) {
+      redirect(`/post/${params.id}`);
+    }
+
+    const supabase = createClient();
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      redirect("/login");
+    }
+
+    const { data: postData } = await supabase.from("posts").select("id,host_id").eq("id", params.id).maybeSingle();
+    if (!postData || postData.host_id !== user.id) {
+      redirect(`/post/${params.id}`);
+    }
+
+    const { data: postWithJoins } = await supabase
+      .from("posts")
+      .select("needed,joins(id,status)")
+      .eq("id", params.id)
+      .maybeSingle();
+
+    const approvedCount = postWithJoins?.joins?.filter((join) => join.status === "approved").length ?? 0;
+    const currentPlayers = approvedCount + 1;
+
+    if (currentPlayers >= (postWithJoins?.needed ?? 0)) {
+      redirect(`/post/${params.id}`);
+    }
+
+    await supabase.from("joins").update({ status: "approved" }).eq("id", joinId).eq("post_id", params.id);
     redirect(`/post/${params.id}`);
   }
 
@@ -161,7 +209,7 @@ export default async function PostDetailPage({
             </form>
           ) : (
             <button className="button" type="button" disabled>
-              {isHost ? copy.mine : isJoined ? copy.joined : copy.done}
+              {isHost ? copy.mine : isPending ? copy.pending : isJoined ? copy.joined : copy.done}
             </button>
           )}
 
@@ -186,6 +234,26 @@ export default async function PostDetailPage({
               {copy.close}
             </button>
           </form>
+        ) : null}
+
+        {isHost && pendingJoins.length > 0 ? (
+          <article className="card">
+            <strong>{copy.pendingRequests}</strong>
+            {pendingJoins.map((join) => {
+              const joinProfile = Array.isArray(join.profiles) ? join.profiles[0] : join.profiles;
+              const joinName = joinProfile?.display_name || (lang === "ko" ? "참여자" : "Jugador");
+
+              return (
+                <form key={join.id} className="row" action={approveJoin}>
+                  <span className="muted">{joinName}</span>
+                  <input type="hidden" name="join_id" value={join.id} />
+                  <button className="button" type="submit">
+                    {copy.approve}
+                  </button>
+                </form>
+              );
+            })}
+          </article>
         ) : null}
       </section>
 

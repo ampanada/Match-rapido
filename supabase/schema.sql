@@ -25,6 +25,7 @@ create table if not exists public.joins (
   id uuid primary key default gen_random_uuid(),
   post_id uuid not null references public.posts(id) on delete cascade,
   user_id uuid not null references public.profiles(id) on delete cascade,
+  status text not null default 'pending' check (status in ('pending', 'approved')),
   created_at timestamptz not null default now(),
   unique (post_id, user_id)
 );
@@ -46,6 +47,10 @@ end $$;
 alter table public.posts add column if not exists court_no int;
 alter table public.posts drop constraint if exists posts_court_no_check;
 alter table public.posts add constraint posts_court_no_check check (court_no is null or (court_no between 1 and 6));
+alter table public.joins add column if not exists status text not null default 'pending';
+update public.joins set status = 'approved' where status is null;
+alter table public.joins drop constraint if exists joins_status_check;
+alter table public.joins add constraint joins_status_check check (status in ('pending', 'approved'));
 
 create or replace function public.is_valid_slot_start(ts timestamptz)
 returns boolean
@@ -117,6 +122,25 @@ create policy "authenticated can join as self"
 on public.joins for insert
 to authenticated
 with check (auth.uid() = user_id);
+
+drop policy if exists "host can approve joins on own post" on public.joins;
+create policy "host can approve joins on own post"
+on public.joins for update
+to authenticated
+using (
+  exists (
+    select 1
+    from public.posts p
+    where p.id = joins.post_id and p.host_id = auth.uid()
+  )
+)
+with check (
+  exists (
+    select 1
+    from public.posts p
+    where p.id = joins.post_id and p.host_id = auth.uid()
+  )
+);
 
 create or replace function public.handle_new_user()
 returns trigger
