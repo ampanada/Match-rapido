@@ -30,6 +30,7 @@ export default async function PostDetailPage({
           joined: "참여완료",
           mine: "내 모집글",
           ask: "WhatsApp 문의",
+          loginToAsk: "로그인하고 연락하기",
           noWhatsapp: "WhatsApp 없음",
           close: "모집 마감",
           created: "작성 완료:"
@@ -45,6 +46,7 @@ export default async function PostDetailPage({
           joined: "Ya participo",
           mine: "Mi publicacion",
           ask: "Contactar por WhatsApp",
+          loginToAsk: "Inicia sesión para contactar",
           noWhatsapp: "Sin WhatsApp",
           close: "Cerrar convocatoria",
           created: "Publicado:"
@@ -163,7 +165,11 @@ export default async function PostDetailPage({
             </button>
           )}
 
-          {chatLink ? (
+          {!user ? (
+            <a className="link-btn" href="/login">
+              {copy.loginToAsk}
+            </a>
+          ) : chatLink ? (
             <a className="link-btn" href={chatLink} target="_blank" rel="noreferrer">
               {copy.ask}
             </a>

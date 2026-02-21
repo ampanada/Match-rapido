@@ -79,7 +79,7 @@ export default async function MyPage({
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login");
+    redirect("/login?reason=auth_required");
   }
 
   const { data: myProfile } = await supabase
