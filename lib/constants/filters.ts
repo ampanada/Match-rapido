@@ -7,6 +7,7 @@ export type MatchLevel = (typeof LEVEL_OPTIONS)[number];
 export type TimeRange = (typeof TIME_RANGE_OPTIONS)[number];
 
 export function formatLabel(value: string, locale: "ko" | "en" | "es" = "es") {
+  const normalized = value.toLowerCase().replace(/[\s-]+/g, "_");
   const map = {
     single: locale === "ko" ? "단식" : locale === "es" ? "Individual" : "Single",
     double: locale === "ko" ? "복식" : locale === "es" ? "Dobles" : "Double",
@@ -16,7 +17,7 @@ export function formatLabel(value: string, locale: "ko" | "en" | "es" = "es") {
     rally: locale === "ko" ? "랠리" : locale === "es" ? "Rally" : "Rally"
   } as const;
 
-  return map[value as keyof typeof map] ?? value;
+  return map[normalized as keyof typeof map] ?? value;
 }
 
 export function levelLabel(value: string, locale: "ko" | "en" | "es" = "es") {

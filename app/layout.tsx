@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import GlobalNotice from "@/components/GlobalNotice";
 import LanguageTabs from "@/components/LanguageTabs";
 import { getServerLang } from "@/lib/i18n-server";
 import "./globals.css";
@@ -15,6 +16,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang={lang}>
       <body>
         <LanguageTabs lang={lang} />
+        <GlobalNotice lang={lang} />
         {children}
       </body>
     </html>

@@ -29,7 +29,7 @@ a {
   width: min(100%, 420px);
   min-height: 100dvh;
   margin: 0 auto;
-  padding: 58px 14px 84px;
+  padding: 94px 14px 84px;
 }
 
 .lang-tabs-wrap {
@@ -42,6 +42,25 @@ a {
   background: rgba(15, 17, 21, 0.95);
   border-bottom: 1px solid var(--line);
   backdrop-filter: blur(8px);
+}
+
+.global-notice-wrap {
+  position: fixed;
+  top: 38px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(100%, 420px);
+  z-index: 29;
+  border-bottom: 1px solid #5f4a1c;
+  background: #2b2315;
+  color: #f8d27e;
+}
+
+.global-notice-text {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 .lang-tabs {
