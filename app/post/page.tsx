@@ -77,7 +77,10 @@ export default async function PostPage({
     const slot = String(formData.get("slot") || "");
     const format = String(formData.get("format") || "single");
     const level = String(formData.get("level") || "beginner");
-    const defaultNeeded = format === "double" ? 4 : 2;
+    const defaultNeeded =
+      format === "double" || format === "mixed_double" || format === "men_double" || format === "women_double"
+        ? 4
+        : 2;
     const needed = Number(formData.get("needed") || defaultNeeded);
     const courtRaw = String(formData.get("court_no") || "").trim();
     const courtNo = courtRaw ? Number(courtRaw) : null;

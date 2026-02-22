@@ -13,7 +13,7 @@ create table if not exists public.posts (
   host_id uuid not null references public.profiles(id) on delete cascade,
   start_at timestamptz not null,
   court_no int check (court_no between 1 and 6),
-  format text not null check (format in ('single', 'double', 'rally')),
+  format text not null check (format in ('single', 'double', 'mixed_double', 'men_double', 'women_double', 'rally')),
   level text not null check (level in ('beginner', 'intermediate', 'advanced')),
   needed int not null check (needed >= 1 and needed <= 8),
   note text,
@@ -45,6 +45,10 @@ begin
 end $$;
 
 alter table public.posts add column if not exists court_no int;
+alter table public.posts drop constraint if exists posts_format_check;
+alter table public.posts
+  add constraint posts_format_check
+  check (format in ('single', 'double', 'mixed_double', 'men_double', 'women_double', 'rally'));
 alter table public.posts drop constraint if exists posts_court_no_check;
 alter table public.posts add constraint posts_court_no_check check (court_no is null or (court_no between 1 and 6));
 alter table public.joins add column if not exists status text not null default 'pending';

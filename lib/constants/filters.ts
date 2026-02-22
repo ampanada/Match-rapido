@@ -1,4 +1,4 @@
-export const FORMAT_OPTIONS = ["single", "double", "rally"] as const;
+export const FORMAT_OPTIONS = ["single", "double", "mixed_double", "men_double", "women_double", "rally"] as const;
 export const LEVEL_OPTIONS = ["beginner", "intermediate", "advanced"] as const;
 export const TIME_RANGE_OPTIONS = ["morning", "afternoon", "evening", "night"] as const;
 
@@ -10,6 +10,9 @@ export function formatLabel(value: string, locale: "ko" | "en" | "es" = "es") {
   const map = {
     single: locale === "ko" ? "단식" : locale === "es" ? "Individual" : "Single",
     double: locale === "ko" ? "복식" : locale === "es" ? "Dobles" : "Double",
+    mixed_double: locale === "ko" ? "혼합복식" : locale === "es" ? "Dobles mixtos" : "Mixed Double",
+    men_double: locale === "ko" ? "남자복식" : locale === "es" ? "Dobles masculino" : "Men's Double",
+    women_double: locale === "ko" ? "여자복식" : locale === "es" ? "Dobles femenino" : "Women's Double",
     rally: locale === "ko" ? "랠리" : locale === "es" ? "Rally" : "Rally"
   } as const;
 

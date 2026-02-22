@@ -6,6 +6,9 @@ import { FORMAT_OPTIONS, formatLabel } from "@/lib/constants/filters";
 const DEFAULT_NEEDED_BY_FORMAT: Record<string, number> = {
   single: 2,
   double: 4,
+  mixed_double: 4,
+  men_double: 4,
+  women_double: 4,
   rally: 2
 };
 
