@@ -145,9 +145,53 @@ a {
   text-align: center;
 }
 
+.link-inline {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .section {
   display: grid;
   gap: 10px;
+}
+
+.activity-list {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #141924;
+  padding: 10px;
+  margin-bottom: 12px;
+}
+
+.activity-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+.activity-item {
+  padding: 6px 0;
+  border-top: 1px solid rgba(151, 161, 179, 0.16);
+}
+
+.activity-item:first-of-type {
+  border-top: 0;
+}
+
+.activity-message {
+  margin: 0;
+  font-size: 12px;
+  color: #e8edf8;
+}
+
+.activity-time {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.subhead {
+  margin: 4px 0;
+  font-size: 14px;
 }
 
 .card {
@@ -245,7 +289,7 @@ a {
   background: rgba(15, 17, 21, 0.95);
   backdrop-filter: blur(8px);
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   padding: 8px;
 }
 
@@ -277,6 +321,18 @@ a {
   line-height: 16px;
   text-align: center;
   padding: 0 4px;
+}
+
+.compact-block summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.compact-line {
+  margin: 4px 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 @media (max-width: 360px) {

@@ -26,7 +26,7 @@ export default async function MyPage({
 }: {
   searchParams?: { error?: string };
 }) {
-  const lang = getServerLang();
+  const lang = await getServerLang();
   const copy =
     lang === "ko"
       ? {
@@ -42,13 +42,16 @@ export default async function MyPage({
           save: "저장",
           myPosts: "내가 올린 매치",
           noPost: "작성한 글이 없습니다.",
+          upcoming: "예정 매치",
+          past: "지난 매치",
           hostClosed: "호스트마감",
           expired: "시간종료",
           open: "모집중",
           detail: "상세 보기",
           myJoins: "내 참여 기록",
           noJoin: "참여한 매치가 없습니다.",
-          ongoing: "진행중"
+          ongoing: "진행중",
+          players: "참여"
         }
       : {
           title: "Mi cuenta",
@@ -63,17 +66,20 @@ export default async function MyPage({
           save: "Guardar",
           myPosts: "Mis publicaciones",
           noPost: "No tienes publicaciones.",
+          upcoming: "Proximos",
+          past: "Pasados",
           hostClosed: "Cerrado por host",
           expired: "Fuera de horario",
           open: "Abierto",
           detail: "Ver detalle",
           myJoins: "Mis participaciones",
           noJoin: "No participaste en ningun partido.",
-          ongoing: "En curso"
+          ongoing: "En curso",
+          players: "Jugadores"
         };
   const dateLocale = lang === "ko" ? "ko-KR" : "es-AR";
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user }
   } = await supabase.auth.getUser();
@@ -92,21 +98,52 @@ export default async function MyPage({
   const [{ data: myPosts }, { data: myJoins }] = await Promise.all([
     supabase
       .from("posts")
-      .select("id,start_at,status,court_no,note")
+      .select("id,start_at,status,court_no,note,needed,joins(status)")
       .eq("host_id", user.id)
       .order("start_at", { ascending: true })
-      .limit(20),
+      .limit(50),
     supabase
       .from("joins")
-      .select("id,post_id,created_at,posts!joins_post_id_fkey(id,start_at,note,status)")
+      .select("id,post_id,created_at,status,posts!joins_post_id_fkey(id,start_at,note,status,court_no,needed,joins(status))")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
-      .limit(20)
+      .limit(50)
   ]);
+
+  const now = Date.now();
+
+  const hostMatches = (myPosts ?? []).map((post) => {
+    const approved = post.joins?.filter((join) => join.status === "approved").length ?? 0;
+    const players = approved + 1;
+    const isExpired = new Date(post.start_at).getTime() + 30 * 60 * 1000 < now;
+    const label = post.status === "closed" ? copy.hostClosed : isExpired ? copy.expired : copy.open;
+    const isPast = new Date(post.start_at).getTime() < now;
+
+    return { ...post, players, label, isPast, isExpired };
+  });
+
+  const upcomingHost = hostMatches.filter((post) => !post.isPast);
+  const pastHost = hostMatches.filter((post) => post.isPast);
+
+  const joinMatches = (myJoins ?? []).map((join) => {
+    const relatedPost = Array.isArray(join.posts) ? join.posts[0] : join.posts;
+    const when = relatedPost?.start_at ?? join.created_at;
+    const approved = relatedPost?.joins?.filter((item) => item.status === "approved").length ?? 0;
+    const players = approved + 1;
+    const isPast = new Date(when).getTime() < now;
+    const isExpired = relatedPost?.start_at ? new Date(relatedPost.start_at).getTime() + 30 * 60 * 1000 < now : false;
+    const isClosed = relatedPost?.status === "closed";
+    const label = isClosed ? copy.hostClosed : isExpired ? copy.expired : copy.ongoing;
+
+    return { ...join, relatedPost, when, players, label, isPast };
+  });
+
+  const upcomingJoin = joinMatches.filter((join) => !join.isPast);
+  const pastJoin = joinMatches.filter((join) => join.isPast);
 
   async function signOut() {
     "use server";
-    const supabase = createClient();
+    const supabase = await createClient();
     await supabase.auth.signOut();
     redirect("/");
   }
@@ -114,7 +151,7 @@ export default async function MyPage({
   async function saveProfile(formData: FormData) {
     "use server";
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user }
     } = await supabase.auth.getUser();
@@ -154,9 +191,7 @@ export default async function MyPage({
       </header>
 
       <section className="section">
-        {searchParams?.error === "invalid_whatsapp" ? (
-          <p className="notice">{copy.invalidWa}</p>
-        ) : null}
+        {searchParams?.error === "invalid_whatsapp" ? <p className="notice">{copy.invalidWa}</p> : null}
 
         <form action={signOut}>
           <button className="button" type="submit">
@@ -168,12 +203,7 @@ export default async function MyPage({
           <strong>{copy.profile}</strong>
           <p className="muted">{copy.profileGuide}</p>
           <form className="section" action={saveProfile}>
-            <input
-              className="input"
-              name="display_name"
-              placeholder={copy.displayName}
-              defaultValue={myProfile?.display_name ?? ""}
-            />
+            <input className="input" name="display_name" placeholder={copy.displayName} defaultValue={myProfile?.display_name ?? ""} />
             <label className="muted">{copy.step1}</label>
             <select className="select" name="country_code" defaultValue={split.countryCode}>
               <option value="+54">Argentina (+54)</option>
@@ -195,11 +225,10 @@ export default async function MyPage({
         <article className="card">
           <strong>{copy.myPosts}</strong>
           {(myPosts ?? []).length === 0 ? <p className="muted">{copy.noPost}</p> : null}
-          {(myPosts ?? []).map((post) => {
-            const startHHMM = getCordobaHHMM(post.start_at);
-            const isExpired = new Date(post.start_at).getTime() + 30 * 60 * 1000 < Date.now();
-            const label = post.status === "closed" ? copy.hostClosed : isExpired ? copy.expired : copy.open;
 
+          {upcomingHost.length > 0 ? <h3 className="subhead">{copy.upcoming}</h3> : null}
+          {upcomingHost.map((post) => {
+            const startHHMM = getCordobaHHMM(post.start_at);
             return (
               <article key={post.id} className="card">
                 <div className="row">
@@ -207,42 +236,73 @@ export default async function MyPage({
                     {formatCordobaDate(post.start_at, dateLocale)} · {formatSlotRange(startHHMM)}
                     {post.court_no ? ` · ${lang === "ko" ? `${post.court_no}번코트` : `Cancha ${post.court_no}`}` : ""}
                   </span>
-                  <span className={`status-chip ${label === "모집중" ? "open" : "done"}`}>{label}</span>
+                  <span className={`status-chip ${post.label === copy.open ? "open" : "done"}`}>{post.label}</span>
                 </div>
+                <p className="muted">
+                  {copy.players}: {post.players}/{post.needed}
+                </p>
                 <Link className="link-btn" href={`/post/${post.id}`}>
                   {copy.detail}
                 </Link>
               </article>
             );
           })}
+
+          {pastHost.length > 0 ? (
+            <details className="card compact-block">
+              <summary>{copy.past}</summary>
+              {pastHost.map((post) => {
+                const startHHMM = getCordobaHHMM(post.start_at);
+                return (
+                  <p className="compact-line" key={post.id}>
+                    {formatCordobaDate(post.start_at, dateLocale)} | {formatSlotRange(startHHMM)} | {post.court_no ? (lang === "ko" ? `${post.court_no}번코트` : `Cancha ${post.court_no}`) : "-"} | {post.label} | {copy.players} {post.players}/{post.needed}
+                  </p>
+                );
+              })}
+            </details>
+          ) : null}
         </article>
 
         <article className="card">
           <strong>{copy.myJoins}</strong>
           {(myJoins ?? []).length === 0 ? <p className="muted">{copy.noJoin}</p> : null}
-          {(myJoins ?? []).map((join) => {
-            const relatedPost = Array.isArray(join.posts) ? join.posts[0] : join.posts;
-            const when = relatedPost?.start_at ?? join.created_at;
-            const isExpired =
-              relatedPost?.start_at ? new Date(relatedPost.start_at).getTime() + 30 * 60 * 1000 < Date.now() : false;
-            const isClosed = relatedPost?.status === "closed";
-            const label = isClosed ? copy.hostClosed : isExpired ? copy.expired : copy.ongoing;
-            const slot = relatedPost?.start_at ? formatSlotRange(getCordobaHHMM(relatedPost.start_at)) : "";
+
+          {upcomingJoin.length > 0 ? <h3 className="subhead">{copy.upcoming}</h3> : null}
+          {upcomingJoin.map((join) => {
+            const slot = join.relatedPost?.start_at ? formatSlotRange(getCordobaHHMM(join.relatedPost.start_at)) : "";
 
             return (
               <article key={join.id} className="card">
                 <div className="row">
                   <span className="muted">
-                    {formatCordobaDate(when, dateLocale)} {slot ? `· ${slot}` : ""}
+                    {formatCordobaDate(join.when, dateLocale)} {slot ? `· ${slot}` : ""}
+                    {join.relatedPost?.court_no ? ` · ${lang === "ko" ? `${join.relatedPost.court_no}번코트` : `Cancha ${join.relatedPost.court_no}`}` : ""}
                   </span>
-                  <span className={`status-chip ${label === "진행중" ? "open" : "done"}`}>{label}</span>
+                  <span className={`status-chip ${join.label === copy.ongoing ? "open" : "done"}`}>{join.label}</span>
                 </div>
+                <p className="muted">
+                  {copy.players}: {join.players}/{join.relatedPost?.needed ?? "-"}
+                </p>
                 <Link className="link-btn" href={`/post/${join.post_id}`}>
                   {copy.detail}
                 </Link>
               </article>
             );
           })}
+
+          {pastJoin.length > 0 ? (
+            <details className="card compact-block">
+              <summary>{copy.past}</summary>
+              {pastJoin.map((join) => {
+                const slot = join.relatedPost?.start_at ? formatSlotRange(getCordobaHHMM(join.relatedPost.start_at)) : "";
+                return (
+                  <p className="compact-line" key={join.id}>
+                    {formatCordobaDate(join.when, dateLocale)} | {slot || "-"} | {join.relatedPost?.court_no ? `${lang === "ko" ? `${join.relatedPost.court_no}번코트` : `Cancha ${join.relatedPost.court_no}`}` : "-"} | {join.label} | {copy.players} {join.players}/{join.relatedPost?.needed ?? "-"}
+                  </p>
+                );
+              })}
+            </details>
+          ) : null}
         </article>
       </section>
 

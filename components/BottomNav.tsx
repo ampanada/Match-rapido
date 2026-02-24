@@ -10,6 +10,7 @@ export default function BottomNav() {
   const pathname = usePathname();
   const [lang, setLang] = useState<"es" | "ko">("es");
   const [pendingCount, setPendingCount] = useState(0);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     setLang(getClientLangFromCookie(document.cookie));
@@ -48,9 +49,13 @@ export default function BottomNav() {
 
       if (!user) {
         if (mounted) {
+          setUserId(null);
           setPendingCount(0);
         }
         return;
+      }
+      if (mounted) {
+        setUserId(user.id);
       }
 
       await refreshPendingHostRequests(user.id);
@@ -88,18 +93,29 @@ export default function BottomNav() {
     };
   }, []);
 
-  const MENUS =
-    lang === "ko"
+  const MENUS = userId
+    ? lang === "ko"
       ? [
           { href: "/", label: "홈" },
           { href: "/post", label: "글쓰기" },
-          { href: "/my", label: "내정보" },
+          { href: "/results", label: "결과" },
+          { href: `/u/${userId}`, label: "프로필" }
+        ]
+      : [
+          { href: "/", label: "Inicio" },
+          { href: "/post", label: "Publicar" },
+          { href: "/results", label: "Resultados" },
+          { href: `/u/${userId}`, label: "Perfil" }
+        ]
+    : lang === "ko"
+      ? [
+          { href: "/", label: "홈" },
+          { href: "/post", label: "글쓰기" },
           { href: "/login", label: "로그인" }
         ]
       : [
           { href: "/", label: "Inicio" },
           { href: "/post", label: "Publicar" },
-          { href: "/my", label: "Mi cuenta" },
           { href: "/login", label: "Acceso" }
         ];
 
@@ -108,7 +124,7 @@ export default function BottomNav() {
       {MENUS.map((menu) => {
         const active =
           menu.href === "/" ? pathname === "/" : pathname === menu.href || pathname.startsWith(`${menu.href}/`);
-        const showPendingBadge = menu.href === "/my" && pendingCount > 0;
+        const showPendingBadge = userId !== null && menu.href === `/u/${userId}` && pendingCount > 0;
 
         return (
           <Link key={menu.href} className={`nav-item${active ? " active" : ""}`} href={menu.href}>

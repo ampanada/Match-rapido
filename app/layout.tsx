@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const lang = getServerLang();
+  const lang = await getServerLang();
 
   return (
     <html lang={lang}>

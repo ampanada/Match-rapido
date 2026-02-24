@@ -11,7 +11,7 @@ export default async function PostPage({
 }: {
   searchParams?: { error?: string; at?: string; start?: string };
 }) {
-  const lang = getServerLang();
+  const lang = await getServerLang();
   const copy =
     lang === "ko"
         ? {
@@ -39,7 +39,7 @@ export default async function PostPage({
           submit: "Publicar"
         };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user }
   } = await supabase.auth.getUser();
@@ -51,7 +51,7 @@ export default async function PostPage({
   async function createPost(formData: FormData) {
     "use server";
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user }
     } = await supabase.auth.getUser();
