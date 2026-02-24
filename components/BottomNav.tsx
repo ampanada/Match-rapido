@@ -99,13 +99,13 @@ export default function BottomNav() {
           { href: "/", label: "홈" },
           { href: "/post", label: "글쓰기" },
           { href: "/results", label: "결과" },
-          { href: `/u/${userId}`, label: "프로필" }
+          { href: "/u", label: "프로필" }
         ]
       : [
           { href: "/", label: "Inicio" },
           { href: "/post", label: "Publicar" },
           { href: "/results", label: "Resultados" },
-          { href: `/u/${userId}`, label: "Perfil" }
+          { href: "/u", label: "Perfil" }
         ]
     : lang === "ko"
       ? [
@@ -124,7 +124,7 @@ export default function BottomNav() {
       {MENUS.map((menu) => {
         const active =
           menu.href === "/" ? pathname === "/" : pathname === menu.href || pathname.startsWith(`${menu.href}/`);
-        const showPendingBadge = userId !== null && menu.href === `/u/${userId}` && pendingCount > 0;
+        const showPendingBadge = userId !== null && menu.href === "/u" && pendingCount > 0;
 
         return (
           <Link key={menu.href} className={`nav-item${active ? " active" : ""}`} href={menu.href}>
