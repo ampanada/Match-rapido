@@ -10,9 +10,10 @@ export default async function EditPostPage({
   params,
   searchParams
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
   searchParams?: { error?: string; message?: string };
 }) {
+  const { id } = await params;
   const lang = await getServerLang();
   const copy =
     lang === "ko"
@@ -51,16 +52,16 @@ export default async function EditPostPage({
   const { data: post } = await supabase
     .from("posts")
     .select("id,host_id,start_at,format,level,needed,court_no,note,status")
-    .eq("id", params.id)
+    .eq("id", id)
     .maybeSingle();
 
   if (!post || post.host_id !== user.id) {
-    redirect(`/post/${params.id}`);
+    redirect(`/post/${id}`);
   }
 
   const isExpired = new Date(post.start_at).getTime() + 30 * 60 * 1000 < Date.now();
   if (post.status !== "open" || isExpired) {
-    redirect(`/post/${params.id}`);
+    redirect(`/post/${id}`);
   }
 
   async function updatePost(formData: FormData) {
@@ -79,16 +80,16 @@ export default async function EditPostPage({
       const { data: current } = await supabase
         .from("posts")
         .select("id,host_id,status,start_at")
-        .eq("id", params.id)
+        .eq("id", id)
         .maybeSingle();
 
       if (!current || current.host_id !== user.id) {
-        redirect(`/post/${params.id}`);
+        redirect(`/post/${id}`);
       }
 
       const expired = new Date(current.start_at).getTime() + 30 * 60 * 1000 < Date.now();
       if (current.status !== "open" || expired) {
-        redirect(`/post/${params.id}`);
+        redirect(`/post/${id}`);
       }
 
       const date = String(formData.get("date") || "");
@@ -101,16 +102,16 @@ export default async function EditPostPage({
       const note = String(formData.get("note") || "").trim();
 
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !isValidSlotStart(slot)) {
-        redirect(`/post/${params.id}/edit?error=invalid`);
+        redirect(`/post/${id}/edit?error=invalid`);
       }
 
       const startAtIso = zonedDateTimeToIso(date, slot);
       if (new Date(startAtIso).getTime() < Date.now()) {
-        redirect(`/post/${params.id}/edit?error=past`);
+        redirect(`/post/${id}/edit?error=past`);
       }
 
       if (courtNo !== null && (!Number.isInteger(courtNo) || courtNo < 1 || courtNo > 6)) {
-        redirect(`/post/${params.id}/edit?error=invalid`);
+        redirect(`/post/${id}/edit?error=invalid`);
       }
 
       const { data: duplicated } = await supabase
@@ -118,11 +119,11 @@ export default async function EditPostPage({
         .select("id")
         .eq("host_id", user.id)
         .eq("start_at", startAtIso)
-        .neq("id", params.id)
+        .neq("id", id)
         .limit(1);
 
       if ((duplicated ?? []).length > 0) {
-        redirect(`/post/${params.id}/edit?error=duplicate`);
+        redirect(`/post/${id}/edit?error=duplicate`);
       }
 
       const { error } = await supabase
@@ -135,17 +136,17 @@ export default async function EditPostPage({
           court_no: courtNo,
           note
         })
-        .eq("id", params.id)
+        .eq("id", id)
         .eq("host_id", user.id);
 
       if (error) {
-        redirect(`/post/${params.id}/edit?error=failed&message=${encodeURIComponent(error.message)}`);
+        redirect(`/post/${id}/edit?error=failed&message=${encodeURIComponent(error.message)}`);
       }
 
-      redirect(`/post/${params.id}`);
+      redirect(`/post/${id}`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "unknown";
-      redirect(`/post/${params.id}/edit?error=failed&message=${encodeURIComponent(msg)}`);
+      redirect(`/post/${id}/edit?error=failed&message=${encodeURIComponent(msg)}`);
     }
   }
 

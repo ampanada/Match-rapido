@@ -18,9 +18,10 @@ export default async function PostDetailPage({
   params,
   searchParams
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
   searchParams?: { createdAt?: string };
 }) {
+  const { id } = await params;
   const lang = await getServerLang();
   const copy =
     lang === "ko"
@@ -98,11 +99,11 @@ export default async function PostDetailPage({
   const { data: post } = await supabase
     .from("posts")
     .select("id,host_id,start_at,format,level,needed,court_no,note,status")
-    .eq("id", params.id)
+    .eq("id", id)
     .maybeSingle();
 
   if (!post) {
-    redirect(`/post?error=not_found&id=${encodeURIComponent(params.id)}`);
+    redirect(`/post?error=not_found&id=${encodeURIComponent(id)}`);
   }
 
   const [{ data: hostProfile }, { data: joins }] = await Promise.all([
@@ -153,14 +154,14 @@ export default async function PostDetailPage({
       redirect("/login");
     }
 
-    const { data } = await supabase.from("posts").select("host_id").eq("id", params.id).single();
+    const { data } = await supabase.from("posts").select("host_id").eq("id", id).single();
 
     if (!data || data.host_id !== user.id) {
-      redirect(`/post/${params.id}`);
+      redirect(`/post/${id}`);
     }
 
-    await supabase.from("posts").update({ status: "closed" }).eq("id", params.id);
-    redirect(`/post/${params.id}`);
+    await supabase.from("posts").update({ status: "closed" }).eq("id", id);
+    redirect(`/post/${id}`);
   }
 
   async function approveJoin(formData: FormData) {
@@ -168,7 +169,7 @@ export default async function PostDetailPage({
 
     const joinId = String(formData.get("join_id") || "");
     if (!joinId) {
-      redirect(`/post/${params.id}`);
+      redirect(`/post/${id}`);
     }
 
     const supabase = await createClient();
@@ -180,26 +181,26 @@ export default async function PostDetailPage({
       redirect("/login");
     }
 
-    const { data: postData } = await supabase.from("posts").select("id,host_id").eq("id", params.id).maybeSingle();
+    const { data: postData } = await supabase.from("posts").select("id,host_id").eq("id", id).maybeSingle();
     if (!postData || postData.host_id !== user.id) {
-      redirect(`/post/${params.id}`);
+      redirect(`/post/${id}`);
     }
 
     const { data: postWithJoins } = await supabase
       .from("posts")
       .select("needed,joins(id,status)")
-      .eq("id", params.id)
+      .eq("id", id)
       .maybeSingle();
 
     const approvedCount = postWithJoins?.joins?.filter((join: any) => join.status === "approved").length ?? 0;
     const players = approvedCount + 1;
 
     if (players >= (postWithJoins?.needed ?? 0)) {
-      redirect(`/post/${params.id}`);
+      redirect(`/post/${id}`);
     }
 
-    await supabase.from("joins").update({ status: "approved" }).eq("id", joinId).eq("post_id", params.id);
-    redirect(`/post/${params.id}`);
+    await supabase.from("joins").update({ status: "approved" }).eq("id", joinId).eq("post_id", id);
+    redirect(`/post/${id}`);
   }
 
   async function createResult(formData: FormData) {
@@ -209,7 +210,7 @@ export default async function PostDetailPage({
     const score = String(formData.get("score") || "").trim();
 
     if (!winnerId || !isValidResultScore(score)) {
-      redirect(`/post/${params.id}`);
+      redirect(`/post/${id}`);
     }
 
     const supabase = await createClient();
@@ -224,31 +225,31 @@ export default async function PostDetailPage({
     const { data: latestPost } = await supabase
       .from("posts")
       .select("id,host_id,format,status,joins(user_id,status)")
-      .eq("id", params.id)
+      .eq("id", id)
       .maybeSingle();
 
     if (!latestPost || latestPost.format !== "single") {
-      redirect(`/post/${params.id}`);
+      redirect(`/post/${id}`);
     }
 
     const approved = latestPost.joins?.filter((join: any) => join.status === "approved") ?? [];
     if (approved.length !== 1) {
-      redirect(`/post/${params.id}`);
+      redirect(`/post/${id}`);
     }
 
     const bId = approved[0].user_id;
     const participants = [latestPost.host_id, bId];
     if (!participants.includes(user.id) || !participants.includes(winnerId)) {
-      redirect(`/post/${params.id}`);
+      redirect(`/post/${id}`);
     }
 
-    const { data: existing } = await supabase.from("match_results").select("id").eq("post_id", params.id).maybeSingle();
+    const { data: existing } = await supabase.from("match_results").select("id").eq("post_id", id).maybeSingle();
     if (existing) {
-      redirect(`/post/${params.id}`);
+      redirect(`/post/${id}`);
     }
 
     await supabase.from("match_results").insert({
-      post_id: params.id,
+      post_id: id,
       player_a: latestPost.host_id,
       player_b: bId,
       winner_id: winnerId,
@@ -257,7 +258,7 @@ export default async function PostDetailPage({
       submitted_by: user.id
     });
 
-    redirect(`/post/${params.id}`);
+    redirect(`/post/${id}`);
   }
 
   async function confirmResult() {
@@ -275,10 +276,10 @@ export default async function PostDetailPage({
     await supabase
       .from("match_results")
       .update({ status: "confirmed", confirmed_at: new Date().toISOString() })
-      .eq("post_id", params.id)
+      .eq("post_id", id)
       .eq("status", "pending");
 
-    redirect(`/post/${params.id}`);
+    redirect(`/post/${id}`);
   }
 
   async function cancelResult() {
@@ -293,8 +294,8 @@ export default async function PostDetailPage({
       redirect("/login");
     }
 
-    await supabase.from("match_results").update({ status: "cancelled" }).eq("post_id", params.id).eq("status", "pending");
-    redirect(`/post/${params.id}`);
+    await supabase.from("match_results").update({ status: "cancelled" }).eq("post_id", id).eq("status", "pending");
+    redirect(`/post/${id}`);
   }
 
   const hostName = hostProfile?.display_name || (lang === "ko" ? "호스트" : "Host");

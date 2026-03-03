@@ -4,7 +4,8 @@ import { formatCordobaDate, formatSlotRange, getCordobaHHMM } from "@/lib/consta
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 
-export default async function PublicProfilePage({ params }: { params: { id: string } }) {
+export default async function PublicProfilePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const lang = await getServerLang();
   const copy =
     lang === "ko"
@@ -45,7 +46,7 @@ export default async function PublicProfilePage({ params }: { params: { id: stri
   } = await supabase.auth.getUser();
 
   // Self-heal missing profile row for logged-in user to avoid /u/[id] 404.
-  if (user?.id === params.id) {
+  if (user?.id === id) {
     await supabase.from("profiles").upsert(
       {
         id: user.id,
@@ -59,12 +60,12 @@ export default async function PublicProfilePage({ params }: { params: { id: stri
     supabase
       .from("profiles")
       .select("id,display_name,wins,losses,total_matches,current_streak,best_streak")
-      .eq("id", params.id)
+      .eq("id", id)
       .maybeSingle(),
     supabase
       .from("posts")
       .select("level")
-      .eq("host_id", params.id)
+      .eq("host_id", id)
       .order("start_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
@@ -74,13 +75,13 @@ export default async function PublicProfilePage({ params }: { params: { id: stri
         "id,player_a,player_b,winner_id,score,confirmed_at,posts!match_results_post_id_fkey(start_at,court_no),player_a_profile:profiles!match_results_player_a_fkey(id,display_name),player_b_profile:profiles!match_results_player_b_fkey(id,display_name)"
       )
       .eq("status", "confirmed")
-      .or(`player_a.eq.${params.id},player_b.eq.${params.id}`)
+      .or(`player_a.eq.${id},player_b.eq.${id}`)
       .order("confirmed_at", { ascending: false })
       .limit(10)
   ]);
 
   const safeProfile = profile ?? {
-    id: params.id,
+    id: id,
     display_name: lang === "ko" ? "사용자" : "Jugador",
     wins: 0,
     losses: 0,
@@ -95,7 +96,7 @@ export default async function PublicProfilePage({ params }: { params: { id: stri
     <main className="shell">
       <header className="top">
         <h1>{safeProfile.display_name || copy.title}</h1>
-        {user?.id === params.id ? (
+        {user?.id === id ? (
           <Link className="link-btn" href="/my">
             {copy.settings}
           </Link>
@@ -131,9 +132,9 @@ export default async function PublicProfilePage({ params }: { params: { id: stri
           const playerA = Array.isArray(result.player_a_profile) ? result.player_a_profile[0] : result.player_a_profile;
           const playerB = Array.isArray(result.player_b_profile) ? result.player_b_profile[0] : result.player_b_profile;
           const post = Array.isArray(result.posts) ? result.posts[0] : result.posts;
-          const isWin = result.winner_id === params.id;
+          const isWin = result.winner_id === id;
           const opponentName =
-            result.player_a === params.id
+            result.player_a === id
               ? playerB?.display_name || (lang === "ko" ? "상대" : "Rival")
               : playerA?.display_name || (lang === "ko" ? "상대" : "Rival");
 
