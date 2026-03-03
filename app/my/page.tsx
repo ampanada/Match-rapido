@@ -42,6 +42,7 @@ export default async function MyPage({
           step2: "2) WhatsApp 번호 입력",
           saveFormat: "저장 형식 예시: +5491122334455",
           save: "저장",
+          editProfile: "수정하기",
           savePending: "저장 중...",
           logoutPending: "로그아웃 중...",
           myPosts: "내가 올린 매치",
@@ -81,6 +82,7 @@ export default async function MyPage({
           step2: "2) Ingresa numero de WhatsApp",
           saveFormat: "Formato final: +5491122334455",
           save: "Guardar",
+          editProfile: "Editar",
           savePending: "Guardando...",
           logoutPending: "Saliendo...",
           myPosts: "Mis publicaciones",
@@ -299,7 +301,11 @@ export default async function MyPage({
               </div>
             </div>
             <p className="muted">{copy.saveFormat}</p>
-            <SubmitButton idleLabel={copy.save} pendingLabel={copy.savePending} className="button button-outline" />
+            <SubmitButton
+              idleLabel={myProfile?.whatsapp ? copy.editProfile : copy.save}
+              pendingLabel={copy.savePending}
+              className="button button-outline"
+            />
           </form>
         </article>
 
@@ -334,6 +340,7 @@ export default async function MyPage({
                   <p className="muted">
                     {copy.players}: {post.players}/{post.needed}
                   </p>
+                  {post.status === "closed" ? <p className="muted">{copy.closeReason}: {copy.closeManual}</p> : null}
                   <div className="actions">
                     <Link className="link-btn" href={`/post/${post.id}`}>
                       {copy.detail}

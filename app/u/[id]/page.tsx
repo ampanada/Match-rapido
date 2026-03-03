@@ -22,7 +22,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           win: "승",
           loss: "패",
           court: "코트",
-          settings: "내 설정"
+          settings: "설정"
         }
       : {
           title: "Perfil publico",
@@ -37,7 +37,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           win: "Win",
           loss: "Loss",
           court: "Cancha",
-          settings: "Mis ajustes"
+          settings: "Ajustes"
         };
 
   const supabase = await createClient();
@@ -97,7 +97,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
       <header className="top">
         <h1>{safeProfile.display_name || copy.title}</h1>
         {user?.id === id ? (
-          <Link className="link-btn" href="/my">
+          <Link className="profile-settings-btn" href="/my">
             {copy.settings}
           </Link>
         ) : null}

@@ -286,6 +286,25 @@ a {
   text-underline-offset: 2px;
 }
 
+.profile-settings-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #3a455a;
+  background: #1b1f2a;
+  color: #cfd8ea;
+  font-size: 12px;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.profile-settings-btn:hover {
+  border-color: #5a78a8;
+  background: #202636;
+}
+
 .section {
   display: grid;
   gap: 10px;
