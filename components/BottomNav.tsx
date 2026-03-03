@@ -97,25 +97,21 @@ export default function BottomNav() {
     ? lang === "ko"
       ? [
           { href: "/", label: "홈" },
-          { href: "/post", label: "글쓰기" },
           { href: "/results", label: "결과" },
           { href: "/u", label: "프로필" }
         ]
       : [
           { href: "/", label: "Inicio" },
-          { href: "/post", label: "Publicar" },
           { href: "/results", label: "Resultados" },
           { href: "/u", label: "Perfil" }
         ]
     : lang === "ko"
       ? [
           { href: "/", label: "홈" },
-          { href: "/post", label: "글쓰기" },
           { href: "/login", label: "로그인" }
         ]
       : [
           { href: "/", label: "Inicio" },
-          { href: "/post", label: "Publicar" },
           { href: "/login", label: "Acceso" }
         ];
 

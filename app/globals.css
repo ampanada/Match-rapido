@@ -102,6 +102,17 @@ a {
   font-size: 12px;
 }
 
+.push-write-btn {
+  border: 1px solid #2b4d8e;
+  border-radius: 999px;
+  background: #1f2634;
+  color: #dbe7ff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
 .filters {
   display: grid;
   grid-template-columns: 1fr 1fr;

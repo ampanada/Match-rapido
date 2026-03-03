@@ -4,6 +4,7 @@ import PostCard from "@/components/PostCard";
 import { getCordobaDateString, getCordobaDayBoundsIso, getCordobaHHMM, getCordobaWeekday } from "@/lib/constants/slots";
 import { getServerLang } from "@/lib/i18n-server";
 import { createClient } from "@/lib/supabase/server";
+import Link from "next/link";
 
 function relativeTimeLabel(value: string, lang: "es" | "ko") {
   const now = Date.now();
@@ -42,6 +43,7 @@ export default async function Home({
       ? {
           title: "빠른매칭",
           subtitle: "로그인 없이 둘러보기 가능",
+          create: "+ 글쓰기",
           activityTitle: "최근 활동",
           activityEmpty: "최근 활동이 없습니다.",
           loadError: "목록을 불러오지 못했습니다.",
@@ -50,6 +52,7 @@ export default async function Home({
       : {
           title: "Match rapido",
           subtitle: "Se puede ver sin iniciar sesion",
+          create: "+ Publicar",
           activityTitle: "Actividad reciente",
           activityEmpty: "No hay actividad reciente.",
           loadError: "No se pudo cargar la lista.",
@@ -123,8 +126,13 @@ export default async function Home({
   return (
     <main className="shell">
       <header className="top">
-        <h1>{copy.title}</h1>
-        <p>{copy.subtitle}</p>
+        <div>
+          <h1>{copy.title}</h1>
+          <p>{copy.subtitle}</p>
+        </div>
+        <Link className="push-write-btn" href="/post">
+          {copy.create}
+        </Link>
       </header>
 
       <section className="activity-list">
