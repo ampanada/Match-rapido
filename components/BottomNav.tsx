@@ -11,10 +11,15 @@ export default function BottomNav() {
   const [lang, setLang] = useState<"es" | "ko">("es");
   const [pendingCount, setPendingCount] = useState(0);
   const [userId, setUserId] = useState<string | null>(null);
+  const [switchingHref, setSwitchingHref] = useState<string | null>(null);
 
   useEffect(() => {
     setLang(getClientLangFromCookie(document.cookie));
   }, []);
+
+  useEffect(() => {
+    setSwitchingHref(null);
+  }, [pathname]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -123,7 +128,12 @@ export default function BottomNav() {
         const showPendingBadge = userId !== null && menu.href === "/u" && pendingCount > 0;
 
         return (
-          <Link key={menu.href} className={`nav-item${active ? " active" : ""}`} href={menu.href}>
+          <Link
+            key={menu.href}
+            className={`nav-item${active ? " active" : ""}${switchingHref === menu.href ? " switching" : ""}`}
+            href={menu.href}
+            onClick={() => setSwitchingHref(menu.href)}
+          >
             {menu.label}
             {showPendingBadge ? <span className="nav-badge">{pendingCount}</span> : null}
           </Link>

@@ -31,6 +31,7 @@ a {
   min-height: 100dvh;
   margin: 0 auto;
   padding: 94px 14px 84px;
+  animation: page-in 0.28s ease both;
 }
 
 .lang-tabs-wrap {
@@ -62,6 +63,25 @@ a {
   padding: 8px 10px;
   font-size: 12px;
   line-height: 1.35;
+}
+
+.route-transition {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  width: min(100%, 420px);
+  height: 2px;
+  transform: translateX(-50%) scaleX(0);
+  transform-origin: left;
+  background: linear-gradient(90deg, #4f8cff, #7aa8ff, #4f8cff);
+  opacity: 0;
+  z-index: 40;
+  transition: transform 0.32s ease, opacity 0.24s ease;
+}
+
+.route-transition.show {
+  transform: translateX(-50%) scaleX(1);
+  opacity: 1;
 }
 
 .lang-tabs {
@@ -377,6 +397,10 @@ a {
   transform: translateY(-1px);
 }
 
+.nav-item.switching {
+  animation: nav-switch 0.32s ease;
+}
+
 .nav-item.active {
   color: #fff;
   background: #1f2634;
@@ -430,6 +454,17 @@ a {
   }
 }
 
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes busy-shift {
   0% {
     background-position: 0% 50%;
@@ -446,6 +481,17 @@ a {
   }
   50% {
     box-shadow: 0 0 0 5px rgba(79, 140, 255, 0.12);
+  }
+}
+
+@keyframes nav-switch {
+  0% {
+    transform: scale(0.96);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
   }
 }
 
