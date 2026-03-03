@@ -1,8 +1,20 @@
 import BottomNav from "@/components/BottomNav";
+import ProfileAvatar from "@/components/ProfileAvatar";
 import { getServerLang } from "@/lib/i18n-server";
 import { formatCordobaDate, formatSlotRange, getCordobaHHMM } from "@/lib/constants/slots";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
+
+type RivalStat = {
+  rivalId: string;
+  rivalName: string;
+  wins: number;
+  losses: number;
+  total: number;
+  winRate: number;
+  streakWinnerId: string | null;
+  streakCount: number;
+};
 
 export default async function PublicProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -11,8 +23,9 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
     lang === "ko"
       ? {
           title: "공개 프로필",
-          tier: "레벨/티어",
           total: "총 경기",
+          wins: "승리",
+          losses: "패배",
           wl: "승/패",
           winRate: "승률",
           streak: "현재 연승",
@@ -22,12 +35,19 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           win: "승",
           loss: "패",
           court: "코트",
+          unknownCourt: "코트 미지정",
+          score: "결과",
+          rivals: "상대전적 TOP 5",
+          rivalsEmpty: "상대전적 데이터가 아직 없습니다.",
+          rivalsTotal: "전적",
+          rivalsRate: "승률",
           settings: "설정"
         }
       : {
           title: "Perfil publico",
-          tier: "Nivel/Tier",
           total: "Total partidos",
+          wins: "Victorias",
+          losses: "Derrotas",
           wl: "Victorias/Derrotas",
           winRate: "Porcentaje de victoria",
           streak: "Racha actual",
@@ -39,6 +59,10 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           court: "Cancha",
           unknownCourt: "Cancha sin definir",
           score: "Resultado",
+          rivals: "Head to Head TOP 5",
+          rivalsEmpty: "Aun no hay datos de rivales.",
+          rivalsTotal: "Historial",
+          rivalsRate: "Porcentaje",
           settings: "Ajustes"
         };
 
@@ -47,7 +71,6 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
     data: { user }
   } = await supabase.auth.getUser();
 
-  // Self-heal missing profile row for logged-in user to avoid /u/[id] 404.
   if (user?.id === id) {
     await supabase.from("profiles").upsert(
       {
@@ -58,18 +81,11 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
     );
   }
 
-  const [{ data: profile }, { data: latestHostPost }, { data: recentResults }] = await Promise.all([
+  const [{ data: profile }, { data: recentResults }, { data: rivalRows }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("id,display_name,wins,losses,total_matches,current_streak,best_streak")
+      .select("id,display_name,avatar_url,wins,losses,total_matches,current_streak,best_streak")
       .eq("id", id)
-      .maybeSingle(),
-    supabase
-      .from("posts")
-      .select("level")
-      .eq("host_id", id)
-      .order("start_at", { ascending: false })
-      .limit(1)
       .maybeSingle(),
     supabase
       .from("match_results")
@@ -79,12 +95,70 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
       .eq("status", "confirmed")
       .or(`player_a.eq.${id},player_b.eq.${id}`)
       .order("confirmed_at", { ascending: false })
-      .limit(10)
+      .limit(10),
+    supabase
+      .from("match_results")
+      .select("player_a,player_b,winner_id,confirmed_at")
+      .eq("status", "confirmed")
+      .or(`player_a.eq.${id},player_b.eq.${id}`)
+      .order("confirmed_at", { ascending: false })
+      .limit(500)
   ]);
+
+  const rivalStats = new Map<string, { wins: number; losses: number; total: number; winners: string[] }>();
+
+  for (const row of rivalRows ?? []) {
+    const opponentId = row.player_a === id ? row.player_b : row.player_a;
+    const entry = rivalStats.get(opponentId) ?? { wins: 0, losses: 0, total: 0, winners: [] };
+    entry.total += 1;
+    if (row.winner_id === id) {
+      entry.wins += 1;
+    } else {
+      entry.losses += 1;
+    }
+    entry.winners.push(row.winner_id);
+    rivalStats.set(opponentId, entry);
+  }
+
+  const rivalIds = Array.from(rivalStats.keys());
+  const { data: rivalProfiles } =
+    rivalIds.length > 0
+      ? await supabase.from("profiles").select("id,display_name").in("id", rivalIds)
+      : { data: [] as { id: string; display_name: string | null }[] };
+
+  const rivalNameMap = new Map((rivalProfiles ?? []).map((p) => [p.id, p.display_name]));
+
+  const topRivals: RivalStat[] = rivalIds
+    .map((rivalId) => {
+      const stat = rivalStats.get(rivalId)!;
+      const firstWinner = stat.winners[0] ?? null;
+      let streakCount = 0;
+      for (const winnerId of stat.winners) {
+        if (winnerId === firstWinner) {
+          streakCount += 1;
+        } else {
+          break;
+        }
+      }
+
+      return {
+        rivalId,
+        rivalName: rivalNameMap.get(rivalId) || (lang === "ko" ? "상대" : "Rival"),
+        wins: stat.wins,
+        losses: stat.losses,
+        total: stat.total,
+        winRate: stat.total > 0 ? Math.round((stat.wins / stat.total) * 100) : 0,
+        streakWinnerId: firstWinner,
+        streakCount
+      };
+    })
+    .sort((a, b) => (b.total === a.total ? b.wins - a.wins : b.total - a.total))
+    .slice(0, 5);
 
   const safeProfile = profile ?? {
     id: id,
     display_name: lang === "ko" ? "사용자" : "Jugador",
+    avatar_url: null,
     wins: 0,
     losses: 0,
     total_matches: 0,
@@ -97,7 +171,10 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
   return (
     <main className="shell">
       <header className="top">
-        <h1>{safeProfile.display_name || copy.title}</h1>
+        <div className="my-hero-row">
+          <ProfileAvatar name={safeProfile.display_name || copy.title} avatarUrl={safeProfile.avatar_url} size="md" />
+          <h1>{safeProfile.display_name || copy.title}</h1>
+        </div>
         {user?.id === id ? (
           <Link className="profile-settings-btn" href="/my">
             {copy.settings}
@@ -105,25 +182,62 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
         ) : null}
       </header>
 
-      <section className="card">
-        <p>
-          <strong>{copy.tier}:</strong> {latestHostPost?.level ?? "-"}
-        </p>
-        <p>
-          <strong>{copy.total}:</strong> {safeProfile.total_matches}
-        </p>
-        <p>
-          <strong>{copy.wl}:</strong> {safeProfile.wins} / {safeProfile.losses}
-        </p>
-        <p>
-          <strong>{copy.winRate}:</strong> {winRate}%
-        </p>
-        <p>
-          <strong>{copy.streak}:</strong> {safeProfile.current_streak}
-        </p>
-        <p>
-          <strong>{copy.bestStreak}:</strong> {safeProfile.best_streak}
-        </p>
+      <section className="card profile-stat-card">
+        <p className="profile-highlight">{copy.winRate} {winRate}%</p>
+        <div className="profile-stat-grid">
+          <div className="profile-stat-item">
+            <span>{copy.total}</span>
+            <strong>{safeProfile.total_matches}</strong>
+          </div>
+          <div className="profile-stat-item">
+            <span>{copy.wins}</span>
+            <strong className="winner-name">{safeProfile.wins}</strong>
+          </div>
+          <div className="profile-stat-item">
+            <span>{copy.losses}</span>
+            <strong className="loss-name">{safeProfile.losses}</strong>
+          </div>
+          <div className="profile-stat-item">
+            <span>{copy.wl}</span>
+            <strong>
+              {safeProfile.wins} / {safeProfile.losses}
+            </strong>
+          </div>
+          <div className="profile-stat-item">
+            <span>{copy.streak}</span>
+            <strong>{safeProfile.current_streak}</strong>
+          </div>
+          <div className="profile-stat-item">
+            <span>{copy.bestStreak}</span>
+            <strong>{safeProfile.best_streak}</strong>
+          </div>
+        </div>
+      </section>
+
+      <section className="section">
+        <h2 className="subhead">{copy.rivals}</h2>
+        {topRivals.length === 0 ? <p className="notice">{copy.rivalsEmpty}</p> : null}
+        {topRivals.map((item) => (
+          <article className="card" key={item.rivalId}>
+            <p className="result-players">
+              <Link className="link-inline" href={`/u/${item.rivalId}`}>
+                {item.rivalName}
+              </Link>
+            </p>
+            <p className="result-summary">
+              {copy.rivalsTotal}: <strong>{item.wins}</strong>-<strong>{item.losses}</strong> ({item.total})
+            </p>
+            <p className="result-summary">
+              {copy.rivalsRate}: {item.winRate}%
+            </p>
+            {item.total >= 2 && item.streakCount > 1 ? (
+              <p className="muted">
+                {(item.streakWinnerId === id ? (lang === "ko" ? "나" : "Yo") : item.rivalName) +
+                  (lang === "ko" ? ` ${item.streakCount}연승 🔥` : ` lleva ${item.streakCount} seguidas 🔥`)}
+              </p>
+            ) : null}
+          </article>
+        ))}
       </section>
 
       <section className="section">
@@ -148,7 +262,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
                 <span>{post?.court_no ? `${copy.court} ${post.court_no}` : copy.unknownCourt}</span>
               </div>
               <p className="result-players">
-                <strong className={isWin ? "winner-name" : ""}>{isWin ? copy.win : copy.loss}</strong> ·{" "}
+                <strong className={isWin ? "winner-name" : "loss-name"}>{isWin ? copy.win : copy.loss}</strong> ·{" "}
                 <Link className="link-inline" href={result.player_a === id ? `/u/${playerB?.id}` : `/u/${playerA?.id}`}>
                   {opponentName}
                 </Link>

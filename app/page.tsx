@@ -1,7 +1,7 @@
 import BottomNav from "@/components/BottomNav";
 import FiltersBar from "@/components/FiltersBar";
 import PostCard from "@/components/PostCard";
-import { getCordobaDateString, getCordobaDayBoundsIso, getCordobaHHMM, getCordobaWeekday } from "@/lib/constants/slots";
+import { getCordobaDateString, getCordobaHHMM, getCordobaWeekday } from "@/lib/constants/slots";
 import { getServerLang } from "@/lib/i18n-server";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
@@ -33,7 +33,6 @@ export default async function Home({
 }: {
   searchParams: {
     format?: string;
-    level?: string;
     todayOnly?: string;
   };
 }) {
@@ -45,6 +44,7 @@ export default async function Home({
           subtitle: "로그인 없이 둘러보기 가능",
           create: "+ 글쓰기",
           activityTitle: "최근 활동",
+          activityMore: "상세보기",
           activityEmpty: "최근 활동이 없습니다.",
           loadError: "목록을 불러오지 못했습니다.",
           empty: "조건에 맞는 매치가 없습니다."
@@ -54,6 +54,7 @@ export default async function Home({
           subtitle: "Se puede ver sin iniciar sesion",
           create: "+ Publicar",
           activityTitle: "Actividad reciente",
+          activityMore: "Ver detalle",
           activityEmpty: "No hay actividad reciente.",
           loadError: "No se pudo cargar la lista.",
           empty: "No hay partidos para este filtro."
@@ -63,8 +64,6 @@ export default async function Home({
 
   const now = new Date();
   const expiryCutoffIso = new Date(now.getTime() - 30 * 60 * 1000).toISOString();
-  const cordobaToday = getCordobaDateString(now);
-  const todayBounds = getCordobaDayBoundsIso(cordobaToday);
 
   let query = supabase
     .from("posts")
@@ -75,17 +74,8 @@ export default async function Home({
     .gte("start_at", expiryCutoffIso)
     .order("start_at", { ascending: true });
 
-  if (searchParams.todayOnly === "1") {
-    const effectiveStartIso = todayBounds.startIso > expiryCutoffIso ? todayBounds.startIso : expiryCutoffIso;
-    query = query.gte("start_at", effectiveStartIso).lte("start_at", todayBounds.endIso);
-  }
-
   if (searchParams.format) {
     query = query.eq("format", searchParams.format);
-  }
-
-  if (searchParams.level) {
-    query = query.eq("level", searchParams.level);
   }
 
   const [{ data, error }, { data: activityData }] = await Promise.all([
@@ -112,7 +102,12 @@ export default async function Home({
       };
     }) ?? [];
 
-  const groupedByDate = items.reduce<Record<string, typeof items>>((acc, item) => {
+  const filteredItems =
+    searchParams.todayOnly === "1"
+      ? items.filter((item) => item.status === "open" && !item.isExpired && item.joinsCount + 1 < item.needed)
+      : items;
+
+  const groupedByDate = filteredItems.reduce<Record<string, typeof filteredItems>>((acc, item) => {
     const key = getCordobaDateString(new Date(item.start_at));
     if (!acc[key]) {
       acc[key] = [];
@@ -136,7 +131,12 @@ export default async function Home({
       </header>
 
       <section className="activity-list">
-        <h2 className="activity-title">{copy.activityTitle}</h2>
+        <div className="row">
+          <h2 className="activity-title">{copy.activityTitle}</h2>
+          <Link className="link-inline" href="/activity">
+            {copy.activityMore}
+          </Link>
+        </div>
         {(activityData ?? []).length === 0 ? <p className="muted">{copy.activityEmpty}</p> : null}
         {(activityData ?? []).map((item) => (
           <article key={item.id} className="activity-item">
@@ -146,11 +146,11 @@ export default async function Home({
         ))}
       </section>
 
-      <FiltersBar selectedFormat={searchParams.format} selectedLevel={searchParams.level} todayOnly={searchParams.todayOnly === "1"} lang={lang} />
+      <FiltersBar selectedFormat={searchParams.format} todayOnly={searchParams.todayOnly === "1"} lang={lang} />
 
       <section className="section">
         {error ? <p className="notice">{copy.loadError}</p> : null}
-        {!error && items.length === 0 ? <p className="notice">{copy.empty}</p> : null}
+        {!error && filteredItems.length === 0 ? <p className="notice">{copy.empty}</p> : null}
         {groupedEntries.map(([dateKey, posts]) => {
           const firstTime = getCordobaHHMM(posts[0].start_at);
           const lastTime = getCordobaHHMM(posts[posts.length - 1].start_at);

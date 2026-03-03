@@ -1,7 +1,8 @@
 import BottomNav from "@/components/BottomNav";
+import ProfileAvatar from "@/components/ProfileAvatar";
 import SubmitButton from "@/components/SubmitButton";
 import { getServerLang } from "@/lib/i18n-server";
-import { formatCordobaDate, formatSlotRange, getCordobaHHMM } from "@/lib/constants/slots";
+import { formatCordobaDate, formatSlotRange, getCordobaDateString, getCordobaHHMM, getCordobaWeekday } from "@/lib/constants/slots";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -34,10 +35,15 @@ export default async function MyPage({
           title: "내 정보",
           account: "계정",
           invalidWa: "WhatsApp 번호 형식이 올바르지 않습니다. 예: +5491122334455",
+          invalidAvatar: "이미지 파일만 업로드할 수 있습니다. (jpg, png, webp)",
+          avatarTooLarge: "이미지 용량이 너무 큽니다. 최대 5MB",
+          uploadFailed: "프로필 사진 업로드에 실패했습니다.",
           logout: "로그아웃",
           profile: "프로필 / WhatsApp 연동",
           profileGuide: "아르헨티나(+54)가 기본입니다. 필요하면 국가번호를 바꿔서 저장하세요.",
-          displayName: "표시 이름",
+          displayName: "WhatsApp 이름(표시 이름)",
+          avatar: "프로필 사진",
+          avatarGuide: "이미지 업로드 시 결과/프로필 화면에 표시됩니다. (jpg, png, webp)",
           step1: "1) 국가번호 선택",
           step2: "2) WhatsApp 번호 입력",
           saveFormat: "저장 형식 예시: +5491122334455",
@@ -68,16 +74,22 @@ export default async function MyPage({
           myJoins: "내 참여 기록",
           noJoin: "참여한 매치가 없습니다.",
           ongoing: "진행중",
-          players: "참여"
+          players: "참여",
+          morePast: "추가 지난 기록"
         }
       : {
           title: "Mi cuenta",
           account: "Cuenta",
           invalidWa: "Formato invalido. Ejemplo: +5491122334455",
+          invalidAvatar: "Solo se permiten imagenes (jpg/png/webp).",
+          avatarTooLarge: "La imagen es demasiado grande. Maximo 5MB.",
+          uploadFailed: "No se pudo subir la foto de perfil.",
           logout: "Cerrar sesion",
           profile: "Perfil / WhatsApp",
           profileGuide: "El prefijo por defecto es Argentina (+54). Puedes cambiarlo.",
-          displayName: "Nombre visible",
+          displayName: "Nombre de WhatsApp (visible)",
+          avatar: "Foto de perfil",
+          avatarGuide: "Se muestra en resultados/perfil. (jpg, png, webp)",
           step1: "1) Selecciona prefijo",
           step2: "2) Ingresa numero de WhatsApp",
           saveFormat: "Formato final: +5491122334455",
@@ -108,7 +120,8 @@ export default async function MyPage({
           myJoins: "Mis participaciones",
           noJoin: "No participaste en ningun partido.",
           ongoing: "En curso",
-          players: "Jugadores"
+          players: "Jugadores",
+          morePast: "Registros pasados adicionales"
         };
   const dateLocale = lang === "ko" ? "ko-KR" : "es-AR";
 
@@ -123,10 +136,11 @@ export default async function MyPage({
 
   const { data: myProfile } = await supabase
     .from("profiles")
-    .select("display_name,whatsapp")
+    .select("display_name,whatsapp,avatar_url")
     .eq("id", user.id)
     .maybeSingle();
   const split = splitWhatsapp(myProfile?.whatsapp);
+  const profileName = myProfile?.display_name || (split.number ? `WA ${split.number}` : user.email || "User");
 
   const [{ data: myPosts }, { data: myJoins }] = await Promise.all([
     supabase
@@ -137,7 +151,9 @@ export default async function MyPage({
       .limit(50),
     supabase
       .from("joins")
-      .select("id,post_id,created_at,status,posts!joins_post_id_fkey(id,start_at,note,status,court_no,needed,joins(status))")
+      .select(
+        "id,post_id,created_at,status,posts!joins_post_id_fkey(id,start_at,note,status,court_no,needed,host_id,profiles!posts_host_id_fkey(display_name),joins(status,user_id,profiles!joins_user_id_fkey(display_name)))"
+      )
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(50)
@@ -212,6 +228,24 @@ export default async function MyPage({
 
   const upcomingJoin = joinMatches.filter((join) => !join.isPast);
   const pastJoin = joinMatches.filter((join) => join.isPast);
+  const pastHostPreview = pastHost.slice(0, 20);
+  const pastJoinPreview = pastJoin.slice(0, 20);
+  const pastHostGrouped = pastHostPreview.reduce<Record<string, typeof pastHostPreview>>((acc, post) => {
+    const key = getCordobaDateString(new Date(post.start_at));
+    if (!acc[key]) {
+      acc[key] = [];
+    }
+    acc[key].push(post);
+    return acc;
+  }, {});
+  const pastJoinGrouped = pastJoinPreview.reduce<Record<string, typeof pastJoinPreview>>((acc, join) => {
+    const key = getCordobaDateString(new Date(join.when));
+    if (!acc[key]) {
+      acc[key] = [];
+    }
+    acc[key].push(join);
+    return acc;
+  }, {});
   const resultTargets = pastHost.filter(
     (post) => post.format === "single" && post.players >= 2 && post.resultStatus !== "confirmed"
   );
@@ -236,25 +270,58 @@ export default async function MyPage({
       redirect("/login");
     }
 
-    const displayName = String(formData.get("display_name") || "").trim();
-    const countryCode = String(formData.get("country_code") || "+54").trim();
-    const localNumberRaw = String(formData.get("whatsapp_number") || "").trim();
-    const localNumber = localNumberRaw.replace(/[^\d]/g, "");
-    const whatsapp = localNumber ? `${countryCode}${localNumber}` : "";
+      const { data: currentProfile } = await supabase
+        .from("profiles")
+        .select("display_name,avatar_url")
+        .eq("id", user.id)
+        .maybeSingle();
 
-    if (whatsapp && !/^\+\d{8,15}$/.test(whatsapp)) {
-      redirect("/my?error=invalid_whatsapp");
-    }
+      const displayName = String(formData.get("display_name") || "").trim();
+      const countryCode = String(formData.get("country_code") || "+54").trim();
+      const localNumberRaw = String(formData.get("whatsapp_number") || "").trim();
+      const localNumber = localNumberRaw.replace(/[^\d]/g, "");
+      const whatsapp = localNumber ? `${countryCode}${localNumber}` : "";
+      const avatarFile = formData.get("avatar_file");
 
-    await supabase.from("profiles").upsert(
-      {
-        id: user.id,
-        email: user.email ?? "",
-        display_name: displayName || null,
-        whatsapp: whatsapp || null
-      },
-      { onConflict: "id" }
-    );
+      if (whatsapp && !/^\+\d{8,15}$/.test(whatsapp)) {
+        redirect("/my?error=invalid_whatsapp");
+      }
+
+      let avatarUrl: string | null = currentProfile?.avatar_url ?? null;
+      if (avatarFile instanceof File && avatarFile.size > 0) {
+        if (!avatarFile.type.startsWith("image/")) {
+          redirect("/my?error=invalid_avatar");
+        }
+        if (avatarFile.size > 5 * 1024 * 1024) {
+          redirect("/my?error=avatar_too_large");
+        }
+
+        const ext = avatarFile.name.includes(".") ? avatarFile.name.split(".").pop()!.toLowerCase() : "jpg";
+        const safeExt = ["jpg", "jpeg", "png", "webp"].includes(ext) ? ext : "jpg";
+        const filePath = `${user.id}/${Date.now()}.${safeExt}`;
+        const { error: uploadError } = await supabase.storage.from("avatars").upload(filePath, avatarFile, {
+          upsert: true,
+          contentType: avatarFile.type
+        });
+
+        if (uploadError) {
+          redirect("/my?error=upload_failed");
+        }
+
+        const publicUrlData = supabase.storage.from("avatars").getPublicUrl(filePath);
+        avatarUrl = publicUrlData.data.publicUrl;
+      }
+
+      await supabase.from("profiles").upsert(
+        {
+          id: user.id,
+          email: user.email ?? "",
+          display_name: displayName || currentProfile?.display_name || null,
+          whatsapp: whatsapp || null,
+          avatar_url: avatarUrl
+        },
+        { onConflict: "id" }
+      );
 
     redirect("/my");
   }
@@ -263,9 +330,9 @@ export default async function MyPage({
     <main className="shell">
       <header className="card my-hero">
         <div className="my-hero-row">
-          <div className="my-avatar">{(myProfile?.display_name || user.email || "U").slice(0, 1).toUpperCase()}</div>
+          <ProfileAvatar name={profileName} avatarUrl={myProfile?.avatar_url} size="lg" />
           <div>
-            <h1>{myProfile?.display_name || copy.title}</h1>
+            <h1>{profileName || copy.title}</h1>
             <p>{user.email}</p>
           </div>
         </div>
@@ -276,13 +343,19 @@ export default async function MyPage({
 
       <section className="section">
         {searchParams?.error === "invalid_whatsapp" ? <p className="notice">{copy.invalidWa}</p> : null}
+        {searchParams?.error === "invalid_avatar" ? <p className="notice">{copy.invalidAvatar ?? copy.invalidWa}</p> : null}
+        {searchParams?.error === "avatar_too_large" ? <p className="notice">{copy.avatarTooLarge ?? copy.invalidWa}</p> : null}
+        {searchParams?.error === "upload_failed" ? <p className="notice">{copy.uploadFailed}</p> : null}
 
         <article className="card">
           <strong>{copy.account}</strong>
           <strong>{copy.profile}</strong>
           <p className="muted">{copy.profileGuide}</p>
-          <form className="section" action={saveProfile}>
-            <input className="input" name="display_name" placeholder={copy.displayName} defaultValue={myProfile?.display_name ?? ""} />
+          <form className="section" action={saveProfile} encType="multipart/form-data">
+            <input className="input" name="display_name" placeholder={copy.displayName} defaultValue={myProfile?.display_name ?? profileName ?? ""} />
+            <label className="muted">{copy.avatar}</label>
+            <input className="input" type="file" name="avatar_file" accept="image/png,image/jpeg,image/webp" />
+            <p className="muted">{copy.avatarGuide}</p>
             <div className="field-row">
               <div>
                 <label className="muted">{copy.step1}</label>
@@ -359,26 +432,36 @@ export default async function MyPage({
               );
             })}
 
-            {pastHost.length > 0 ? (
-              <details className="card compact-block">
-                <summary>{copy.past}</summary>
-                {pastHost.map((post) => {
+            {pastHost.length > 0 ? <h3 className="subhead">{copy.past}</h3> : null}
+            {Object.entries(pastHostGrouped).map(([dateKey, posts]) => (
+              <div key={`past-host-group-${dateKey}`} className="section">
+                <p className="date-partition">
+                  {lang === "ko"
+                    ? `${Number(dateKey.split("-")[2])}일 ${getCordobaWeekday(dateKey, "ko-KR")}`
+                    : `${Number(dateKey.split("-")[2])} ${getCordobaWeekday(dateKey, "es-AR")}`}
+                </p>
+                {posts.map((post) => {
                   const startHHMM = getCordobaHHMM(post.start_at);
                   return (
-                    <p className="compact-line" key={post.id}>
-                      {formatCordobaDate(post.start_at, dateLocale)} | {formatSlotRange(startHHMM)} |{" "}
-                      {post.court_no ? (lang === "ko" ? `${post.court_no}번코트` : `Cancha ${post.court_no}`) : "-"} |{" "}
-                      {copy.opponent} {post.opponentName} | {copy.closeReason} {post.closeReason} |{" "}
-                      {post.resultStatus === "confirmed"
-                        ? `${copy.confirmedResult}${post.resultScore ? ` (${post.resultScore})` : ""}`
-                        : post.resultStatus === "pending"
-                          ? copy.pendingResult
-                          : "-"}
-                    </p>
+                    <article className="card" key={`past-host-${post.id}`}>
+                      <p className="compact-line">
+                        {formatCordobaDate(post.start_at, dateLocale)} | {formatSlotRange(startHHMM)} |{" "}
+                        {post.court_no ? (lang === "ko" ? `${post.court_no}번코트` : `Cancha ${post.court_no}`) : "-"} | {copy.opponent}{" "}
+                        {post.opponentName} | {copy.closeReason} {post.closeReason}
+                      </p>
+                      <p className="muted">
+                        {post.resultStatus === "confirmed"
+                          ? `${copy.confirmedResult}${post.resultScore ? ` (${post.resultScore})` : ""}`
+                          : post.resultStatus === "pending"
+                            ? copy.pendingResult
+                            : "-"}
+                      </p>
+                    </article>
                   );
                 })}
-              </details>
-            ) : null}
+              </div>
+            ))}
+            {pastHost.length > 20 ? <p className="muted">{copy.morePast}: +{pastHost.length - 20}</p> : null}
           </article>
         ) : (
           <article className="card">
@@ -438,19 +521,31 @@ export default async function MyPage({
             );
           })}
 
-          {pastJoin.length > 0 ? (
-            <details className="card compact-block">
-              <summary>{copy.past}</summary>
-              {pastJoin.map((join) => {
+          {pastJoin.length > 0 ? <h3 className="subhead">{copy.past}</h3> : null}
+          {Object.entries(pastJoinGrouped).map(([dateKey, joins]) => (
+            <div key={`past-join-group-${dateKey}`} className="section">
+              <p className="date-partition">
+                {lang === "ko"
+                  ? `${Number(dateKey.split("-")[2])}일 ${getCordobaWeekday(dateKey, "ko-KR")}`
+                  : `${Number(dateKey.split("-")[2])} ${getCordobaWeekday(dateKey, "es-AR")}`}
+              </p>
+              {joins.map((join) => {
                 const slot = join.relatedPost?.start_at ? formatSlotRange(getCordobaHHMM(join.relatedPost.start_at)) : "";
+                const hostProfile = Array.isArray(join.relatedPost?.profiles) ? join.relatedPost?.profiles[0] : join.relatedPost?.profiles;
+                const opponentName = hostProfile?.display_name || "-";
                 return (
-                  <p className="compact-line" key={join.id}>
-                    {formatCordobaDate(join.when, dateLocale)} | {slot || "-"} | {join.relatedPost?.court_no ? `${lang === "ko" ? `${join.relatedPost.court_no}번코트` : `Cancha ${join.relatedPost.court_no}`}` : "-"} | {join.label} | {copy.players} {join.players}/{join.relatedPost?.needed ?? "-"}
-                  </p>
+                  <article className="card" key={`past-join-${join.id}`}>
+                    <p className="compact-line">
+                      {formatCordobaDate(join.when, dateLocale)} | {slot || "-"} |{" "}
+                      {join.relatedPost?.court_no ? `${lang === "ko" ? `${join.relatedPost.court_no}번코트` : `Cancha ${join.relatedPost.court_no}`}` : "-"} |{" "}
+                      {copy.opponent} {opponentName} | {join.label} | {copy.players} {join.players}/{join.relatedPost?.needed ?? "-"}
+                    </p>
+                  </article>
                 );
               })}
-            </details>
-          ) : null}
+            </div>
+          ))}
+          {pastJoin.length > 20 ? <p className="muted">{copy.morePast}: +{pastJoin.length - 20}</p> : null}
         </article>
       </section>
 

@@ -91,6 +91,7 @@ alter table public.profiles add column if not exists losses int not null default
 alter table public.profiles add column if not exists total_matches int not null default 0;
 alter table public.profiles add column if not exists current_streak int not null default 0;
 alter table public.profiles add column if not exists best_streak int not null default 0;
+alter table public.profiles add column if not exists avatar_url text;
 alter table public.match_results add column if not exists submitted_by uuid references public.profiles(id);
 update public.match_results set submitted_by = player_a where submitted_by is null;
 alter table public.match_results alter column submitted_by set not null;
@@ -253,6 +254,46 @@ create policy "authenticated can insert activity feed"
 on public.activity_feed for insert
 to authenticated
 with check (auth.uid() = user_id);
+
+insert into storage.buckets (id, name, public)
+values ('avatars', 'avatars', true)
+on conflict (id) do nothing;
+
+drop policy if exists "public read avatars" on storage.objects;
+create policy "public read avatars"
+on storage.objects for select
+using (bucket_id = 'avatars');
+
+drop policy if exists "authenticated upload own avatar" on storage.objects;
+create policy "authenticated upload own avatar"
+on storage.objects for insert
+to authenticated
+with check (
+  bucket_id = 'avatars'
+  and auth.uid()::text = (storage.foldername(name))[1]
+);
+
+drop policy if exists "authenticated update own avatar" on storage.objects;
+create policy "authenticated update own avatar"
+on storage.objects for update
+to authenticated
+using (
+  bucket_id = 'avatars'
+  and auth.uid()::text = (storage.foldername(name))[1]
+)
+with check (
+  bucket_id = 'avatars'
+  and auth.uid()::text = (storage.foldername(name))[1]
+);
+
+drop policy if exists "authenticated delete own avatar" on storage.objects;
+create policy "authenticated delete own avatar"
+on storage.objects for delete
+to authenticated
+using (
+  bucket_id = 'avatars'
+  and auth.uid()::text = (storage.foldername(name))[1]
+);
 
 create or replace function public.validate_match_result()
 returns trigger

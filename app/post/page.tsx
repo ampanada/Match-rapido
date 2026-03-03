@@ -1,7 +1,6 @@
 import BottomNav from "@/components/BottomNav";
 import PostFormatNeededFields from "@/components/PostFormatNeededFields";
 import SubmitButton from "@/components/SubmitButton";
-import { LEVEL_OPTIONS, levelLabel } from "@/lib/constants/filters";
 import { getServerLang } from "@/lib/i18n-server";
 import { SLOT_START_TIMES, formatSlotRange, getCordobaDateString, isValidSlotStart, zonedDateTimeToIso } from "@/lib/constants/slots";
 import { createClient } from "@/lib/supabase/server";
@@ -83,7 +82,6 @@ export default async function PostPage({
       const date = String(formData.get("date") || "");
       const slot = String(formData.get("slot") || "");
       const format = String(formData.get("format") || "single");
-      const level = String(formData.get("level") || "beginner");
       const defaultNeeded =
         format === "double" || format === "mixed_double" || format === "men_double" || format === "women_double"
           ? 4
@@ -123,7 +121,7 @@ export default async function PostPage({
           host_id: user.id,
           start_at: startAtIso,
           format,
-          level,
+          level: "beginner",
           needed,
           court_no: courtNo,
           note,
@@ -207,14 +205,6 @@ export default async function PostPage({
           <option value="6">6</option>
         </select>
         <p className="muted">{copy.courtOptional}</p>
-
-        <select className="select" name="level" defaultValue="beginner">
-          {LEVEL_OPTIONS.map((value) => (
-            <option key={value} value={value}>
-              {levelLabel(value, lang)}
-            </option>
-          ))}
-        </select>
 
         <textarea className="textarea" name="note" placeholder={copy.notePlaceholder} />
 

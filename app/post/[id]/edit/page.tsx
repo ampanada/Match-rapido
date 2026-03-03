@@ -1,5 +1,5 @@
 import BottomNav from "@/components/BottomNav";
-import { FORMAT_OPTIONS, LEVEL_OPTIONS, formatLabel, levelLabel } from "@/lib/constants/filters";
+import { FORMAT_OPTIONS, formatLabel } from "@/lib/constants/filters";
 import { SLOT_START_TIMES, formatSlotRange, getCordobaDateString, getCordobaHHMM, isValidSlotStart, zonedDateTimeToIso } from "@/lib/constants/slots";
 import { getServerLang } from "@/lib/i18n-server";
 import { createClient } from "@/lib/supabase/server";
@@ -51,7 +51,7 @@ export default async function EditPostPage({
 
   const { data: post } = await supabase
     .from("posts")
-    .select("id,host_id,start_at,format,level,needed,court_no,note,status")
+    .select("id,host_id,start_at,format,needed,court_no,note,status")
     .eq("id", id)
     .maybeSingle();
 
@@ -95,7 +95,6 @@ export default async function EditPostPage({
       const date = String(formData.get("date") || "");
       const slot = String(formData.get("slot") || "");
       const format = String(formData.get("format") || "single");
-      const level = String(formData.get("level") || "beginner");
       const needed = Number(formData.get("needed") || 2);
       const courtRaw = String(formData.get("court_no") || "").trim();
       const courtNo = courtRaw ? Number(courtRaw) : null;
@@ -131,7 +130,6 @@ export default async function EditPostPage({
         .update({
           start_at: startAtIso,
           format,
-          level,
           needed,
           court_no: courtNo,
           note
@@ -199,14 +197,6 @@ export default async function EditPostPage({
           <option value="6">6</option>
         </select>
         <p className="muted">{copy.courtOptional}</p>
-
-        <select className="select" name="level" defaultValue={post.level}>
-          {LEVEL_OPTIONS.map((value) => (
-            <option key={value} value={value}>
-              {levelLabel(value, lang)}
-            </option>
-          ))}
-        </select>
 
         <textarea className="textarea" name="note" placeholder={copy.notePlaceholder} defaultValue={post.note ?? ""} />
 

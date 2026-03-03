@@ -1,6 +1,6 @@
  "use client";
 
-import { formatLabel, levelLabel } from "@/lib/constants/filters";
+import { formatLabel } from "@/lib/constants/filters";
 import { formatCordobaDate, formatSlotRange, getCordobaHHMM } from "@/lib/constants/slots";
 import { useRouter } from "next/navigation";
 
@@ -9,7 +9,6 @@ interface PostCardProps {
     id: string;
     start_at: string;
     format: string;
-    level: string;
     needed: number;
     court_no: number | null;
     note: string | null;
@@ -68,7 +67,6 @@ export default function PostCard({ post, lang }: PostCardProps) {
       </span>
       <div className="badges">
         <span className="badge">{formatLabel(post.format, lang)}</span>
-        <span className="badge">{levelLabel(post.level, lang)}</span>
         {post.court_no ? <span className="badge">{lang === "ko" ? `${post.court_no}번코트` : `Cancha ${post.court_no}`}</span> : null}
         <span className="badge">
           {currentPlayers}/{post.needed}

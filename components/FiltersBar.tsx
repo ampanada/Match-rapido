@@ -1,25 +1,22 @@
-import { FORMAT_OPTIONS, LEVEL_OPTIONS, formatLabel, levelLabel } from "@/lib/constants/filters";
+import { FORMAT_OPTIONS, formatLabel } from "@/lib/constants/filters";
 
 interface FiltersBarProps {
   selectedFormat?: string;
-  selectedLevel?: string;
   todayOnly?: boolean;
   lang: "es" | "ko";
 }
 
-export default function FiltersBar({ selectedFormat, selectedLevel, todayOnly, lang }: FiltersBarProps) {
+export default function FiltersBar({ selectedFormat, todayOnly, lang }: FiltersBarProps) {
   const copy =
     lang === "ko"
       ? {
           all: "전체",
-          allLevel: "전체 레벨",
-          todayOnly: "오늘 매칭만 보기",
+          todayOnly: "매칭 안된 게시글만 보기",
           apply: "적용"
         }
       : {
           all: "Todo",
-          allLevel: "Todos los niveles",
-          todayOnly: "Solo hoy",
+          todayOnly: "Solo publicaciones sin completar",
           apply: "Aplicar"
         };
 
@@ -30,15 +27,6 @@ export default function FiltersBar({ selectedFormat, selectedLevel, todayOnly, l
         {FORMAT_OPTIONS.map((value) => (
           <option key={value} value={value}>
             {formatLabel(value, lang)}
-          </option>
-        ))}
-      </select>
-
-      <select name="level" defaultValue={selectedLevel ?? ""} className="input">
-        <option value="">{copy.allLevel}</option>
-        {LEVEL_OPTIONS.map((value) => (
-          <option key={value} value={value}>
-            {levelLabel(value, lang)}
           </option>
         ))}
       </select>

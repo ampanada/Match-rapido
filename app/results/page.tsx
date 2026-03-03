@@ -10,6 +10,8 @@ export default async function ResultsPage() {
     lang === "ko"
       ? {
           title: "경기 결과",
+          slogan: "1세트 슬램 · 한 세트 승부",
+          rule: "룰: 1세트 승부 결과를 기록하며, 확정 시 승률 통계에 반영됩니다.",
           empty: "아직 확정된 결과가 없습니다.",
           set: "1세트",
           court: "코트",
@@ -18,6 +20,8 @@ export default async function ResultsPage() {
         }
       : {
           title: "Resultados",
+          slogan: "1 Set Slam · Partido a un set",
+          rule: "Regla: se registra un solo set y, al confirmarse, impacta en el porcentaje de victorias.",
           empty: "Aun no hay resultados confirmados.",
           set: "1 Set Slam",
           court: "Cancha",
@@ -41,6 +45,8 @@ export default async function ResultsPage() {
       <header className="top">
         <h1>{copy.title}</h1>
       </header>
+      <p className="notice success">{copy.slogan}</p>
+      <p className="muted">{copy.rule}</p>
 
       <section className="section">
         {(results ?? []).length === 0 ? <p className="notice">{copy.empty}</p> : null}
@@ -64,14 +70,14 @@ export default async function ResultsPage() {
 
               <p className="result-players">
                 <Link className="link-inline" href={`/u/${playerA?.id}`}>
-                  <span className={isAWinner ? "winner-name" : ""}>
+                  <span className={isAWinner ? "winner-name" : "loss-name"}>
                     {playerA?.display_name || (lang === "ko" ? "플레이어 A" : "Jugador A")}
                     {isAWinner ? <em className="winner-chip">{copy.winner}</em> : null}
                   </span>
                 </Link>{" "}
                 vs{" "}
                 <Link className="link-inline" href={`/u/${playerB?.id}`}>
-                  <span className={isBWinner ? "winner-name" : ""}>
+                  <span className={isBWinner ? "winner-name" : "loss-name"}>
                     {playerB?.display_name || (lang === "ko" ? "플레이어 B" : "Jugador B")}
                     {isBWinner ? <em className="winner-chip">{copy.winner}</em> : null}
                   </span>
@@ -79,7 +85,7 @@ export default async function ResultsPage() {
               </p>
 
               <p className="result-scoreline">
-                <span className="muted">{copy.set}</span>
+                <span className="muted">{copy.set} · 1 Set Slam</span>
                 <strong>{result.score}</strong>
               </p>
             </article>

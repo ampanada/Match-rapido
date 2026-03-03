@@ -1,6 +1,6 @@
 import BottomNav from "@/components/BottomNav";
 import SubmitButton from "@/components/SubmitButton";
-import { formatLabel, levelLabel } from "@/lib/constants/filters";
+import { formatLabel } from "@/lib/constants/filters";
 import { getServerLang } from "@/lib/i18n-server";
 import { formatCordobaDate, formatSlotRange, getCordobaHHMM } from "@/lib/constants/slots";
 import { createClient } from "@/lib/supabase/server";
@@ -58,6 +58,11 @@ export default async function PostDetailPage({
           confirmedResult: "확정 결과",
           winner: "승자",
           scorePlaceholder: "예: 6-2, 7-5, 7-6",
+          resultNotStarted: "경기 시작 전에는 결과를 등록할 수 없습니다.",
+          h2hTitle: "상대전적 (Head to Head)",
+          h2hTotal: "총 전적",
+          h2hRate: "승률",
+          h2hNoData: "아직 두 선수의 확정 전적이 없습니다.",
           closing: "마감 중..."
         }
       : {
@@ -93,6 +98,11 @@ export default async function PostDetailPage({
           confirmedResult: "Resultado confirmado",
           winner: "Ganador",
           scorePlaceholder: "Ej: 6-2, 7-5, 7-6",
+          resultNotStarted: "No se puede registrar resultado antes del inicio del partido.",
+          h2hTitle: "Head to Head",
+          h2hTotal: "Historial total",
+          h2hRate: "Porcentaje",
+          h2hNoData: "Aun no hay historial confirmado entre ambos.",
           closing: "Cerrando..."
         };
 
@@ -129,14 +139,46 @@ export default async function PostDetailPage({
   const isJoined = !!myJoin;
   const isPending = myJoin?.status === "pending";
   const isExpired = new Date(post.start_at).getTime() + 30 * 60 * 1000 < Date.now();
+  const hasStarted = new Date(post.start_at).getTime() <= Date.now();
   const isCompleted = post.status === "closed" || currentPlayers >= post.needed || isExpired;
   const startHHMM = getCordobaHHMM(post.start_at);
   const slotRange = formatSlotRange(startHHMM);
 
   const singleOpponentId = approvedJoins[0]?.user_id ?? null;
-  const canUseResultFeature = !!user && post.format === "single" && (isHost || user.id === singleOpponentId);
+  const canUseResultFeature = !!user && post.format === "single" && (isHost || user.id === singleOpponentId) && hasStarted;
   const playerA = post.host_id;
   const playerB = singleOpponentId;
+  const canViewH2H = !!user && post.format === "single" && !!playerB;
+
+  let h2hRecords: { winner_id: string | null }[] = [];
+  if (canViewH2H) {
+    const { data } = await supabase
+      .from("match_results")
+      .select("winner_id")
+      .eq("status", "confirmed")
+      .or(`and(player_a.eq.${post.host_id},player_b.eq.${playerB}),and(player_a.eq.${playerB},player_b.eq.${post.host_id})`)
+      .order("confirmed_at", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(100);
+    h2hRecords = data ?? [];
+  }
+
+  const h2hTotal = h2hRecords.length;
+  const hostWins = h2hRecords.filter((item) => item.winner_id === post.host_id).length;
+  const opponentWins = h2hTotal - hostWins;
+  const hostWinRate = h2hTotal > 0 ? Math.round((hostWins / h2hTotal) * 100) : 0;
+  const opponentWinRate = h2hTotal > 0 ? Math.round((opponentWins / h2hTotal) * 100) : 0;
+  const latestWinner = h2hRecords[0]?.winner_id ?? null;
+  let h2hStreak = 0;
+  if (latestWinner) {
+    for (const row of h2hRecords) {
+      if (row.winner_id === latestWinner) {
+        h2hStreak += 1;
+      } else {
+        break;
+      }
+    }
+  }
 
   const { data: matchResult } = await supabase
     .from("match_results")
@@ -226,11 +268,15 @@ export default async function PostDetailPage({
 
     const { data: latestPost } = await supabase
       .from("posts")
-      .select("id,host_id,format,status,joins(user_id,status)")
+      .select("id,host_id,format,status,start_at,joins(user_id,status)")
       .eq("id", id)
       .maybeSingle();
 
     if (!latestPost || latestPost.format !== "single") {
+      redirect(`/post/${id}`);
+    }
+
+    if (new Date(latestPost.start_at).getTime() > Date.now()) {
       redirect(`/post/${id}`);
     }
 
@@ -273,6 +319,11 @@ export default async function PostDetailPage({
 
     if (!user) {
       redirect("/login");
+    }
+
+    const { data: latestPost } = await supabase.from("posts").select("start_at").eq("id", id).maybeSingle();
+    if (!latestPost || new Date(latestPost.start_at).getTime() > Date.now()) {
+      redirect(`/post/${id}`);
     }
 
     await supabase
@@ -353,7 +404,6 @@ export default async function PostDetailPage({
 
         <div className="badges">
           <span className="badge">{formatLabel(post.format, lang)}</span>
-          <span className="badge">{levelLabel(post.level, lang)}</span>
           {post.court_no ? (
             <span className="badge">{lang === "ko" ? `${post.court_no}번코트` : `Cancha ${post.court_no}`}</span>
           ) : null}
@@ -428,6 +478,10 @@ export default async function PostDetailPage({
           </article>
         ) : null}
 
+        {!hasStarted && !!user && post.format === "single" && (isHost || user?.id === singleOpponentId) ? (
+          <p className="notice">{copy.resultNotStarted}</p>
+        ) : null}
+
         {canUseResultFeature && playerB ? (
           <article className="card">
             <strong>{copy.resultTitle}</strong>
@@ -470,6 +524,32 @@ export default async function PostDetailPage({
               <p className="notice success">
                 {copy.confirmedResult}: {matchResult.score} · {copy.winner} {winnerDisplayName}
               </p>
+            ) : null}
+          </article>
+        ) : null}
+
+        {canViewH2H ? (
+          <article className="card">
+            <strong>{copy.h2hTitle}</strong>
+            <p className="result-players">
+              {hostName} vs {singleJoinName}
+            </p>
+            {h2hTotal === 0 ? <p className="muted">{copy.h2hNoData}</p> : null}
+            {h2hTotal > 0 ? (
+              <>
+                <p className="result-summary">
+                  {copy.h2hTotal}: <strong>{hostWins}</strong> - <strong>{opponentWins}</strong> ({h2hTotal})
+                </p>
+                <p className="result-summary">
+                  {copy.h2hRate}: {hostName} {hostWinRate}% / {singleJoinName} {opponentWinRate}%
+                </p>
+                {h2hTotal >= 2 && h2hStreak > 1 ? (
+                  <p className="notice success">
+                    {(latestWinner === post.host_id ? hostName : singleJoinName) +
+                      (lang === "ko" ? ` ${h2hStreak}연승 🔥` : ` lleva ${h2hStreak} seguidas 🔥`)}
+                  </p>
+                ) : null}
+              </>
             ) : null}
           </article>
         ) : null}
