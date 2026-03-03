@@ -18,7 +18,7 @@ export default function LoginPage() {
           title: "로그인",
           subtitle: "게스트는 홈에서 바로 둘러보기 가능",
           authRequired: "내정보를 보려면 로그인이 필요합니다.",
-          sent: "이메일로 로그인 링크를 보냈습니다.",
+          sent: "로그인 요청을 완료했습니다. 이메일함에서 매직링크 로그인 탭을 눌러주면 로그인이 완료됩니다.",
           sending: "전송 중...",
           submit: "이메일 매직 링크 받기",
           cooldown: "다시 요청까지"
@@ -27,7 +27,7 @@ export default function LoginPage() {
           title: "Acceso",
           subtitle: "Puedes explorar como invitado desde inicio",
           authRequired: "Necesitas iniciar sesion para ver Mi cuenta.",
-          sent: "Te enviamos el enlace magico por email.",
+          sent: "Solicitud de inicio completada. Revisa tu correo y abre el enlace magico para completar el acceso.",
           sending: "Enviando...",
           submit: "Recibir enlace magico",
           cooldown: "Reintentar en"
@@ -66,6 +66,7 @@ export default function LoginPage() {
       return;
     }
     setLoading(true);
+    setCooldownLeft(LOGIN_COOLDOWN_SECONDS);
 
     const supabase = createClient();
 
@@ -80,7 +81,6 @@ export default function LoginPage() {
       setMessage(error.message);
     } else {
       setMessage(copy.sent);
-      setCooldownLeft(LOGIN_COOLDOWN_SECONDS);
     }
 
     setLoading(false);
