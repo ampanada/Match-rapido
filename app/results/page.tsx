@@ -7,19 +7,23 @@ import Link from "next/link";
 export default async function ResultsPage({
   searchParams
 }: {
-  searchParams?: { view?: string };
+  searchParams?: { view?: string; guide?: string };
 }) {
   const lang = await getServerLang();
   const view = searchParams?.view === "streak" ? "streak" : "results";
+  const showGuide = searchParams?.guide === "1";
   const copy =
     lang === "ko"
       ? {
           title: "경기 결과",
           tabResults: "경기결과",
           tabStreak: "연승 TOP 5",
+          topStreakTitle: "상단 연승 플레이어",
           slogan: "1세트 슬램 · 한 세트 승부",
           rule: "룰: 1세트 승부 결과를 기록하며, 확정 시 승률 통계에 반영됩니다.",
           mechanismTitle: "승률/연승 계산 기준",
+          mechanismOpen: "계산 기준 보기",
+          mechanismClose: "계산 기준 닫기",
           mechanism1: "포함: status=confirmed 결과만 집계",
           mechanism2: "제외: pending/cancelled 결과, 미확정 매치",
           mechanism3: "승률 공식: (승 / 확정 총경기) × 100",
@@ -38,9 +42,12 @@ export default async function ResultsPage({
           title: "Resultados",
           tabResults: "Resultados",
           tabStreak: "Top 5 rachas",
+          topStreakTitle: "Jugadores en racha",
           slogan: "1 Set Slam · Partido a un set",
           rule: "Regla: se registra un solo set y, al confirmarse, impacta en el porcentaje de victorias.",
           mechanismTitle: "Como se calcula porcentaje/racha",
+          mechanismOpen: "Ver calculo",
+          mechanismClose: "Ocultar calculo",
           mechanism1: "Incluye solo resultados con status=confirmed",
           mechanism2: "Excluye pending/cancelled y partidos sin confirmar",
           mechanism3: "Formula: (victorias / total confirmado) × 100",
@@ -85,14 +92,41 @@ export default async function ResultsPage({
       </header>
       <p className="notice success">{copy.slogan}</p>
       <p className="muted">{copy.rule}</p>
-      <article className="card">
-        <strong>{copy.mechanismTitle}</strong>
-        <p className="muted">• {copy.mechanism1}</p>
-        <p className="muted">• {copy.mechanism2}</p>
-        <p className="muted">• {copy.mechanism3}</p>
-        <p className="muted">• {copy.mechanism4}</p>
-        <p className="muted">• {copy.mechanism5}</p>
-      </article>
+
+      <section className="activity-list">
+        <div className="row">
+          <h2 className="activity-title">{copy.topStreakTitle}</h2>
+          <Link
+            className="link-inline"
+            href={`/results?view=${view}&guide=${showGuide ? "0" : "1"}`}
+          >
+            {showGuide ? copy.mechanismClose : copy.mechanismOpen}
+          </Link>
+        </div>
+        {(streakLeaders ?? []).slice(0, 5).map((player, index) => (
+          <Link className="activity-link" href={`/u/${player.id}`} key={`mini-streak-${player.id}`}>
+            <article className="activity-item">
+              <p className="activity-message">
+                #{index + 1} {player.display_name || (lang === "ko" ? "플레이어" : "Jugador")}
+              </p>
+              <p className="activity-time">
+                {player.current_streak} {copy.streakUnit} · W/L {player.wins}/{player.losses}
+              </p>
+            </article>
+          </Link>
+        ))}
+      </section>
+
+      {showGuide ? (
+        <article className="card">
+          <strong>{copy.mechanismTitle}</strong>
+          <p className="muted">• {copy.mechanism1}</p>
+          <p className="muted">• {copy.mechanism2}</p>
+          <p className="muted">• {copy.mechanism3}</p>
+          <p className="muted">• {copy.mechanism4}</p>
+          <p className="muted">• {copy.mechanism5}</p>
+        </article>
+      ) : null}
 
       <section className="section">
         <div className="seg-tabs">

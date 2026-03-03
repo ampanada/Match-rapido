@@ -46,7 +46,6 @@ export default async function Home({
 }: {
   searchParams: {
     format?: string;
-    todayOnly?: string;
   };
 }) {
   const lang = await getServerLang();
@@ -113,12 +112,7 @@ export default async function Home({
       };
     }) ?? [];
 
-  const filteredItems =
-    searchParams.todayOnly === "1"
-      ? items.filter((item) => item.status === "open" && !item.isExpired && item.joinsCount + 1 < item.needed)
-      : items;
-
-  const groupedByDate = filteredItems.reduce<Record<string, typeof filteredItems>>((acc, item) => {
+  const groupedByDate = items.reduce<Record<string, typeof items>>((acc, item) => {
     const key = getCordobaDateString(new Date(item.start_at));
     if (!acc[key]) {
       acc[key] = [];
@@ -156,11 +150,11 @@ export default async function Home({
         ))}
       </section>
 
-      <FiltersBar selectedFormat={searchParams.format} todayOnly={searchParams.todayOnly === "1"} lang={lang} />
+      <FiltersBar selectedFormat={searchParams.format} lang={lang} />
 
       <section className="section">
         {error ? <p className="notice">{copy.loadError}</p> : null}
-        {!error && filteredItems.length === 0 ? <p className="notice">{copy.empty}</p> : null}
+        {!error && items.length === 0 ? <p className="notice">{copy.empty}</p> : null}
         {groupedEntries.map(([dateKey, posts]) => {
           const firstTime = getCordobaHHMM(posts[0].start_at);
           const lastTime = getCordobaHHMM(posts[posts.length - 1].start_at);

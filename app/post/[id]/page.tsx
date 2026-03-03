@@ -48,6 +48,7 @@ export default async function PostDetailPage({
           cancelJoin: "참여 신청 철회",
           cancellingJoin: "철회 중...",
           resultTitle: "1 Set Slam 결과",
+          singleOnlyResult: "1 Set Slam 결과 등록은 단식 매치에서만 가능합니다.",
           registerResult: "결과 등록",
           registeringResult: "등록 중...",
           resultWaiting: "상대 확인 대기중",
@@ -88,6 +89,7 @@ export default async function PostDetailPage({
           cancelJoin: "Cancelar participacion",
           cancellingJoin: "Cancelando...",
           resultTitle: "Resultado 1 Set Slam",
+          singleOnlyResult: "El registro de 1 Set Slam solo esta disponible para partidos individuales.",
           registerResult: "Registrar resultado",
           registeringResult: "Registrando...",
           resultWaiting: "Esperando confirmacion",
@@ -321,8 +323,8 @@ export default async function PostDetailPage({
       redirect("/login");
     }
 
-    const { data: latestPost } = await supabase.from("posts").select("start_at").eq("id", id).maybeSingle();
-    if (!latestPost || new Date(latestPost.start_at).getTime() > Date.now()) {
+    const { data: latestPost } = await supabase.from("posts").select("start_at,format").eq("id", id).maybeSingle();
+    if (!latestPost || latestPost.format !== "single" || new Date(latestPost.start_at).getTime() > Date.now()) {
       redirect(`/post/${id}`);
     }
 
@@ -345,6 +347,11 @@ export default async function PostDetailPage({
 
     if (!user) {
       redirect("/login");
+    }
+
+    const { data: latestPost } = await supabase.from("posts").select("format").eq("id", id).maybeSingle();
+    if (!latestPost || latestPost.format !== "single") {
+      redirect(`/post/${id}`);
     }
 
     await supabase.from("match_results").update({ status: "cancelled" }).eq("post_id", id).eq("status", "pending");
@@ -477,6 +484,8 @@ export default async function PostDetailPage({
             })}
           </article>
         ) : null}
+
+        {post.format !== "single" ? <p className="muted">{copy.singleOnlyResult}</p> : null}
 
         {!hasStarted && !!user && post.format === "single" && (isHost || user?.id === singleOpponentId) ? (
           <p className="notice">{copy.resultNotStarted}</p>

@@ -1,4 +1,5 @@
 import BottomNav from "@/components/BottomNav";
+import LocalizedFileInput from "@/components/LocalizedFileInput";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import SubmitButton from "@/components/SubmitButton";
 import { getServerLang } from "@/lib/i18n-server";
@@ -141,8 +142,26 @@ export default async function MyPage({
     .select("display_name,whatsapp,avatar_url")
     .eq("id", user.id)
     .maybeSingle();
+
+  const metadataName =
+    (user.user_metadata?.full_name as string | undefined) ??
+    (user.user_metadata?.name as string | undefined) ??
+    null;
+
+  if ((!myProfile || !myProfile.display_name) && metadataName) {
+    await supabase.from("profiles").upsert(
+      {
+        id: user.id,
+        email: user.email ?? "",
+        display_name: metadataName
+      },
+      { onConflict: "id" }
+    );
+  }
+
+  const effectiveDisplayName = myProfile?.display_name || metadataName || null;
   const split = splitWhatsapp(myProfile?.whatsapp);
-  const profileName = myProfile?.display_name || copy.defaultName;
+  const profileName = effectiveDisplayName || copy.defaultName;
 
   const [{ data: myPosts }, { data: myJoins }] = await Promise.all([
     supabase
@@ -353,9 +372,9 @@ export default async function MyPage({
           <strong>{copy.profile}</strong>
           <p className="muted">{copy.profileGuide}</p>
           <form className="section" action={saveProfile} encType="multipart/form-data">
-            <input className="input" name="display_name" placeholder={copy.displayName} defaultValue={myProfile?.display_name ?? ""} />
+            <input className="input" name="display_name" placeholder={copy.displayName} defaultValue={effectiveDisplayName ?? ""} />
             <label className="muted">{copy.avatar}</label>
-            <input className="input" type="file" name="avatar_file" accept="image/png,image/jpeg,image/webp" />
+            <LocalizedFileInput lang={lang} name="avatar_file" accept="image/png,image/jpeg,image/webp" />
             <p className="muted">{copy.avatarGuide}</p>
             <div className="field-row">
               <div>

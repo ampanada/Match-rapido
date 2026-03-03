@@ -187,15 +187,15 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
         ? "플레이어"
         : "Jugador");
 
-  const safeProfile = profile ?? {
-    id: id,
-    display_name: profileFallbackName,
-    avatar_url: null,
-    wins: 0,
-    losses: 0,
-    total_matches: 0,
-    current_streak: 0,
-    best_streak: 0
+  const safeProfile = {
+    id: profile?.id ?? id,
+    display_name: profile?.display_name || profileFallbackName || (lang === "ko" ? "플레이어" : "Jugador"),
+    avatar_url: profile?.avatar_url ?? null,
+    wins: profile?.wins ?? 0,
+    losses: profile?.losses ?? 0,
+    total_matches: profile?.total_matches ?? 0,
+    current_streak: profile?.current_streak ?? 0,
+    best_streak: profile?.best_streak ?? 0
   };
 
   const computedTotal = totalConfirmedCount ?? 0;
