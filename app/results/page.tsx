@@ -12,13 +12,17 @@ export default async function ResultsPage() {
           title: "경기 결과",
           empty: "아직 확정된 결과가 없습니다.",
           set: "1세트",
-          court: "코트"
+          court: "코트",
+          winner: "승자",
+          unknownCourt: "코트 미지정"
         }
       : {
           title: "Resultados",
           empty: "Aun no hay resultados confirmados.",
           set: "1 Set Slam",
-          court: "Cancha"
+          court: "Cancha",
+          winner: "Ganador",
+          unknownCourt: "Cancha sin definir"
         };
 
   const supabase = await createClient();
@@ -47,25 +51,36 @@ export default async function ResultsPage() {
           const post = Array.isArray(result.posts) ? result.posts[0] : result.posts;
           const when = post?.start_at ?? result.created_at;
           const slotLabel = post?.start_at ? formatSlotRange(getCordobaHHMM(post.start_at)) : "";
+          const isAWinner = result.winner_id === playerA?.id;
+          const isBWinner = result.winner_id === playerB?.id;
 
           return (
-            <article className="card" key={result.id}>
-              <p>
+            <article className="card result-card" key={result.id}>
+              <div className="result-meta-strong">
+                <strong>{formatCordobaDate(when, lang === "ko" ? "ko-KR" : "es-AR")}</strong>
+                {slotLabel ? <span>{slotLabel}</span> : null}
+                <span>{post?.court_no ? `${copy.court} ${post.court_no}` : copy.unknownCourt}</span>
+              </div>
+
+              <p className="result-players">
                 <Link className="link-inline" href={`/u/${playerA?.id}`}>
-                  {playerA?.display_name || (lang === "ko" ? "플레이어 A" : "Jugador A")}
+                  <span className={isAWinner ? "winner-name" : ""}>
+                    {playerA?.display_name || (lang === "ko" ? "플레이어 A" : "Jugador A")}
+                    {isAWinner ? <em className="winner-chip">{copy.winner}</em> : null}
+                  </span>
                 </Link>{" "}
                 vs{" "}
                 <Link className="link-inline" href={`/u/${playerB?.id}`}>
-                  {playerB?.display_name || (lang === "ko" ? "플레이어 B" : "Jugador B")}
+                  <span className={isBWinner ? "winner-name" : ""}>
+                    {playerB?.display_name || (lang === "ko" ? "플레이어 B" : "Jugador B")}
+                    {isBWinner ? <em className="winner-chip">{copy.winner}</em> : null}
+                  </span>
                 </Link>
               </p>
-              <p>
-                {copy.set}: {result.score}
-              </p>
-              <p className="muted">
-                {formatCordobaDate(when, lang === "ko" ? "ko-KR" : "es-AR")}
-                {slotLabel ? ` · ${slotLabel}` : ""}
-                {post?.court_no ? ` · ${copy.court} ${post.court_no}` : ""}
+
+              <p className="result-scoreline">
+                <span className="muted">{copy.set}</span>
+                <strong>{result.score}</strong>
               </p>
             </article>
           );

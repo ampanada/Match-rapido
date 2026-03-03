@@ -29,14 +29,16 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           tier: "Nivel/Tier",
           total: "Total partidos",
           wl: "Victorias/Derrotas",
-          winRate: "Win rate",
+          winRate: "Porcentaje de victoria",
           streak: "Racha actual",
           bestStreak: "Mejor racha",
           recent: "Ultimos 10 partidos",
           noRecent: "No hay resultados confirmados.",
-          win: "Win",
-          loss: "Loss",
+          win: "Victoria",
+          loss: "Derrota",
           court: "Cancha",
+          unknownCourt: "Cancha sin definir",
+          score: "Resultado",
           settings: "Ajustes"
         };
 
@@ -139,15 +141,21 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
               : playerA?.display_name || (lang === "ko" ? "상대" : "Rival");
 
           return (
-            <article className="card" key={result.id}>
-              <p>
-                <strong>{isWin ? copy.win : copy.loss}</strong> · {opponentName}
+            <article className="card result-card" key={result.id}>
+              <div className="result-meta-strong">
+                <strong>{formatCordobaDate(post?.start_at ?? result.confirmed_at ?? new Date().toISOString(), lang === "ko" ? "ko-KR" : "es-AR")}</strong>
+                {post?.start_at ? <span>{formatSlotRange(getCordobaHHMM(post.start_at))}</span> : null}
+                <span>{post?.court_no ? `${copy.court} ${post.court_no}` : copy.unknownCourt}</span>
+              </div>
+              <p className="result-players">
+                <strong className={isWin ? "winner-name" : ""}>{isWin ? copy.win : copy.loss}</strong> ·{" "}
+                <Link className="link-inline" href={result.player_a === id ? `/u/${playerB?.id}` : `/u/${playerA?.id}`}>
+                  {opponentName}
+                </Link>
               </p>
-              <p>Score: {result.score}</p>
-              <p className="muted">
-                {formatCordobaDate(post?.start_at ?? result.confirmed_at ?? new Date().toISOString(), lang === "ko" ? "ko-KR" : "es-AR")}
-                {post?.start_at ? ` · ${formatSlotRange(getCordobaHHMM(post.start_at))}` : ""}
-                {post?.court_no ? ` · ${copy.court} ${post.court_no}` : ""}
+              <p className="result-scoreline">
+                <span className="muted">{copy.score}</span>
+                <strong>{result.score}</strong>
               </p>
             </article>
           );

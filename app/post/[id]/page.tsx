@@ -56,6 +56,7 @@ export default async function PostDetailPage({
           cancelResult: "결과 취소",
           cancellingResult: "취소 중...",
           confirmedResult: "확정 결과",
+          winner: "승자",
           scorePlaceholder: "예: 6-2, 7-5, 7-6",
           closing: "마감 중..."
         }
@@ -90,6 +91,7 @@ export default async function PostDetailPage({
           cancelResult: "Cancelar resultado",
           cancellingResult: "Cancelando...",
           confirmedResult: "Resultado confirmado",
+          winner: "Ganador",
           scorePlaceholder: "Ej: 6-2, 7-5, 7-6",
           closing: "Cerrando..."
         };
@@ -320,6 +322,11 @@ export default async function PostDetailPage({
   const isResultSubmitter = !!matchResult && !!user && user.id === matchResult.submitted_by;
   const canCancelResult =
     !!matchResult && matchResult.status === "pending" && !!user && (user.id === matchResult.player_a || user.id === matchResult.player_b);
+  const winnerDisplayName = matchResult
+    ? matchResult.winner_id === post.host_id
+      ? hostName
+      : singleJoinName
+    : "";
 
   return (
     <main className="shell">
@@ -440,6 +447,10 @@ export default async function PostDetailPage({
                 <p className="muted">
                   {matchResult.score} · {isResultSubmitter ? copy.resultWaiting : copy.confirmResult}
                 </p>
+                <p className="result-summary">
+                  {copy.winner}: <strong>{winnerDisplayName}</strong> · {formatCordobaDate(post.start_at, dateLocale)} · {slotRange}
+                  {post.court_no ? ` · ${lang === "ko" ? `${post.court_no}번코트` : `Cancha ${post.court_no}`}` : ""}
+                </p>
 
                 {canConfirmResult ? (
                   <form action={confirmResult}>
@@ -457,7 +468,7 @@ export default async function PostDetailPage({
 
             {matchResult?.status === "confirmed" ? (
               <p className="notice success">
-                {copy.confirmedResult}: {matchResult.score}
+                {copy.confirmedResult}: {matchResult.score} · {copy.winner} {winnerDisplayName}
               </p>
             ) : null}
           </article>
