@@ -1,4 +1,5 @@
 import BottomNav from "@/components/BottomNav";
+import SubmitButton from "@/components/SubmitButton";
 import { getServerLang } from "@/lib/i18n-server";
 import { formatCordobaDate, formatSlotRange, getCordobaHHMM } from "@/lib/constants/slots";
 import { createClient } from "@/lib/supabase/server";
@@ -40,6 +41,8 @@ export default async function MyPage({
           step2: "2) WhatsApp 번호 입력",
           saveFormat: "저장 형식 예시: +5491122334455",
           save: "저장",
+          savePending: "저장 중...",
+          logoutPending: "로그아웃 중...",
           myPosts: "내가 올린 매치",
           noPost: "작성한 글이 없습니다.",
           upcoming: "예정 매치",
@@ -65,6 +68,8 @@ export default async function MyPage({
           step2: "2) Ingresa numero de WhatsApp",
           saveFormat: "Formato final: +5491122334455",
           save: "Guardar",
+          savePending: "Guardando...",
+          logoutPending: "Saliendo...",
           myPosts: "Mis publicaciones",
           noPost: "No tienes publicaciones.",
           upcoming: "Proximos",
@@ -197,9 +202,7 @@ export default async function MyPage({
         {searchParams?.error === "invalid_whatsapp" ? <p className="notice">{copy.invalidWa}</p> : null}
 
         <form action={signOut}>
-          <button className="button" type="submit">
-            {copy.logout}
-          </button>
+          <SubmitButton idleLabel={copy.logout} pendingLabel={copy.logoutPending} />
         </form>
 
         <article className="card">
@@ -219,9 +222,7 @@ export default async function MyPage({
             <label className="muted">{copy.step2}</label>
             <input className="input" name="whatsapp_number" placeholder="91122334455" inputMode="tel" defaultValue={split.number} />
             <p className="muted">{copy.saveFormat}</p>
-            <button className="button" type="submit">
-              {copy.save}
-            </button>
+            <SubmitButton idleLabel={copy.save} pendingLabel={copy.savePending} />
           </form>
         </article>
 

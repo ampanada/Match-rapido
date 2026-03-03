@@ -18,6 +18,7 @@ body {
   background: radial-gradient(circle at 20% 0%, #1a2130 0%, #0f1115 50%);
   color: var(--text);
   font-family: "Pretendard", "Noto Sans KR", sans-serif;
+  scroll-behavior: smooth;
 }
 
 a {
@@ -111,6 +112,12 @@ a {
   font-weight: 700;
   padding: 8px 10px;
   white-space: nowrap;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.push-write-btn:hover {
+  border-color: #4f8cff;
+  box-shadow: 0 4px 16px rgba(79, 140, 255, 0.22);
 }
 
 .filters {
@@ -154,6 +161,34 @@ a {
   font-weight: 700;
   padding: 10px 12px;
   text-align: center;
+  transition: transform 0.18s ease, filter 0.18s ease, opacity 0.18s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.button:hover,
+.link-btn:hover {
+  box-shadow: 0 6px 18px rgba(79, 140, 255, 0.24);
+}
+
+.button[aria-busy="true"],
+.link-btn[aria-busy="true"] {
+  background-size: 200% 100%;
+  animation: busy-shift 1.2s linear infinite;
+  cursor: progress;
+}
+
+.button:active,
+.link-btn:active,
+.push-write-btn:active {
+  transform: translateY(1px) scale(0.99);
+  filter: brightness(0.95);
+}
+
+.button[disabled],
+.link-btn[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .link-inline {
@@ -182,10 +217,17 @@ a {
 .activity-item {
   padding: 6px 0;
   border-top: 1px solid rgba(151, 161, 179, 0.16);
+  animation: fade-in 0.42s ease both;
+  transition: background 0.2s ease, transform 0.2s ease;
 }
 
 .activity-item:first-of-type {
   border-top: 0;
+}
+
+.activity-item:hover {
+  background: rgba(255, 255, 255, 0.02);
+  transform: translateX(2px);
 }
 
 .activity-message {
@@ -212,6 +254,14 @@ a {
   padding: 12px;
   display: grid;
   gap: 8px;
+  animation: fade-up 0.34s ease both;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  border-color: #3b4860;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
 }
 
 .row {
@@ -238,6 +288,12 @@ a {
   border-radius: 999px;
   font-size: 12px;
   padding: 4px 9px;
+  transition: transform 0.18s ease, border-color 0.18s ease;
+}
+
+.badge:hover {
+  transform: translateY(-1px);
+  border-color: #4a5b73;
 }
 
 .muted {
@@ -258,6 +314,7 @@ a {
   border-radius: 10px;
   padding: 10px;
   font-size: 13px;
+  animation: fade-in 0.3s ease both;
 }
 
 .notice.success {
@@ -276,6 +333,7 @@ a {
 .status-chip.open {
   border: 1px solid #2b4d8e;
   color: #9cc3ff;
+  animation: pulse-open 2s ease-in-out infinite;
 }
 
 .status-chip.done {
@@ -312,11 +370,17 @@ a {
   font-weight: 700;
   border-radius: 8px;
   padding: 8px 4px;
+  transition: transform 0.18s ease, background 0.22s ease, color 0.22s ease;
+}
+
+.nav-item:hover {
+  transform: translateY(-1px);
 }
 
 .nav-item.active {
   color: #fff;
   background: #1f2634;
+  transition: background 0.22s ease, color 0.22s ease;
 }
 
 .nav-badge {
@@ -346,9 +410,56 @@ a {
   line-height: 1.45;
 }
 
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes busy-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+@keyframes pulse-open {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(79, 140, 255, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(79, 140, 255, 0.12);
+  }
+}
+
 @media (max-width: 360px) {
   .filters,
   .actions {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
   }
 }

@@ -1,5 +1,6 @@
 import BottomNav from "@/components/BottomNav";
 import PostFormatNeededFields from "@/components/PostFormatNeededFields";
+import SubmitButton from "@/components/SubmitButton";
 import { LEVEL_OPTIONS, levelLabel } from "@/lib/constants/filters";
 import { getServerLang } from "@/lib/i18n-server";
 import { SLOT_START_TIMES, formatSlotRange, getCordobaDateString, isValidSlotStart, zonedDateTimeToIso } from "@/lib/constants/slots";
@@ -25,7 +26,8 @@ export default async function PostPage({
           courtOptional: "코트 선택 (선택)",
           courtPlaceholder: "코트 미지정",
           notePlaceholder: "모집 내용, 코트 위치, 준비물 등",
-          submit: "글 등록"
+          submit: "글 등록",
+          submitPending: "등록 중..."
         }
       : {
           title: "Publicar partido",
@@ -38,7 +40,8 @@ export default async function PostPage({
           courtOptional: "Cancha (opcional)",
           courtPlaceholder: "Sin cancha",
           notePlaceholder: "Detalles, ubicacion de cancha, etc.",
-          submit: "Publicar"
+          submit: "Publicar",
+          submitPending: "Publicando..."
         };
 
   const supabase = await createClient();
@@ -215,9 +218,7 @@ export default async function PostPage({
 
         <textarea className="textarea" name="note" placeholder={copy.notePlaceholder} />
 
-        <button className="button" type="submit">
-          {copy.submit}
-        </button>
+        <SubmitButton idleLabel={copy.submit} pendingLabel={copy.submitPending} />
       </form>
 
       <BottomNav />

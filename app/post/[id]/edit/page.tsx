@@ -3,6 +3,7 @@ import { FORMAT_OPTIONS, LEVEL_OPTIONS, formatLabel, levelLabel } from "@/lib/co
 import { SLOT_START_TIMES, formatSlotRange, getCordobaDateString, getCordobaHHMM, isValidSlotStart, zonedDateTimeToIso } from "@/lib/constants/slots";
 import { getServerLang } from "@/lib/i18n-server";
 import { createClient } from "@/lib/supabase/server";
+import SubmitButton from "@/components/SubmitButton";
 import { redirect } from "next/navigation";
 
 export default async function EditPostPage({
@@ -19,6 +20,7 @@ export default async function EditPostPage({
           title: "매치 글 수정",
           subtitle: "모집중인 내 글만 수정할 수 있습니다.",
           save: "수정 저장",
+          savePending: "저장 중...",
           failed: "수정 실패:",
           autoClose: "자동 종료: 시작 후 90분",
           courtOptional: "코트 선택 (선택)",
@@ -29,6 +31,7 @@ export default async function EditPostPage({
           title: "Editar partido",
           subtitle: "Solo puedes editar publicaciones abiertas.",
           save: "Guardar cambios",
+          savePending: "Guardando...",
           failed: "Error al editar:",
           autoClose: "Cierre automatico: 90 minutos desde el inicio",
           courtOptional: "Cancha (opcional)",
@@ -206,9 +209,7 @@ export default async function EditPostPage({
 
         <textarea className="textarea" name="note" placeholder={copy.notePlaceholder} defaultValue={post.note ?? ""} />
 
-        <button className="button" type="submit">
-          {copy.save}
-        </button>
+        <SubmitButton idleLabel={copy.save} pendingLabel={copy.savePending} />
       </form>
 
       <BottomNav />

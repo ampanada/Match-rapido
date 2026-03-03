@@ -1,4 +1,5 @@
 import BottomNav from "@/components/BottomNav";
+import SubmitButton from "@/components/SubmitButton";
 import { formatLabel, levelLabel } from "@/lib/constants/filters";
 import { getServerLang } from "@/lib/i18n-server";
 import { formatCordobaDate, formatSlotRange, getCordobaHHMM } from "@/lib/constants/slots";
@@ -31,6 +32,7 @@ export default async function PostDetailPage({
           recruitSuffix: "명 모집",
           emptyNote: "메모 없음",
           join: "참여하기",
+          joining: "참여 처리 중...",
           joined: "참여완료",
           pending: "승인 대기",
           mine: "내 모집글",
@@ -41,14 +43,20 @@ export default async function PostDetailPage({
           created: "작성 완료:",
           pendingRequests: "참여 요청",
           approve: "승인",
+          approving: "승인 중...",
           cancelJoin: "참여 신청 철회",
+          cancellingJoin: "철회 중...",
           resultTitle: "1 Set Slam 결과",
           registerResult: "결과 등록",
+          registeringResult: "등록 중...",
           resultWaiting: "상대 확인 대기중",
           confirmResult: "결과 확정",
+          confirmingResult: "확정 중...",
           cancelResult: "결과 취소",
+          cancellingResult: "취소 중...",
           confirmedResult: "확정 결과",
-          scorePlaceholder: "예: 6-2, 7-5, 7-6"
+          scorePlaceholder: "예: 6-2, 7-5, 7-6",
+          closing: "마감 중..."
         }
       : {
           title: "Detalle del partido",
@@ -58,6 +66,7 @@ export default async function PostDetailPage({
           recruitSuffix: " mas (sin contar host)",
           emptyNote: "Sin nota",
           join: "Unirme",
+          joining: "Uniendo...",
           joined: "Ya participo",
           pending: "Pendiente",
           mine: "Mi publicacion",
@@ -68,14 +77,20 @@ export default async function PostDetailPage({
           created: "Publicado:",
           pendingRequests: "Solicitudes pendientes",
           approve: "Aprobar",
+          approving: "Aprobando...",
           cancelJoin: "Cancelar participacion",
+          cancellingJoin: "Cancelando...",
           resultTitle: "Resultado 1 Set Slam",
           registerResult: "Registrar resultado",
+          registeringResult: "Registrando...",
           resultWaiting: "Esperando confirmacion",
           confirmResult: "Confirmar resultado",
+          confirmingResult: "Confirmando...",
           cancelResult: "Cancelar resultado",
+          cancellingResult: "Cancelando...",
           confirmedResult: "Resultado confirmado",
-          scorePlaceholder: "Ej: 6-2, 7-5, 7-6"
+          scorePlaceholder: "Ej: 6-2, 7-5, 7-6",
+          closing: "Cerrando..."
         };
 
   const supabase = await createClient();
@@ -345,9 +360,7 @@ export default async function PostDetailPage({
             <form method="post" action="/join">
               <input type="hidden" name="post_id" value={post.id} />
               <input type="hidden" name="redirect_to" value={`/post/${post.id}`} />
-              <button className="button" type="submit">
-                {copy.join}
-              </button>
+              <SubmitButton idleLabel={copy.join} pendingLabel={copy.joining} />
             </form>
           ) : (
             <button className="button" type="button" disabled>
@@ -359,9 +372,7 @@ export default async function PostDetailPage({
             <form method="post" action="/join/cancel">
               <input type="hidden" name="post_id" value={post.id} />
               <input type="hidden" name="redirect_to" value={`/post/${post.id}`} />
-              <button className="button" type="submit">
-                {copy.cancelJoin}
-              </button>
+              <SubmitButton idleLabel={copy.cancelJoin} pendingLabel={copy.cancellingJoin} />
             </form>
           ) : null}
 
@@ -382,9 +393,7 @@ export default async function PostDetailPage({
 
         {isHost && !isCompleted ? (
           <form action={closePost}>
-            <button className="button" type="submit">
-              {copy.close}
-            </button>
+            <SubmitButton idleLabel={copy.close} pendingLabel={copy.closing} />
           </form>
         ) : null}
 
@@ -399,9 +408,7 @@ export default async function PostDetailPage({
                 <form key={join.id} className="row" action={approveJoin}>
                   <span className="muted">{joinName}</span>
                   <input type="hidden" name="join_id" value={join.id} />
-                  <button className="button" type="submit">
-                    {copy.approve}
-                  </button>
+                  <SubmitButton idleLabel={copy.approve} pendingLabel={copy.approving} />
                 </form>
               );
             })}
@@ -418,9 +425,7 @@ export default async function PostDetailPage({
                   <option value={playerB}>{singleJoinName}</option>
                 </select>
                 <input className="input" name="score" placeholder={copy.scorePlaceholder} required />
-                <button className="button" type="submit">
-                  {copy.registerResult}
-                </button>
+                <SubmitButton idleLabel={copy.registerResult} pendingLabel={copy.registeringResult} />
               </form>
             ) : null}
 
@@ -432,17 +437,13 @@ export default async function PostDetailPage({
 
                 {canConfirmResult ? (
                   <form action={confirmResult}>
-                    <button className="button" type="submit">
-                      {copy.confirmResult}
-                    </button>
+                    <SubmitButton idleLabel={copy.confirmResult} pendingLabel={copy.confirmingResult} />
                   </form>
                 ) : null}
 
                 {canCancelResult ? (
                   <form action={cancelResult}>
-                    <button className="link-btn" type="submit">
-                      {copy.cancelResult}
-                    </button>
+                    <SubmitButton idleLabel={copy.cancelResult} pendingLabel={copy.cancellingResult} className="link-btn" />
                   </form>
                 ) : null}
               </div>
