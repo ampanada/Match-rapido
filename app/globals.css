@@ -31,7 +31,6 @@ a {
   min-height: 100dvh;
   margin: 0 auto;
   padding: 94px 14px 84px;
-  animation: page-in 0.28s ease both;
 }
 
 .lang-tabs-wrap {
@@ -82,6 +81,18 @@ a {
 .route-transition.show {
   transform: translateX(-50%) scaleX(1);
   opacity: 1;
+}
+
+.route-frame {
+  min-height: 100dvh;
+}
+
+.route-forward {
+  animation: ios-push-in 0.34s cubic-bezier(0.22, 0.9, 0.2, 1) both;
+}
+
+.route-back {
+  animation: ios-pop-in 0.32s cubic-bezier(0.16, 0.86, 0.22, 1) both;
 }
 
 .lang-tabs {
@@ -454,14 +465,33 @@ a {
   }
 }
 
-@keyframes page-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
+@keyframes ios-push-in {
+  0% {
+    opacity: 0.7;
+    transform: translateX(26px) scale(0.992);
   }
-  to {
+  70% {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateX(-2px) scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes ios-pop-in {
+  0% {
+    opacity: 0.72;
+    transform: translateX(-24px) scale(0.992);
+  }
+  70% {
+    opacity: 1;
+    transform: translateX(2px) scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
   }
 }
 

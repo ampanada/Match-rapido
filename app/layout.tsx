@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import GlobalNotice from "@/components/GlobalNotice";
 import LanguageTabs from "@/components/LanguageTabs";
+import RouteFrame from "@/components/RouteFrame";
 import RouteTransitionIndicator from "@/components/RouteTransitionIndicator";
 import { getServerLang } from "@/lib/i18n-server";
 import "./globals.css";
@@ -19,7 +20,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <LanguageTabs lang={lang} />
         <GlobalNotice lang={lang} />
         <RouteTransitionIndicator />
-        {children}
+        <RouteFrame>{children}</RouteFrame>
       </body>
     </html>
   );
