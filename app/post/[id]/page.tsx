@@ -95,13 +95,32 @@ export default async function PostDetailPage({
 
   const supabase = await createClient();
 
-  const { data: post } = await supabase
+  const { data: richPost, error: richPostError } = await supabase
     .from("posts")
     .select(
       "id,host_id,start_at,format,level,needed,court_no,note,status,profiles!posts_host_id_fkey(display_name,whatsapp),joins(id,user_id,status,profiles!joins_user_id_fkey(display_name))"
     )
     .eq("id", params.id)
     .maybeSingle();
+
+  let post: any = richPost;
+
+  // Fallback: if relation select fails (schema cache / partial migration), load base post only.
+  if (!post && richPostError) {
+    const { data: basePost } = await supabase
+      .from("posts")
+      .select("id,host_id,start_at,format,level,needed,court_no,note,status")
+      .eq("id", params.id)
+      .maybeSingle();
+
+    if (basePost) {
+      post = {
+        ...basePost,
+        profiles: null,
+        joins: []
+      };
+    }
+  }
 
   if (!post) {
     redirect("/");
@@ -111,12 +130,12 @@ export default async function PostDetailPage({
     data: { user }
   } = await supabase.auth.getUser();
 
-  const approvedJoins = post.joins?.filter((join) => join.status === "approved") ?? [];
-  const pendingJoins = post.joins?.filter((join) => join.status === "pending") ?? [];
+  const approvedJoins = post.joins?.filter((join: any) => join.status === "approved") ?? [];
+  const pendingJoins = post.joins?.filter((join: any) => join.status === "pending") ?? [];
   const currentPlayers = approvedJoins.length + 1;
   const recruitCount = Math.max(post.needed - 1, 0);
   const isHost = user?.id === post.host_id;
-  const myJoin = post.joins?.find((join) => join.user_id === user?.id);
+  const myJoin = post.joins?.find((join: any) => join.user_id === user?.id);
   const isJoined = !!myJoin;
   const isPending = myJoin?.status === "pending";
   const isExpired = new Date(post.start_at).getTime() + 30 * 60 * 1000 < Date.now();
@@ -185,7 +204,7 @@ export default async function PostDetailPage({
       .eq("id", params.id)
       .maybeSingle();
 
-    const approvedCount = postWithJoins?.joins?.filter((join) => join.status === "approved").length ?? 0;
+    const approvedCount = postWithJoins?.joins?.filter((join: any) => join.status === "approved").length ?? 0;
     const players = approvedCount + 1;
 
     if (players >= (postWithJoins?.needed ?? 0)) {
@@ -225,7 +244,7 @@ export default async function PostDetailPage({
       redirect(`/post/${params.id}`);
     }
 
-    const approved = latestPost.joins?.filter((join) => join.status === "approved") ?? [];
+    const approved = latestPost.joins?.filter((join: any) => join.status === "approved") ?? [];
     if (approved.length !== 1) {
       redirect(`/post/${params.id}`);
     }
@@ -400,7 +419,7 @@ export default async function PostDetailPage({
         {isHost && pendingJoins.length > 0 ? (
           <article className="card">
             <strong>{copy.pendingRequests}</strong>
-            {pendingJoins.map((join) => {
+            {pendingJoins.map((join: any) => {
               const joinProfile = Array.isArray(join.profiles) ? join.profiles[0] : join.profiles;
               const joinName = joinProfile?.display_name || (lang === "ko" ? "참여자" : "Jugador");
 
