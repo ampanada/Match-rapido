@@ -95,47 +95,34 @@ export default async function PostDetailPage({
 
   const supabase = await createClient();
 
-  const { data: richPost, error: richPostError } = await supabase
+  const { data: post } = await supabase
     .from("posts")
-    .select(
-      "id,host_id,start_at,format,level,needed,court_no,note,status,profiles!posts_host_id_fkey(display_name,whatsapp),joins(id,user_id,status,profiles!joins_user_id_fkey(display_name))"
-    )
+    .select("id,host_id,start_at,format,level,needed,court_no,note,status")
     .eq("id", params.id)
     .maybeSingle();
 
-  let post: any = richPost;
-
-  // Fallback: if relation select fails (schema cache / partial migration), load base post only.
-  if (!post && richPostError) {
-    const { data: basePost } = await supabase
-      .from("posts")
-      .select("id,host_id,start_at,format,level,needed,court_no,note,status")
-      .eq("id", params.id)
-      .maybeSingle();
-
-    if (basePost) {
-      post = {
-        ...basePost,
-        profiles: null,
-        joins: []
-      };
-    }
-  }
-
   if (!post) {
-    redirect("/");
+    redirect(`/post?error=not_found&id=${encodeURIComponent(params.id)}`);
   }
+
+  const [{ data: hostProfile }, { data: joins }] = await Promise.all([
+    supabase.from("profiles").select("display_name,whatsapp").eq("id", post.host_id).maybeSingle(),
+    supabase
+      .from("joins")
+      .select("id,user_id,status,profiles!joins_user_id_fkey(display_name)")
+      .eq("post_id", post.id)
+  ]);
 
   const {
     data: { user }
   } = await supabase.auth.getUser();
 
-  const approvedJoins = post.joins?.filter((join: any) => join.status === "approved") ?? [];
-  const pendingJoins = post.joins?.filter((join: any) => join.status === "pending") ?? [];
+  const approvedJoins = joins?.filter((join: any) => join.status === "approved") ?? [];
+  const pendingJoins = joins?.filter((join: any) => join.status === "pending") ?? [];
   const currentPlayers = approvedJoins.length + 1;
   const recruitCount = Math.max(post.needed - 1, 0);
   const isHost = user?.id === post.host_id;
-  const myJoin = post.joins?.find((join: any) => join.user_id === user?.id);
+  const myJoin = joins?.find((join: any) => join.user_id === user?.id);
   const isJoined = !!myJoin;
   const isPending = myJoin?.status === "pending";
   const isExpired = new Date(post.start_at).getTime() + 30 * 60 * 1000 < Date.now();
@@ -310,9 +297,8 @@ export default async function PostDetailPage({
     redirect(`/post/${params.id}`);
   }
 
-  const profile = Array.isArray(post.profiles) ? post.profiles[0] : post.profiles;
-  const hostName = profile?.display_name || (lang === "ko" ? "호스트" : "Host");
-  const hostWhatsapp = profile?.whatsapp || "";
+  const hostName = hostProfile?.display_name || (lang === "ko" ? "호스트" : "Host");
+  const hostWhatsapp = hostProfile?.whatsapp || "";
   const dateLocale = lang === "ko" ? "ko-KR" : "es-AR";
   const chatLink = hostWhatsapp
     ? waLink(hostWhatsapp, `Hola ${hostName}, consulta por el partido ${formatCordobaDate(post.start_at, "es-AR")} ${slotRange}.`)
