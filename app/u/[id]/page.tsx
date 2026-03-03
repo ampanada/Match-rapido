@@ -75,7 +75,11 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
     await supabase.from("profiles").upsert(
       {
         id: user.id,
-        email: user.email ?? ""
+        email: user.email ?? "",
+        display_name:
+          (user.user_metadata?.full_name as string | undefined) ??
+          (user.user_metadata?.name as string | undefined) ??
+          null
       },
       { onConflict: "id" }
     );
@@ -155,9 +159,19 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
     .sort((a, b) => (b.total === a.total ? b.wins - a.wins : b.total - a.total))
     .slice(0, 5);
 
+  const profileFallbackName =
+    profile?.display_name ||
+    (user?.id === id
+      ? (user.user_metadata?.full_name as string | undefined) ||
+        (user.user_metadata?.name as string | undefined) ||
+        user.email?.split("@")[0]
+      : lang === "ko"
+        ? "플레이어"
+        : "Jugador");
+
   const safeProfile = profile ?? {
     id: id,
-    display_name: lang === "ko" ? "사용자" : "Jugador",
+    display_name: profileFallbackName,
     avatar_url: null,
     wins: 0,
     losses: 0,

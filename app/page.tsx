@@ -28,6 +28,19 @@ function relativeTimeLabel(value: string, lang: "es" | "ko") {
   return lang === "ko" ? `${diffDays}일 전` : `hace ${diffDays}d`;
 }
 
+function getActivityHref(item: { type: string; related_post_id: string | null; user_id: string }) {
+  if ((item.type === "new_post" || item.type === "cancel_join") && item.related_post_id) {
+    return `/post/${item.related_post_id}`;
+  }
+  if (item.type === "match_result") {
+    return "/results";
+  }
+  if (item.type === "streak") {
+    return `/u/${item.user_id}`;
+  }
+  return "/activity";
+}
+
 export default async function Home({
   searchParams
 }: {
@@ -44,7 +57,6 @@ export default async function Home({
           subtitle: "로그인 없이 둘러보기 가능",
           create: "+ 글쓰기",
           activityTitle: "최근 활동",
-          activityMore: "상세보기",
           activityEmpty: "최근 활동이 없습니다.",
           loadError: "목록을 불러오지 못했습니다.",
           empty: "조건에 맞는 매치가 없습니다."
@@ -54,7 +66,6 @@ export default async function Home({
           subtitle: "Se puede ver sin iniciar sesion",
           create: "+ Publicar",
           activityTitle: "Actividad reciente",
-          activityMore: "Ver detalle",
           activityEmpty: "No hay actividad reciente.",
           loadError: "No se pudo cargar la lista.",
           empty: "No hay partidos para este filtro."
@@ -80,7 +91,7 @@ export default async function Home({
 
   const [{ data, error }, { data: activityData }] = await Promise.all([
     query,
-    supabase.from("activity_feed").select("id,message,created_at").order("created_at", { ascending: false }).limit(10)
+    supabase.from("activity_feed").select("id,type,user_id,related_post_id,message,created_at").order("created_at", { ascending: false }).limit(10)
   ]);
 
   const items =
@@ -133,16 +144,15 @@ export default async function Home({
       <section className="activity-list">
         <div className="row">
           <h2 className="activity-title">{copy.activityTitle}</h2>
-          <Link className="link-inline" href="/activity">
-            {copy.activityMore}
-          </Link>
         </div>
         {(activityData ?? []).length === 0 ? <p className="muted">{copy.activityEmpty}</p> : null}
         {(activityData ?? []).map((item) => (
-          <article key={item.id} className="activity-item">
-            <p className="activity-message">{item.message}</p>
-            <p className="activity-time">{relativeTimeLabel(item.created_at, lang)}</p>
-          </article>
+          <Link key={item.id} className="activity-link" href={getActivityHref(item)}>
+            <article className="activity-item">
+              <p className="activity-message">{item.message}</p>
+              <p className="activity-time">{relativeTimeLabel(item.created_at, lang)}</p>
+            </article>
+          </Link>
         ))}
       </section>
 
