@@ -3,7 +3,6 @@ import { getServerLang } from "@/lib/i18n-server";
 import { formatCordobaDate, formatSlotRange, getCordobaHHMM } from "@/lib/constants/slots";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 
 export default async function PublicProfilePage({ params }: { params: { id: string } }) {
   const lang = await getServerLang();
@@ -80,16 +79,22 @@ export default async function PublicProfilePage({ params }: { params: { id: stri
       .limit(10)
   ]);
 
-  if (!profile) {
-    notFound();
-  }
+  const safeProfile = profile ?? {
+    id: params.id,
+    display_name: lang === "ko" ? "사용자" : "Jugador",
+    wins: 0,
+    losses: 0,
+    total_matches: 0,
+    current_streak: 0,
+    best_streak: 0
+  };
 
-  const winRate = profile.total_matches > 0 ? Math.round((profile.wins / profile.total_matches) * 100) : 0;
+  const winRate = safeProfile.total_matches > 0 ? Math.round((safeProfile.wins / safeProfile.total_matches) * 100) : 0;
 
   return (
     <main className="shell">
       <header className="top">
-        <h1>{profile.display_name || copy.title}</h1>
+        <h1>{safeProfile.display_name || copy.title}</h1>
         {user?.id === params.id ? (
           <Link className="link-btn" href="/my">
             {copy.settings}
@@ -102,19 +107,19 @@ export default async function PublicProfilePage({ params }: { params: { id: stri
           <strong>{copy.tier}:</strong> {latestHostPost?.level ?? "-"}
         </p>
         <p>
-          <strong>{copy.total}:</strong> {profile.total_matches}
+          <strong>{copy.total}:</strong> {safeProfile.total_matches}
         </p>
         <p>
-          <strong>{copy.wl}:</strong> {profile.wins} / {profile.losses}
+          <strong>{copy.wl}:</strong> {safeProfile.wins} / {safeProfile.losses}
         </p>
         <p>
           <strong>{copy.winRate}:</strong> {winRate}%
         </p>
         <p>
-          <strong>{copy.streak}:</strong> {profile.current_streak}
+          <strong>{copy.streak}:</strong> {safeProfile.current_streak}
         </p>
         <p>
-          <strong>{copy.bestStreak}:</strong> {profile.best_streak}
+          <strong>{copy.bestStreak}:</strong> {safeProfile.best_streak}
         </p>
       </section>
 
