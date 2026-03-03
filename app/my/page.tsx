@@ -24,6 +24,19 @@ function splitWhatsapp(whatsapp: string | null | undefined) {
   return { countryCode: "+54", number: raw.replace(/^\+/, "") };
 }
 
+function normalizeWhatsapp(countryCode: string, rawInput: string) {
+  const compact = rawInput.replace(/\s+/g, "").replace(/-/g, "");
+  if (!compact) {
+    return "";
+  }
+
+  if (compact.startsWith("+")) {
+    return `+${compact.slice(1).replace(/[^\d]/g, "")}`;
+  }
+
+  return `${countryCode}${compact.replace(/[^\d]/g, "")}`;
+}
+
 export default async function MyPage({
   searchParams
 }: {
@@ -37,6 +50,7 @@ export default async function MyPage({
           defaultName: "WhatsApp 사용자",
           account: "계정",
           invalidWa: "WhatsApp 번호 형식이 올바르지 않습니다. 예: +5491122334455",
+          saveFailed: "이름/번호 저장에 실패했습니다. 다시 시도해 주세요.",
           invalidAvatar: "이미지 파일만 업로드할 수 있습니다. (jpg, png, webp)",
           avatarTooLarge: "이미지 용량이 너무 큽니다. 최대 5MB",
           uploadFailed: "프로필 사진 업로드에 실패했습니다.",
@@ -84,6 +98,7 @@ export default async function MyPage({
           defaultName: "Usuario WhatsApp",
           account: "Cuenta",
           invalidWa: "Formato invalido. Ejemplo: +5491122334455",
+          saveFailed: "No se pudo guardar nombre/numero. Intenta de nuevo.",
           invalidAvatar: "Solo se permiten imagenes (jpg/png/webp).",
           avatarTooLarge: "La imagen es demasiado grande. Maximo 5MB.",
           uploadFailed: "No se pudo subir la foto de perfil.",
@@ -297,12 +312,11 @@ export default async function MyPage({
         .eq("id", user.id)
         .maybeSingle();
 
-      const displayName = String(formData.get("display_name") || "").trim();
-      const countryCode = String(formData.get("country_code") || "+54").trim();
-      const localNumberRaw = String(formData.get("whatsapp_number") || "").trim();
-      const localNumber = localNumberRaw.replace(/[^\d]/g, "");
-      const whatsapp = localNumber ? `${countryCode}${localNumber}` : "";
-      const avatarFile = formData.get("avatar_file");
+    const displayName = String(formData.get("display_name") || "").trim();
+    const countryCode = String(formData.get("country_code") || "+54").trim();
+    const localNumberRaw = String(formData.get("whatsapp_number") || "").trim();
+    const whatsapp = normalizeWhatsapp(countryCode, localNumberRaw);
+    const avatarFile = formData.get("avatar_file");
 
       if (whatsapp && !/^\+\d{8,15}$/.test(whatsapp)) {
         redirect("/my?error=invalid_whatsapp");
@@ -333,16 +347,20 @@ export default async function MyPage({
         avatarUrl = publicUrlData.data.publicUrl;
       }
 
-      await supabase.from("profiles").upsert(
-        {
-          id: user.id,
-          email: user.email ?? "",
-          display_name: displayName || currentProfile?.display_name || null,
-          whatsapp: whatsapp || null,
-          avatar_url: avatarUrl
-        },
-        { onConflict: "id" }
-      );
+    const { error: saveError } = await supabase.from("profiles").upsert(
+      {
+        id: user.id,
+        email: user.email ?? "",
+        display_name: displayName || currentProfile?.display_name || null,
+        whatsapp: whatsapp || null,
+        avatar_url: avatarUrl
+      },
+      { onConflict: "id" }
+    );
+
+    if (saveError) {
+      redirect("/my?error=save_failed");
+    }
 
     redirect("/my");
   }
@@ -363,6 +381,7 @@ export default async function MyPage({
 
       <section className="section">
         {searchParams?.error === "invalid_whatsapp" ? <p className="notice">{copy.invalidWa}</p> : null}
+        {searchParams?.error === "save_failed" ? <p className="notice">{copy.saveFailed}</p> : null}
         {searchParams?.error === "invalid_avatar" ? <p className="notice">{copy.invalidAvatar ?? copy.invalidWa}</p> : null}
         {searchParams?.error === "avatar_too_large" ? <p className="notice">{copy.avatarTooLarge ?? copy.invalidWa}</p> : null}
         {searchParams?.error === "upload_failed" ? <p className="notice">{copy.uploadFailed}</p> : null}
