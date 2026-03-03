@@ -33,6 +33,7 @@ export default async function MyPage({
     lang === "ko"
       ? {
           title: "내 정보",
+          defaultName: "WhatsApp 사용자",
           account: "계정",
           invalidWa: "WhatsApp 번호 형식이 올바르지 않습니다. 예: +5491122334455",
           invalidAvatar: "이미지 파일만 업로드할 수 있습니다. (jpg, png, webp)",
@@ -79,6 +80,7 @@ export default async function MyPage({
         }
       : {
           title: "Mi cuenta",
+          defaultName: "Usuario WhatsApp",
           account: "Cuenta",
           invalidWa: "Formato invalido. Ejemplo: +5491122334455",
           invalidAvatar: "Solo se permiten imagenes (jpg/png/webp).",
@@ -140,7 +142,7 @@ export default async function MyPage({
     .eq("id", user.id)
     .maybeSingle();
   const split = splitWhatsapp(myProfile?.whatsapp);
-  const profileName = myProfile?.display_name || (split.number ? `WA ${split.number}` : user.email || "User");
+  const profileName = myProfile?.display_name || copy.defaultName;
 
   const [{ data: myPosts }, { data: myJoins }] = await Promise.all([
     supabase
@@ -333,7 +335,6 @@ export default async function MyPage({
           <ProfileAvatar name={profileName} avatarUrl={myProfile?.avatar_url} size="lg" />
           <div>
             <h1>{profileName || copy.title}</h1>
-            <p>{user.email}</p>
           </div>
         </div>
         <form action={signOut}>
@@ -352,7 +353,7 @@ export default async function MyPage({
           <strong>{copy.profile}</strong>
           <p className="muted">{copy.profileGuide}</p>
           <form className="section" action={saveProfile} encType="multipart/form-data">
-            <input className="input" name="display_name" placeholder={copy.displayName} defaultValue={myProfile?.display_name ?? profileName ?? ""} />
+            <input className="input" name="display_name" placeholder={copy.displayName} defaultValue={myProfile?.display_name ?? ""} />
             <label className="muted">{copy.avatar}</label>
             <input className="input" type="file" name="avatar_file" accept="image/png,image/jpeg,image/webp" />
             <p className="muted">{copy.avatarGuide}</p>

@@ -85,7 +85,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
     );
   }
 
-  const [{ data: profile }, { data: recentResults }, { data: rivalRows }] = await Promise.all([
+  const [{ data: profile }, { data: recentResults }, { data: rivalRows }, { count: totalConfirmedCount }, { count: winsCount }, { data: streakRows }] = await Promise.all([
     supabase
       .from("profiles")
       .select("id,display_name,avatar_url,wins,losses,total_matches,current_streak,best_streak")
@@ -106,7 +106,26 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
       .eq("status", "confirmed")
       .or(`player_a.eq.${id},player_b.eq.${id}`)
       .order("confirmed_at", { ascending: false })
-      .limit(500)
+      .limit(500),
+    supabase
+      .from("match_results")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "confirmed")
+      .or(`player_a.eq.${id},player_b.eq.${id}`),
+    supabase
+      .from("match_results")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "confirmed")
+      .eq("winner_id", id)
+      .or(`player_a.eq.${id},player_b.eq.${id}`),
+    supabase
+      .from("match_results")
+      .select("winner_id,confirmed_at,created_at")
+      .eq("status", "confirmed")
+      .or(`player_a.eq.${id},player_b.eq.${id}`)
+      .order("confirmed_at", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(5000)
   ]);
 
   const rivalStats = new Map<string, { wins: number; losses: number; total: number; winners: string[] }>();
@@ -163,8 +182,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
     profile?.display_name ||
     (user?.id === id
       ? (user.user_metadata?.full_name as string | undefined) ||
-        (user.user_metadata?.name as string | undefined) ||
-        user.email?.split("@")[0]
+        (user.user_metadata?.name as string | undefined)
       : lang === "ko"
         ? "플레이어"
         : "Jugador");
@@ -180,7 +198,38 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
     best_streak: 0
   };
 
-  const winRate = safeProfile.total_matches > 0 ? Math.round((safeProfile.wins / safeProfile.total_matches) * 100) : 0;
+  const computedTotal = totalConfirmedCount ?? 0;
+  const computedWins = winsCount ?? 0;
+  const computedLosses = Math.max(0, computedTotal - computedWins);
+  const winRate = computedTotal > 0 ? Math.round((computedWins / computedTotal) * 100) : 0;
+
+  const winnerSequence = (streakRows ?? []).map((row) => row.winner_id);
+  const computedCurrentStreak = (() => {
+    let streak = 0;
+    for (const winnerId of winnerSequence) {
+      if (winnerId === id) {
+        streak += 1;
+      } else {
+        break;
+      }
+    }
+    return streak;
+  })();
+  const computedBestStreak = (() => {
+    let best = 0;
+    let run = 0;
+    for (const winnerId of winnerSequence) {
+      if (winnerId === id) {
+        run += 1;
+        if (run > best) {
+          best = run;
+        }
+      } else {
+        run = 0;
+      }
+    }
+    return best;
+  })();
 
   return (
     <main className="shell">
@@ -201,29 +250,29 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
         <div className="profile-stat-grid">
           <div className="profile-stat-item">
             <span>{copy.total}</span>
-            <strong>{safeProfile.total_matches}</strong>
+            <strong>{computedTotal}</strong>
           </div>
           <div className="profile-stat-item">
             <span>{copy.wins}</span>
-            <strong className="winner-name">{safeProfile.wins}</strong>
+            <strong className="winner-name">{computedWins}</strong>
           </div>
           <div className="profile-stat-item">
             <span>{copy.losses}</span>
-            <strong className="loss-name">{safeProfile.losses}</strong>
+            <strong className="loss-name">{computedLosses}</strong>
           </div>
           <div className="profile-stat-item">
             <span>{copy.wl}</span>
             <strong>
-              {safeProfile.wins} / {safeProfile.losses}
+              {computedWins} / {computedLosses}
             </strong>
           </div>
           <div className="profile-stat-item">
             <span>{copy.streak}</span>
-            <strong>{safeProfile.current_streak}</strong>
+            <strong>{computedCurrentStreak}</strong>
           </div>
           <div className="profile-stat-item">
             <span>{copy.bestStreak}</span>
-            <strong>{safeProfile.best_streak}</strong>
+            <strong>{computedBestStreak}</strong>
           </div>
         </div>
       </section>

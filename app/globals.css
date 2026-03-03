@@ -5,7 +5,7 @@
   --text: #f7f8fb;
   --muted: #a9b3c6;
   --accent: #4f8cff;
-  --card-top-glow: rgba(255, 147, 118, 0.16);
+  --card-top-glow: rgba(114, 160, 255, 0.18);
   --card-bottom-glow: rgba(12, 18, 31, 0.54);
   --card-shadow-soft: 0 18px 36px rgba(4, 8, 16, 0.34);
   --card-shadow-press: 0 8px 18px rgba(4, 8, 16, 0.25);
@@ -22,8 +22,8 @@ body {
   min-height: 100%;
   background-color: #0d1016;
   background:
-    radial-gradient(80% 45% at 0% 0%, rgba(255, 123, 92, 0.14) 0%, rgba(255, 123, 92, 0) 65%),
-    radial-gradient(75% 42% at 100% 0%, rgba(79, 140, 255, 0.14) 0%, rgba(79, 140, 255, 0) 62%),
+    radial-gradient(80% 45% at 0% 0%, rgba(100, 150, 255, 0.15) 0%, rgba(100, 150, 255, 0) 65%),
+    radial-gradient(75% 42% at 100% 0%, rgba(61, 122, 240, 0.15) 0%, rgba(61, 122, 240, 0) 62%),
     linear-gradient(180deg, #0f1420 0%, #0c1018 100%);
   color: var(--text);
   font-family: "Pretendard", "Noto Sans KR", sans-serif;
@@ -236,8 +236,8 @@ a {
 }
 
 .push-write-btn:hover {
-  border-color: #ff8a66;
-  box-shadow: 0 8px 18px rgba(255, 121, 88, 0.24);
+  border-color: #78a5ff;
+  box-shadow: 0 8px 18px rgba(86, 140, 255, 0.28);
 }
 
 .filters {
@@ -289,7 +289,7 @@ a {
   width: 100%;
   border: 0;
   border-radius: 12px;
-  background: linear-gradient(130deg, #ff7d58, #ff5f7e 42%, #4f8cff 100%);
+  background: linear-gradient(130deg, #2f7bff, #4f8cff 55%, #71b0ff 100%);
   color: #fff;
   font-weight: 800;
   padding: 10px 12px;
@@ -330,7 +330,8 @@ a {
 .link-btn:active,
 .push-write-btn:active {
   transform: translateY(1px) scale(0.99);
-  filter: brightness(0.95);
+  filter: brightness(1.03) saturate(1.02);
+  box-shadow: inset 0 0 0 999px rgba(168, 200, 255, 0.08);
 }
 
 .button[disabled],
@@ -372,7 +373,7 @@ a {
   border: 1px solid #3b4861;
   border-radius: 18px;
   background:
-    radial-gradient(100% 70% at 0% 0%, rgba(255, 137, 106, 0.11), rgba(255, 137, 106, 0)),
+    radial-gradient(100% 70% at 0% 0%, rgba(123, 168, 255, 0.13), rgba(123, 168, 255, 0)),
     linear-gradient(155deg, #1a2232, #141b28);
   padding: 13px;
   margin-bottom: 12px;
@@ -387,7 +388,7 @@ a {
   inset: 0 auto auto 0;
   width: 100%;
   height: 45%;
-  background: linear-gradient(180deg, rgba(255, 185, 162, 0.14), rgba(255, 185, 162, 0));
+  background: linear-gradient(180deg, rgba(172, 205, 255, 0.14), rgba(172, 205, 255, 0));
   pointer-events: none;
 }
 
@@ -421,7 +422,7 @@ a {
 
 .activity-link:active {
   transform: scale(0.985);
-  filter: brightness(1.06);
+  filter: brightness(1.03);
 }
 
 .card-link {
@@ -432,7 +433,7 @@ a {
 
 .card-link:active {
   transform: scale(0.985);
-  filter: brightness(1.07);
+  filter: brightness(1.03);
 }
 
 .activity-message {
@@ -474,6 +475,12 @@ a {
   border-color: #4f8cff;
   background: linear-gradient(120deg, #244a8a, #2f5fb2);
   color: #ffffff;
+}
+
+.seg-tab:active {
+  transform: scale(0.985);
+  border-color: #7ea8ff;
+  background: linear-gradient(120deg, #223d6f, #2a528f);
 }
 
 .card {
@@ -661,7 +668,7 @@ a {
 
 .badge:hover {
   transform: translateY(-1px);
-  border-color: #ff9a79;
+  border-color: #7fa8ff;
   background: rgba(47, 57, 77, 0.84);
 }
 

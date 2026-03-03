@@ -19,6 +19,12 @@ export default async function ResultsPage({
           tabStreak: "연승 TOP 5",
           slogan: "1세트 슬램 · 한 세트 승부",
           rule: "룰: 1세트 승부 결과를 기록하며, 확정 시 승률 통계에 반영됩니다.",
+          mechanismTitle: "승률/연승 계산 기준",
+          mechanism1: "포함: status=confirmed 결과만 집계",
+          mechanism2: "제외: pending/cancelled 결과, 미확정 매치",
+          mechanism3: "승률 공식: (승 / 확정 총경기) × 100",
+          mechanism4: "연승: 최신 확정 경기부터 연속 승리 횟수",
+          mechanism5: "1 Set Slam 단식 결과 기준으로 업데이트",
           empty: "아직 확정된 결과가 없습니다.",
           emptyStreak: "연승 랭킹 데이터가 아직 없습니다.",
           set: "1세트",
@@ -34,6 +40,12 @@ export default async function ResultsPage({
           tabStreak: "Top 5 rachas",
           slogan: "1 Set Slam · Partido a un set",
           rule: "Regla: se registra un solo set y, al confirmarse, impacta en el porcentaje de victorias.",
+          mechanismTitle: "Como se calcula porcentaje/racha",
+          mechanism1: "Incluye solo resultados con status=confirmed",
+          mechanism2: "Excluye pending/cancelled y partidos sin confirmar",
+          mechanism3: "Formula: (victorias / total confirmado) × 100",
+          mechanism4: "Racha: victorias consecutivas desde el partido confirmado mas reciente",
+          mechanism5: "Actualiza con resultados de 1 Set Slam (individual)",
           empty: "Aun no hay resultados confirmados.",
           emptyStreak: "Aun no hay datos de rachas.",
           set: "1 Set Slam",
@@ -73,6 +85,14 @@ export default async function ResultsPage({
       </header>
       <p className="notice success">{copy.slogan}</p>
       <p className="muted">{copy.rule}</p>
+      <article className="card">
+        <strong>{copy.mechanismTitle}</strong>
+        <p className="muted">• {copy.mechanism1}</p>
+        <p className="muted">• {copy.mechanism2}</p>
+        <p className="muted">• {copy.mechanism3}</p>
+        <p className="muted">• {copy.mechanism4}</p>
+        <p className="muted">• {copy.mechanism5}</p>
+      </article>
 
       <section className="section">
         <div className="seg-tabs">
