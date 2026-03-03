@@ -48,6 +48,7 @@ export default async function MyPage({
           expired: "시간종료",
           open: "모집중",
           detail: "상세 보기",
+          edit: "수정",
           myJoins: "내 참여 기록",
           noJoin: "참여한 매치가 없습니다.",
           ongoing: "진행중",
@@ -72,6 +73,7 @@ export default async function MyPage({
           expired: "Fuera de horario",
           open: "Abierto",
           detail: "Ver detalle",
+          edit: "Editar",
           myJoins: "Mis participaciones",
           noJoin: "No participaste en ningun partido.",
           ongoing: "En curso",
@@ -119,7 +121,8 @@ export default async function MyPage({
     const label = post.status === "closed" ? copy.hostClosed : isExpired ? copy.expired : copy.open;
     const isPast = new Date(post.start_at).getTime() < now;
 
-    return { ...post, players, label, isPast, isExpired };
+    const isEditable = post.status === "open" && !isPast && !isExpired;
+    return { ...post, players, label, isPast, isExpired, isEditable };
   });
 
   const upcomingHost = hostMatches.filter((post) => !post.isPast);
@@ -241,9 +244,20 @@ export default async function MyPage({
                 <p className="muted">
                   {copy.players}: {post.players}/{post.needed}
                 </p>
-                <Link className="link-btn" href={`/post/${post.id}`}>
-                  {copy.detail}
-                </Link>
+                <div className="actions">
+                  <Link className="link-btn" href={`/post/${post.id}`}>
+                    {copy.detail}
+                  </Link>
+                  {post.isEditable ? (
+                    <Link className="link-btn" href={`/post/${post.id}/edit`}>
+                      {copy.edit}
+                    </Link>
+                  ) : (
+                    <button className="link-btn" type="button" disabled>
+                      {copy.edit}
+                    </button>
+                  )}
+                </div>
               </article>
             );
           })}
