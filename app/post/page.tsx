@@ -9,7 +9,7 @@ import { redirect } from "next/navigation";
 export default async function PostPage({
   searchParams
 }: {
-  searchParams?: { error?: string; at?: string; start?: string };
+  searchParams?: { error?: string; at?: string; start?: string; message?: string };
 }) {
   const lang = await getServerLang();
   const copy =
@@ -20,6 +20,7 @@ export default async function PostPage({
           duplicate: "중복 매칭 글이 있어 등록하지 않았습니다.",
           invalid: "유효하지 않은 날짜/슬롯입니다. 다시 선택해 주세요.",
           past: "지난 시간 슬롯은 등록할 수 없습니다.",
+          failed: "글 생성 실패:",
           autoClose: "자동 종료: 시작 후 90분 (예: 09:00-10:30)",
           courtOptional: "코트 선택 (선택)",
           courtPlaceholder: "코트 미지정",
@@ -32,6 +33,7 @@ export default async function PostPage({
           duplicate: "Ya existe una convocatoria duplicada para ese horario.",
           invalid: "Fecha o franja invalida. Vuelve a seleccionar.",
           past: "No puedes publicar una franja que ya paso.",
+          failed: "Error al publicar:",
           autoClose: "Cierre automatico: 90 minutos desde el inicio",
           courtOptional: "Cancha (opcional)",
           courtPlaceholder: "Sin cancha",
@@ -130,7 +132,8 @@ export default async function PostPage({
     }
 
     if (error || !data) {
-      throw new Error(`글 생성 실패: ${error?.message ?? "unknown"}`);
+      const reason = encodeURIComponent(error?.message ?? "unknown");
+      redirect(`/post?error=create_failed&message=${reason}`);
     }
 
     redirect(`/post/${data.id}?createdAt=${encodeURIComponent(new Date().toISOString())}`);
@@ -141,6 +144,8 @@ export default async function PostPage({
   const isInvalidSlotError = searchParams?.error === "invalid_slot";
   const pastStart = searchParams?.start ? new Date(searchParams.start) : null;
   const isPastError = searchParams?.error === "past";
+  const isCreateFailed = searchParams?.error === "create_failed";
+  const createFailedMessage = searchParams?.message ? decodeURIComponent(searchParams.message) : "";
   const defaultDate = getCordobaDateString();
   const dateLocale = lang === "ko" ? "ko-KR" : "es-AR";
 
@@ -161,6 +166,11 @@ export default async function PostPage({
       {isPastError ? (
         <p className="notice">
           {copy.past} {pastStart ? `(${pastStart.toLocaleString(dateLocale)})` : ""}
+        </p>
+      ) : null}
+      {isCreateFailed ? (
+        <p className="notice">
+          {copy.failed} {createFailedMessage || "unknown"}
         </p>
       ) : null}
 
