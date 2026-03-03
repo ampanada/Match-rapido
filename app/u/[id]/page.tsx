@@ -41,8 +41,22 @@ export default async function PublicProfilePage({ params }: { params: { id: stri
         };
 
   const supabase = await createClient();
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
 
-  const [{ data: profile }, { data: latestHostPost }, { data: recentResults }, { data: authData }] = await Promise.all([
+  // Self-heal missing profile row for logged-in user to avoid /u/[id] 404.
+  if (user?.id === params.id) {
+    await supabase.from("profiles").upsert(
+      {
+        id: user.id,
+        email: user.email ?? ""
+      },
+      { onConflict: "id" }
+    );
+  }
+
+  const [{ data: profile }, { data: latestHostPost }, { data: recentResults }] = await Promise.all([
     supabase
       .from("profiles")
       .select("id,display_name,wins,losses,total_matches,current_streak,best_streak")
@@ -63,8 +77,7 @@ export default async function PublicProfilePage({ params }: { params: { id: stri
       .eq("status", "confirmed")
       .or(`player_a.eq.${params.id},player_b.eq.${params.id}`)
       .order("confirmed_at", { ascending: false })
-      .limit(10),
-    supabase.auth.getUser()
+      .limit(10)
   ]);
 
   if (!profile) {
@@ -77,7 +90,7 @@ export default async function PublicProfilePage({ params }: { params: { id: stri
     <main className="shell">
       <header className="top">
         <h1>{profile.display_name || copy.title}</h1>
-        {authData.user?.id === params.id ? (
+        {user?.id === params.id ? (
           <Link className="link-btn" href="/my">
             {copy.settings}
           </Link>
