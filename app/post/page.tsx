@@ -53,90 +53,96 @@ export default async function PostPage({
   async function createPost(formData: FormData) {
     "use server";
 
-    const supabase = await createClient();
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
+    try {
+      const supabase = await createClient();
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
 
-    if (!user) {
-      redirect("/login");
+      if (!user) {
+        redirect("/login");
+      }
+
+      // Ensure profile row exists for FK(posts.host_id -> profiles.id) and RLS checks.
+      const { error: profileError } = await supabase.from("profiles").upsert(
+        {
+          id: user.id,
+          email: user.email ?? ""
+        },
+        { onConflict: "id" }
+      );
+
+      if (profileError) {
+        const reason = encodeURIComponent(profileError.message);
+        redirect(`/post?error=create_failed&message=${reason}`);
+      }
+
+      const date = String(formData.get("date") || "");
+      const slot = String(formData.get("slot") || "");
+      const format = String(formData.get("format") || "single");
+      const level = String(formData.get("level") || "beginner");
+      const defaultNeeded =
+        format === "double" || format === "mixed_double" || format === "men_double" || format === "women_double"
+          ? 4
+          : 2;
+      const needed = Number(formData.get("needed") || defaultNeeded);
+      const courtRaw = String(formData.get("court_no") || "").trim();
+      const courtNo = courtRaw ? Number(courtRaw) : null;
+      const note = String(formData.get("note") || "").trim();
+
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !isValidSlotStart(slot)) {
+        redirect("/post?error=invalid_slot");
+      }
+
+      const startAtIso = zonedDateTimeToIso(date, slot);
+
+      if (new Date(startAtIso).getTime() < Date.now()) {
+        redirect(`/post?error=past&start=${encodeURIComponent(startAtIso)}`);
+      }
+      if (courtNo !== null && (!Number.isInteger(courtNo) || courtNo < 1 || courtNo > 6)) {
+        redirect("/post?error=invalid_slot");
+      }
+
+      const { data: duplicated } = await supabase
+        .from("posts")
+        .select("id")
+        .eq("host_id", user.id)
+        .eq("start_at", startAtIso)
+        .limit(1);
+
+      if (duplicated && duplicated.length > 0) {
+        redirect(`/post?error=duplicate&at=${encodeURIComponent(startAtIso)}`);
+      }
+
+      const { data, error } = await supabase
+        .from("posts")
+        .insert({
+          host_id: user.id,
+          start_at: startAtIso,
+          format,
+          level,
+          needed,
+          court_no: courtNo,
+          note,
+          status: "open"
+        })
+        .select("id")
+        .single();
+
+      if (error?.code === "23505") {
+        redirect(`/post?error=duplicate&at=${encodeURIComponent(startAtIso)}`);
+      }
+
+      if (error || !data) {
+        const reason = encodeURIComponent(error?.message ?? "unknown");
+        redirect(`/post?error=create_failed&message=${reason}`);
+      }
+
+      redirect(`/post/${data.id}?createdAt=${encodeURIComponent(new Date().toISOString())}`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "unknown";
+      redirect(`/post?error=create_failed&message=${encodeURIComponent(msg)}`);
     }
-
-    // Ensure profile row exists for FK(posts.host_id -> profiles.id) and RLS checks.
-    const { error: profileError } = await supabase.from("profiles").upsert(
-      {
-        id: user.id,
-        email: user.email ?? ""
-      },
-      { onConflict: "id" }
-    );
-
-    if (profileError) {
-      throw new Error(`프로필 생성 실패: ${profileError.message}`);
-    }
-
-    const date = String(formData.get("date") || "");
-    const slot = String(formData.get("slot") || "");
-    const format = String(formData.get("format") || "single");
-    const level = String(formData.get("level") || "beginner");
-    const defaultNeeded =
-      format === "double" || format === "mixed_double" || format === "men_double" || format === "women_double"
-        ? 4
-        : 2;
-    const needed = Number(formData.get("needed") || defaultNeeded);
-    const courtRaw = String(formData.get("court_no") || "").trim();
-    const courtNo = courtRaw ? Number(courtRaw) : null;
-    const note = String(formData.get("note") || "").trim();
-
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !isValidSlotStart(slot)) {
-      redirect("/post?error=invalid_slot");
-    }
-
-    const startAtIso = zonedDateTimeToIso(date, slot);
-
-    if (new Date(startAtIso).getTime() < Date.now()) {
-      redirect(`/post?error=past&start=${encodeURIComponent(startAtIso)}`);
-    }
-    if (courtNo !== null && (!Number.isInteger(courtNo) || courtNo < 1 || courtNo > 6)) {
-      redirect("/post?error=invalid_slot");
-    }
-
-    const { data: duplicated } = await supabase
-      .from("posts")
-      .select("id")
-      .eq("host_id", user.id)
-      .eq("start_at", startAtIso)
-      .limit(1);
-
-    if (duplicated && duplicated.length > 0) {
-      redirect(`/post?error=duplicate&at=${encodeURIComponent(startAtIso)}`);
-    }
-
-    const { data, error } = await supabase
-      .from("posts")
-      .insert({
-        host_id: user.id,
-        start_at: startAtIso,
-        format,
-        level,
-        needed,
-        court_no: courtNo,
-        note,
-        status: "open"
-      })
-      .select("id")
-      .single();
-
-    if (error?.code === "23505") {
-      redirect(`/post?error=duplicate&at=${encodeURIComponent(startAtIso)}`);
-    }
-
-    if (error || !data) {
-      const reason = encodeURIComponent(error?.message ?? "unknown");
-      redirect(`/post?error=create_failed&message=${reason}`);
-    }
-
-    redirect(`/post/${data.id}?createdAt=${encodeURIComponent(new Date().toISOString())}`);
   }
 
   const duplicateErrorTime = searchParams?.at ? new Date(searchParams.at) : null;
