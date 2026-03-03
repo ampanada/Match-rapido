@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { formatLabel, levelLabel } from "@/lib/constants/filters";
 import { formatCordobaDate, formatSlotRange, getCordobaHHMM } from "@/lib/constants/slots";
 
@@ -66,9 +65,9 @@ export default function PostCard({ post, lang }: PostCardProps) {
         {copy.recruitSuffix}
       </span>
       <p className="note">{post.note || copy.emptyNote}</p>
-      <Link className="link-btn" href={`/post/${post.id}`}>
+      <a className="link-btn" href={`/post/${post.id}`}>
         {copy.detail}
-      </Link>
+      </a>
     </article>
   );
 }

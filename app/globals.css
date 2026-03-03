@@ -185,6 +185,10 @@ a {
 
 .button,
 .link-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
   border: 0;
   border-radius: 10px;
   background: linear-gradient(120deg, #2563eb, #4f8cff);
@@ -195,6 +199,9 @@ a {
   transition: transform 0.18s ease, filter 0.18s ease, opacity 0.18s ease;
   position: relative;
   overflow: hidden;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .button:hover,
