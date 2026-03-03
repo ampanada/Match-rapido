@@ -4,7 +4,7 @@ import { formatLabel, levelLabel } from "@/lib/constants/filters";
 import { getServerLang } from "@/lib/i18n-server";
 import { formatCordobaDate, formatSlotRange, getCordobaHHMM } from "@/lib/constants/slots";
 import { createClient } from "@/lib/supabase/server";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 
 function waLink(phone: string, text: string) {
   return `https://wa.me/${phone.replace(/[^\d]/g, "")}?text=${encodeURIComponent(text)}`;
@@ -104,7 +104,7 @@ export default async function PostDetailPage({
     .maybeSingle();
 
   if (!post) {
-    notFound();
+    redirect("/");
   }
 
   const {
