@@ -337,6 +337,30 @@ a {
   font-size: 14px;
 }
 
+.seg-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.seg-tab {
+  border: 1px solid #334158;
+  border-radius: 999px;
+  background: #1b2130;
+  color: #9fb4d8;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 10px;
+  transition: all 0.2s ease;
+}
+
+.seg-tab.active {
+  border-color: #4f8cff;
+  background: linear-gradient(120deg, #244a8a, #2f5fb2);
+  color: #ffffff;
+}
+
 .card {
   border: 1px solid var(--line);
   border-radius: 14px;

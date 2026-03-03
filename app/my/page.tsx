@@ -25,7 +25,7 @@ function splitWhatsapp(whatsapp: string | null | undefined) {
 export default async function MyPage({
   searchParams
 }: {
-  searchParams?: { error?: string };
+  searchParams?: { error?: string; view?: string };
 }) {
   const lang = await getServerLang();
   const copy =
@@ -45,6 +45,17 @@ export default async function MyPage({
           savePending: "저장 중...",
           logoutPending: "로그아웃 중...",
           myPosts: "내가 올린 매치",
+          resultTab: "결과 등록",
+          matchesTab: "내 매치",
+          noResultTarget: "결과 등록 가능한 지난 단식 매치가 없습니다.",
+          registerResult: "결과 등록",
+          pendingResult: "결과확정 대기",
+          confirmedResult: "결과 확정",
+          closeReason: "마감사유",
+          closeManual: "호스트 임의마감",
+          closeAuto: "시간 자동종료",
+          closeFull: "정원 마감",
+          opponent: "상대",
           noPost: "작성한 글이 없습니다.",
           upcoming: "예정 매치",
           past: "지난 매치",
@@ -73,6 +84,17 @@ export default async function MyPage({
           savePending: "Guardando...",
           logoutPending: "Saliendo...",
           myPosts: "Mis publicaciones",
+          resultTab: "Cargar resultado",
+          matchesTab: "Mis partidos",
+          noResultTarget: "No hay partidos individuales pasados para cargar resultado.",
+          registerResult: "Registrar resultado",
+          pendingResult: "Resultado pendiente",
+          confirmedResult: "Resultado confirmado",
+          closeReason: "Cierre",
+          closeManual: "Cierre manual del host",
+          closeAuto: "Cierre automatico por tiempo",
+          closeFull: "Cupo completo",
+          opponent: "Rival",
           noPost: "No tienes publicaciones.",
           upcoming: "Proximos",
           past: "Pasados",
@@ -107,7 +129,7 @@ export default async function MyPage({
   const [{ data: myPosts }, { data: myJoins }] = await Promise.all([
     supabase
       .from("posts")
-      .select("id,start_at,status,court_no,note,needed,joins(status)")
+      .select("id,start_at,status,format,court_no,note,needed,joins(user_id,status,profiles!joins_user_id_fkey(display_name))")
       .eq("host_id", user.id)
       .order("start_at", { ascending: true })
       .limit(50),
@@ -119,17 +141,55 @@ export default async function MyPage({
       .limit(50)
   ]);
 
+  const hostPostIds = (myPosts ?? []).map((post) => post.id);
+  const { data: hostResults } =
+    hostPostIds.length > 0
+      ? await supabase
+          .from("match_results")
+          .select("post_id,status,score")
+          .in("post_id", hostPostIds)
+      : { data: [] as any[] };
+  const resultByPostId = new Map((hostResults ?? []).map((item) => [item.post_id, item]));
+
   const now = Date.now();
 
   const hostMatches = (myPosts ?? []).map((post) => {
-    const approved = post.joins?.filter((join) => join.status === "approved").length ?? 0;
+    const approvedJoins = post.joins?.filter((join: any) => join.status === "approved") ?? [];
+    const approved = approvedJoins.length;
     const players = approved + 1;
     const isExpired = new Date(post.start_at).getTime() + 30 * 60 * 1000 < now;
     const label = post.status === "closed" ? copy.hostClosed : isExpired ? copy.expired : copy.open;
     const isPast = new Date(post.start_at).getTime() < now;
+    const firstApproved = approvedJoins[0];
+    const joinProfile = firstApproved
+      ? Array.isArray(firstApproved.profiles)
+        ? firstApproved.profiles[0]
+        : firstApproved.profiles
+      : null;
+    const opponentName = joinProfile?.display_name || "-";
+    const closeReason =
+      post.status === "closed"
+        ? copy.closeManual
+        : players >= post.needed
+          ? copy.closeFull
+          : isExpired
+            ? copy.closeAuto
+            : "-";
+    const result = resultByPostId.get(post.id);
 
     const isEditable = post.status === "open" && !isPast && !isExpired;
-    return { ...post, players, label, isPast, isExpired, isEditable };
+    return {
+      ...post,
+      players,
+      label,
+      isPast,
+      isExpired,
+      isEditable,
+      opponentName,
+      closeReason,
+      resultStatus: result?.status ?? null,
+      resultScore: result?.score ?? null
+    };
   });
 
   const upcomingHost = hostMatches.filter((post) => !post.isPast);
@@ -150,6 +210,10 @@ export default async function MyPage({
 
   const upcomingJoin = joinMatches.filter((join) => !join.isPast);
   const pastJoin = joinMatches.filter((join) => join.isPast);
+  const resultTargets = pastHost.filter(
+    (post) => post.format === "single" && post.players >= 2 && post.resultStatus !== "confirmed"
+  );
+  const view = searchParams?.view === "result" ? "result" : "matches";
 
   async function signOut() {
     "use server";
@@ -240,56 +304,105 @@ export default async function MyPage({
         </article>
 
         <article className="card">
-          <strong>{copy.myPosts}</strong>
-          {(myPosts ?? []).length === 0 ? <p className="muted">{copy.noPost}</p> : null}
+          <div className="seg-tabs">
+            <Link className={`seg-tab${view === "matches" ? " active" : ""}`} href="/my?view=matches">
+              {copy.matchesTab}
+            </Link>
+            <Link className={`seg-tab${view === "result" ? " active" : ""}`} href="/my?view=result">
+              {copy.resultTab}
+            </Link>
+          </div>
+        </article>
 
-          {upcomingHost.length > 0 ? <h3 className="subhead">{copy.upcoming}</h3> : null}
-          {upcomingHost.map((post) => {
-            const startHHMM = getCordobaHHMM(post.start_at);
-            return (
-              <article key={post.id} className="card">
-                <div className="row">
-                  <span className="muted">
+        {view === "matches" ? (
+          <article className="card">
+            <strong>{copy.myPosts}</strong>
+            {(myPosts ?? []).length === 0 ? <p className="muted">{copy.noPost}</p> : null}
+
+            {upcomingHost.length > 0 ? <h3 className="subhead">{copy.upcoming}</h3> : null}
+            {upcomingHost.map((post) => {
+              const startHHMM = getCordobaHHMM(post.start_at);
+              return (
+                <article key={post.id} className="card">
+                  <div className="row">
+                    <span className="muted">
+                      {formatCordobaDate(post.start_at, dateLocale)} · {formatSlotRange(startHHMM)}
+                      {post.court_no ? ` · ${lang === "ko" ? `${post.court_no}번코트` : `Cancha ${post.court_no}`}` : ""}
+                    </span>
+                    <span className={`status-chip ${post.label === copy.open ? "open" : "done"}`}>{post.label}</span>
+                  </div>
+                  <p className="muted">
+                    {copy.players}: {post.players}/{post.needed}
+                  </p>
+                  <div className="actions">
+                    <Link className="link-btn" href={`/post/${post.id}`}>
+                      {copy.detail}
+                    </Link>
+                    {post.isEditable ? (
+                      <Link className="link-btn" href={`/post/${post.id}/edit`}>
+                        {copy.edit}
+                      </Link>
+                    ) : (
+                      <button className="link-btn" type="button" disabled>
+                        {copy.edit}
+                      </button>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+
+            {pastHost.length > 0 ? (
+              <details className="card compact-block">
+                <summary>{copy.past}</summary>
+                {pastHost.map((post) => {
+                  const startHHMM = getCordobaHHMM(post.start_at);
+                  return (
+                    <p className="compact-line" key={post.id}>
+                      {formatCordobaDate(post.start_at, dateLocale)} | {formatSlotRange(startHHMM)} |{" "}
+                      {post.court_no ? (lang === "ko" ? `${post.court_no}번코트` : `Cancha ${post.court_no}`) : "-"} |{" "}
+                      {copy.opponent} {post.opponentName} | {copy.closeReason} {post.closeReason} |{" "}
+                      {post.resultStatus === "confirmed"
+                        ? `${copy.confirmedResult}${post.resultScore ? ` (${post.resultScore})` : ""}`
+                        : post.resultStatus === "pending"
+                          ? copy.pendingResult
+                          : "-"}
+                    </p>
+                  );
+                })}
+              </details>
+            ) : null}
+          </article>
+        ) : (
+          <article className="card">
+            <strong>{copy.resultTab}</strong>
+            {resultTargets.length === 0 ? <p className="muted">{copy.noResultTarget}</p> : null}
+            {resultTargets.map((post) => {
+              const startHHMM = getCordobaHHMM(post.start_at);
+              const statusText =
+                post.resultStatus === "pending"
+                  ? copy.pendingResult
+                  : post.resultStatus === "confirmed"
+                    ? `${copy.confirmedResult}${post.resultScore ? ` (${post.resultScore})` : ""}`
+                    : "";
+              return (
+                <article key={post.id} className="card">
+                  <p className="muted">
                     {formatCordobaDate(post.start_at, dateLocale)} · {formatSlotRange(startHHMM)}
                     {post.court_no ? ` · ${lang === "ko" ? `${post.court_no}번코트` : `Cancha ${post.court_no}`}` : ""}
-                  </span>
-                  <span className={`status-chip ${post.label === copy.open ? "open" : "done"}`}>{post.label}</span>
-                </div>
-                <p className="muted">
-                  {copy.players}: {post.players}/{post.needed}
-                </p>
-                <div className="actions">
-                  <Link className="link-btn" href={`/post/${post.id}`}>
-                    {copy.detail}
-                  </Link>
-                  {post.isEditable ? (
-                    <Link className="link-btn" href={`/post/${post.id}/edit`}>
-                      {copy.edit}
-                    </Link>
-                  ) : (
-                    <button className="link-btn" type="button" disabled>
-                      {copy.edit}
-                    </button>
-                  )}
-                </div>
-              </article>
-            );
-          })}
-
-          {pastHost.length > 0 ? (
-            <details className="card compact-block">
-              <summary>{copy.past}</summary>
-              {pastHost.map((post) => {
-                const startHHMM = getCordobaHHMM(post.start_at);
-                return (
-                  <p className="compact-line" key={post.id}>
-                    {formatCordobaDate(post.start_at, dateLocale)} | {formatSlotRange(startHHMM)} | {post.court_no ? (lang === "ko" ? `${post.court_no}번코트` : `Cancha ${post.court_no}`) : "-"} | {post.label} | {copy.players} {post.players}/{post.needed}
                   </p>
-                );
-              })}
-            </details>
-          ) : null}
-        </article>
+                  <p className="muted">
+                    {copy.opponent}: {post.opponentName}
+                  </p>
+                  {statusText ? <p className="muted">{statusText}</p> : null}
+                  <Link className="link-btn" href={`/post/${post.id}`}>
+                    {copy.registerResult}
+                  </Link>
+                </article>
+              );
+            })}
+          </article>
+        )}
 
         <article className="card">
           <strong>{copy.myJoins}</strong>
