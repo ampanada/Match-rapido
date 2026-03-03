@@ -32,6 +32,7 @@ export default async function MyPage({
     lang === "ko"
       ? {
           title: "내 정보",
+          account: "계정",
           invalidWa: "WhatsApp 번호 형식이 올바르지 않습니다. 예: +5491122334455",
           logout: "로그아웃",
           profile: "프로필 / WhatsApp 연동",
@@ -59,6 +60,7 @@ export default async function MyPage({
         }
       : {
           title: "Mi cuenta",
+          account: "Cuenta",
           invalidWa: "Formato invalido. Ejemplo: +5491122334455",
           logout: "Cerrar sesion",
           profile: "Perfil / WhatsApp",
@@ -193,36 +195,47 @@ export default async function MyPage({
 
   return (
     <main className="shell">
-      <header className="top">
-        <h1>{copy.title}</h1>
-        <p>{user.email}</p>
+      <header className="card my-hero">
+        <div className="my-hero-row">
+          <div className="my-avatar">{(myProfile?.display_name || user.email || "U").slice(0, 1).toUpperCase()}</div>
+          <div>
+            <h1>{myProfile?.display_name || copy.title}</h1>
+            <p>{user.email}</p>
+          </div>
+        </div>
+        <form action={signOut}>
+          <SubmitButton idleLabel={copy.logout} pendingLabel={copy.logoutPending} className="button button-soft" />
+        </form>
       </header>
 
       <section className="section">
         {searchParams?.error === "invalid_whatsapp" ? <p className="notice">{copy.invalidWa}</p> : null}
 
-        <form action={signOut}>
-          <SubmitButton idleLabel={copy.logout} pendingLabel={copy.logoutPending} />
-        </form>
-
         <article className="card">
+          <strong>{copy.account}</strong>
           <strong>{copy.profile}</strong>
           <p className="muted">{copy.profileGuide}</p>
           <form className="section" action={saveProfile}>
             <input className="input" name="display_name" placeholder={copy.displayName} defaultValue={myProfile?.display_name ?? ""} />
-            <label className="muted">{copy.step1}</label>
-            <select className="select" name="country_code" defaultValue={split.countryCode}>
-              <option value="+54">Argentina (+54)</option>
-              <option value="+82">Korea (+82)</option>
-              <option value="+1">US/CA (+1)</option>
-              <option value="+34">Spain (+34)</option>
-              <option value="+55">Brazil (+55)</option>
-              <option value="+81">Japan (+81)</option>
-            </select>
-            <label className="muted">{copy.step2}</label>
-            <input className="input" name="whatsapp_number" placeholder="91122334455" inputMode="tel" defaultValue={split.number} />
+            <div className="field-row">
+              <div>
+                <label className="muted">{copy.step1}</label>
+                <select className="select" name="country_code" defaultValue={split.countryCode}>
+                  <option value="+54">Argentina (+54)</option>
+                  <option value="+82">Korea (+82)</option>
+                  <option value="+1">US/CA (+1)</option>
+                  <option value="+34">Spain (+34)</option>
+                  <option value="+55">Brazil (+55)</option>
+                  <option value="+81">Japan (+81)</option>
+                </select>
+              </div>
+              <div>
+                <label className="muted">{copy.step2}</label>
+                <input className="input" name="whatsapp_number" placeholder="91122334455" inputMode="tel" defaultValue={split.number} />
+              </div>
+            </div>
             <p className="muted">{copy.saveFormat}</p>
-            <SubmitButton idleLabel={copy.save} pendingLabel={copy.savePending} />
+            <SubmitButton idleLabel={copy.save} pendingLabel={copy.savePending} className="button button-outline" />
           </form>
         </article>
 

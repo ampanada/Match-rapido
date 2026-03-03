@@ -134,6 +134,46 @@ a {
   font-size: 12px;
 }
 
+.my-hero {
+  margin-bottom: 12px;
+  background: linear-gradient(150deg, #1d2433, #181b22);
+}
+
+.my-hero h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.my-hero p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.my-hero-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.my-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  background: linear-gradient(140deg, #4f8cff, #6ec3ff);
+  color: #0f1115;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
 .push-write-btn {
   border: 1px solid #2b4d8e;
   border-radius: 999px;
@@ -202,6 +242,18 @@ a {
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+}
+
+.button.button-soft {
+  background: #232b3b;
+  border: 1px solid #3b4860;
+  color: #dbe7ff;
+}
+
+.button.button-outline {
+  background: transparent;
+  border: 1px solid #4f8cff;
+  color: #b7d3ff;
 }
 
 .button:hover,
@@ -535,6 +587,10 @@ a {
 @media (max-width: 360px) {
   .filters,
   .actions {
+    grid-template-columns: 1fr;
+  }
+
+  .field-row {
     grid-template-columns: 1fr;
   }
 }
