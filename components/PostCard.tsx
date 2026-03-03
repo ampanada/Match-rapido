@@ -1,5 +1,8 @@
+ "use client";
+
 import { formatLabel, levelLabel } from "@/lib/constants/filters";
 import { formatCordobaDate, formatSlotRange, getCordobaHHMM } from "@/lib/constants/slots";
+import { useRouter } from "next/navigation";
 
 interface PostCardProps {
   post: {
@@ -19,6 +22,7 @@ interface PostCardProps {
 }
 
 export default function PostCard({ post, lang }: PostCardProps) {
+  const router = useRouter();
   const dateLocale = lang === "ko" ? "ko-KR" : "es-AR";
   const copy =
     lang === "ko"
@@ -42,6 +46,16 @@ export default function PostCard({ post, lang }: PostCardProps) {
   const recruitCount = Math.max(post.needed - 1, 0);
   const isCompleted = post.status === "closed" || currentPlayers >= post.needed || post.isExpired;
   const startHHMM = getCordobaHHMM(post.start_at);
+  const detailHref = `/post/${post.id}`;
+
+  function moveToDetail() {
+    router.push(detailHref);
+    window.setTimeout(() => {
+      if (window.location.pathname !== detailHref) {
+        window.location.href = detailHref;
+      }
+    }, 250);
+  }
 
   return (
     <article className="card">
@@ -65,9 +79,9 @@ export default function PostCard({ post, lang }: PostCardProps) {
         {copy.recruitSuffix}
       </span>
       <p className="note">{post.note || copy.emptyNote}</p>
-      <a className="link-btn" href={`/post/${post.id}`}>
+      <button className="link-btn" type="button" onClick={moveToDetail}>
         {copy.detail}
-      </a>
+      </button>
     </article>
   );
 }
