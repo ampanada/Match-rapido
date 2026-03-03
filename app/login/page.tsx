@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+const LOGIN_COOLDOWN_SECONDS = 60;
+
 export default function LoginPage() {
   const searchParams = useSearchParams();
   const reason = searchParams.get("reason");
@@ -18,7 +20,8 @@ export default function LoginPage() {
           authRequired: "내정보를 보려면 로그인이 필요합니다.",
           sent: "이메일로 로그인 링크를 보냈습니다.",
           sending: "전송 중...",
-          submit: "이메일 매직 링크 받기"
+          submit: "이메일 매직 링크 받기",
+          cooldown: "다시 요청까지"
         }
       : {
           title: "Acceso",
@@ -26,19 +29,42 @@ export default function LoginPage() {
           authRequired: "Necesitas iniciar sesion para ver Mi cuenta.",
           sent: "Te enviamos el enlace magico por email.",
           sending: "Enviando...",
-          submit: "Recibir enlace magico"
+          submit: "Recibir enlace magico",
+          cooldown: "Reintentar en"
         };
 
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [cooldownLeft, setCooldownLeft] = useState(0);
 
   useEffect(() => {
     setLang(getClientLangFromCookie(document.cookie));
   }, []);
 
+  useEffect(() => {
+    if (cooldownLeft <= 0) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setCooldownLeft((prev) => {
+        if (prev <= 1) {
+          window.clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [cooldownLeft]);
+
   const handleMagicLink = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (loading || cooldownLeft > 0) {
+      return;
+    }
     setLoading(true);
 
     const supabase = createClient();
@@ -54,6 +80,7 @@ export default function LoginPage() {
       setMessage(error.message);
     } else {
       setMessage(copy.sent);
+      setCooldownLeft(LOGIN_COOLDOWN_SECONDS);
     }
 
     setLoading(false);
@@ -78,8 +105,12 @@ export default function LoginPage() {
             onChange={(event) => setEmail(event.target.value)}
             required
           />
-          <button className="button" type="submit" disabled={loading}>
-            {loading ? copy.sending : copy.submit}
+          <button className="button" type="submit" disabled={loading || cooldownLeft > 0}>
+            {loading
+              ? copy.sending
+              : cooldownLeft > 0
+                ? `${copy.cooldown} ${cooldownLeft}s`
+                : copy.submit}
           </button>
         </form>
         {message ? <p className="notice">{message}</p> : null}
