@@ -163,10 +163,7 @@ export default async function Home({
         <div>
           <h1 className="brand-title">
             {copy.title}
-            <span className="tennis-logo" aria-hidden="true">
-              <span className="tennis-logo-line tennis-logo-line-left" />
-              <span className="tennis-logo-line tennis-logo-line-right" />
-            </span>
+            <img className="brand-logo-img" src="/tennis-ball.svg" alt="Tennis logo" />
           </h1>
           <p>{copy.subtitle}</p>
         </div>

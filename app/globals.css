@@ -210,36 +210,13 @@ a {
   gap: 8px;
 }
 
-.tennis-logo {
-  width: 18px;
-  height: 18px;
+.brand-logo-img {
+  width: 20px;
+  height: 20px;
+  display: inline-block;
   border-radius: 999px;
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: radial-gradient(circle at 35% 32%, #f8ffcc 0%, #d6ef7c 45%, #b8db50 100%);
-  box-shadow: 0 0 0 1px rgba(152, 182, 72, 0.8), 0 0 10px rgba(190, 225, 93, 0.35);
-}
-
-.tennis-logo-line {
-  position: absolute;
-  width: 8px;
-  height: 16px;
-  border: 1px solid rgba(246, 255, 222, 0.95);
-  border-top: 0;
-  border-bottom: 0;
-  border-radius: 999px;
-}
-
-.tennis-logo-line-left {
-  left: -2px;
-  transform: rotate(18deg);
-}
-
-.tennis-logo-line-right {
-  right: -2px;
-  transform: rotate(18deg);
+  object-fit: cover;
+  box-shadow: 0 0 0 1px rgba(170, 201, 90, 0.7), 0 0 8px rgba(188, 225, 98, 0.32);
 }
 
 .top p {
