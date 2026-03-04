@@ -51,6 +51,11 @@ function upcomingPrioritySort<T extends { status?: string | null; start_at?: str
   return aTime - bTime;
 }
 
+function safeTime(value: unknown) {
+  const n = new Date(String(value ?? "")).getTime();
+  return Number.isNaN(n) ? null : n;
+}
+
 export default async function MyPage({
   searchParams
 }: {
@@ -233,9 +238,10 @@ export default async function MyPage({
     const approvedJoins = post.joins?.filter((join: any) => join.status === "approved") ?? [];
     const approved = approvedJoins.length;
     const players = approved + 1;
-    const isExpired = new Date(post.start_at).getTime() + 30 * 60 * 1000 < now;
+    const startTime = safeTime(post.start_at);
+    const isExpired = startTime !== null ? startTime + 30 * 60 * 1000 < now : true;
     const label = post.status === "closed" ? copy.hostClosed : isExpired ? copy.expired : copy.open;
-    const isPast = new Date(post.start_at).getTime() < now;
+    const isPast = startTime !== null ? startTime < now : true;
     const firstApproved = approvedJoins[0];
     const joinProfile = firstApproved
       ? Array.isArray(firstApproved.profiles)
@@ -276,10 +282,12 @@ export default async function MyPage({
   const joinMatches = (myJoins ?? []).map((join) => {
     const relatedPost = Array.isArray(join.posts) ? join.posts[0] : join.posts;
     const when = relatedPost?.start_at ?? join.created_at;
+    const whenTime = safeTime(when);
     const approved = relatedPost?.joins?.filter((item) => item.status === "approved").length ?? 0;
     const players = approved + 1;
-    const isPast = new Date(when).getTime() < now;
-    const isExpired = relatedPost?.start_at ? new Date(relatedPost.start_at).getTime() + 30 * 60 * 1000 < now : false;
+    const isPast = whenTime !== null ? whenTime < now : true;
+    const relatedStartTime = safeTime(relatedPost?.start_at);
+    const isExpired = relatedStartTime !== null ? relatedStartTime + 30 * 60 * 1000 < now : false;
     const isClosed = relatedPost?.status === "closed";
     const label = isClosed ? copy.hostClosed : isExpired ? copy.expired : copy.ongoing;
     return { ...join, relatedPost, when, players, label, isPast };
