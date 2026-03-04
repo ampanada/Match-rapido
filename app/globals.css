@@ -45,7 +45,7 @@ a {
   width: min(100%, 420px);
   min-height: 100dvh;
   margin: 0 auto;
-  padding: 92px 14px calc(84px + env(safe-area-inset-bottom));
+  padding: 104px 14px calc(84px + env(safe-area-inset-bottom));
 }
 
 .club-tabs-wrap {
