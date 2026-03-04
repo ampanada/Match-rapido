@@ -161,7 +161,13 @@ export default async function Home({
     <main className="shell">
       <header className="top">
         <div>
-          <h1>{copy.title}</h1>
+          <h1 className="brand-title">
+            {copy.title}
+            <span className="tennis-logo" aria-hidden="true">
+              <span className="tennis-logo-line tennis-logo-line-left" />
+              <span className="tennis-logo-line tennis-logo-line-right" />
+            </span>
+          </h1>
           <p>{copy.subtitle}</p>
         </div>
         <Link className="push-write-btn" href="/post">
