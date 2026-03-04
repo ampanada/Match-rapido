@@ -16,19 +16,17 @@ export default function LanguageTabs({ lang }: LanguageTabsProps) {
   }
 
   return (
-    <div className="lang-tabs-wrap">
-      <div className="lang-tabs">
-        <button
-          className={`lang-tab ${lang === "es" ? "active" : ""}`}
-          type="button"
-          onClick={() => switchLang("es")}
-        >
-          Espanol
-        </button>
-        <button className={`lang-tab ${lang === "ko" ? "active" : ""}`} type="button" onClick={() => switchLang("ko")}>
-          Korean
-        </button>
-      </div>
+    <div className="lang-tabs">
+      <button
+        className={`lang-tab ${lang === "es" ? "active" : ""}`}
+        type="button"
+        onClick={() => switchLang("es")}
+      >
+        Espanol
+      </button>
+      <button className={`lang-tab ${lang === "ko" ? "active" : ""}`} type="button" onClick={() => switchLang("ko")}>
+        Korean
+      </button>
     </div>
   );
 }

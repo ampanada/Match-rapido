@@ -1,4 +1,5 @@
 import BottomNav from "@/components/BottomNav";
+import LanguageTabs from "@/components/LanguageTabs";
 import LocalizedFileInput from "@/components/LocalizedFileInput";
 import LogoutConfirmButton from "@/components/LogoutConfirmButton";
 import ProfileAvatar from "@/components/ProfileAvatar";
@@ -27,7 +28,7 @@ function splitWhatsapp(whatsapp: string | null | undefined) {
 export default async function MyPage({
   searchParams
 }: {
-  searchParams?: Promise<{ error?: string; saved?: string; reason?: string }>;
+  searchParams?: Promise<{ error?: string; saved?: string; reason?: string; warn?: string }>;
 }) {
   noStore();
   const params = (await searchParams) ?? {};
@@ -40,11 +41,14 @@ export default async function MyPage({
           invalidWa: "WhatsApp 번호 형식이 올바르지 않습니다. 예: +5491122334455",
           saveFailed: "저장에 실패했습니다. 다시 시도해 주세요.",
           saveDone: "저장되었습니다.",
+          uploadWarn: "프로필 사진 업로드는 실패했지만 이름/번호는 저장되었습니다.",
           invalidAvatar: "이미지 파일만 업로드할 수 있습니다. (jpg, png, webp)",
           avatarTooLarge: "이미지 용량이 너무 큽니다. 최대 5MB",
           uploadFailed: "프로필 사진 업로드에 실패했습니다.",
           profile: "프로필 / WhatsApp 연동",
           profileGuide: "아르헨티나(+54)가 기본입니다. 필요하면 국가번호를 바꿔서 저장하세요.",
+          language: "언어",
+          languageGuide: "기본 언어는 Espanol입니다. 필요할 때만 Korean으로 변경하세요.",
           displayName: "WhatsApp 이름(표시 이름)",
           avatar: "프로필 사진",
           avatarGuide: "이미지 업로드 시 결과/프로필 화면에 표시됩니다. (jpg, png, webp)",
@@ -62,11 +66,14 @@ export default async function MyPage({
           invalidWa: "Formato invalido. Ejemplo: +5491122334455",
           saveFailed: "No se pudo guardar. Intenta de nuevo.",
           saveDone: "Guardado correctamente.",
+          uploadWarn: "La foto no se pudo subir, pero nombre/numero si se guardaron.",
           invalidAvatar: "Solo se permiten imagenes (jpg/png/webp).",
           avatarTooLarge: "La imagen es demasiado grande. Maximo 5MB.",
           uploadFailed: "No se pudo subir la foto de perfil.",
           profile: "Perfil / WhatsApp",
           profileGuide: "El prefijo por defecto es Argentina (+54). Puedes cambiarlo.",
+          language: "Idioma",
+          languageGuide: "El idioma base es Espanol. Cambia a Korean solo si lo necesitas.",
           displayName: "Nombre de WhatsApp (visible)",
           avatar: "Foto de perfil",
           avatarGuide: "Se muestra en resultados/perfil. (jpg, png, webp)",
@@ -140,7 +147,14 @@ export default async function MyPage({
         {params.error === "avatar_too_large" ? <p className="notice">{copy.avatarTooLarge}</p> : null}
         {params.error === "upload_failed" ? <p className="notice">{copy.uploadFailed}</p> : null}
         {params.saved === "1" ? <p className="notice success">{copy.saveDone}</p> : null}
+        {params.warn === "avatar_upload_failed" ? <p className="notice">{copy.uploadWarn}</p> : null}
         {params.reason ? <p className="muted">reason: {params.reason}</p> : null}
+
+        <article className="card">
+          <strong>{copy.language}</strong>
+          <p className="muted">{copy.languageGuide}</p>
+          <LanguageTabs lang={lang} />
+        </article>
 
         <article className="card">
           <strong>{copy.profile}</strong>

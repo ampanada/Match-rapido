@@ -47,7 +47,7 @@ a {
   padding: 94px 14px calc(84px + env(safe-area-inset-bottom));
 }
 
-.lang-tabs-wrap {
+.club-tabs-wrap {
   position: fixed;
   top: 0;
   left: 50%;
@@ -57,6 +57,32 @@ a {
   background: rgba(15, 17, 21, 0.95);
   border-bottom: 1px solid var(--line);
   backdrop-filter: blur(8px);
+}
+
+.club-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px;
+  justify-content: flex-start;
+}
+
+.club-tab {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 12px;
+  padding: 6px 10px;
+}
+
+.club-tab.active {
+  color: #fff;
+  border-color: #2b4d8e;
+  background: #1f2634;
+}
+
+.club-tab:disabled {
+  opacity: 0.65;
 }
 
 .global-notice-wrap {
@@ -112,7 +138,7 @@ a {
 .lang-tabs {
   display: flex;
   gap: 8px;
-  padding: 8px 10px;
+  padding: 2px 0 0;
 }
 
 .lang-tab {

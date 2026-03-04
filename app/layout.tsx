@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import GlobalNotice from "@/components/GlobalNotice";
-import LanguageTabs from "@/components/LanguageTabs";
+import ClubTabs from "@/components/ClubTabs";
 import RouteFrame from "@/components/RouteFrame";
 import RouteTransitionIndicator from "@/components/RouteTransitionIndicator";
 import { getServerLang } from "@/lib/i18n-server";
@@ -17,7 +17,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={lang}>
       <body>
-        <LanguageTabs lang={lang} />
+        <ClubTabs lang={lang} />
         <GlobalNotice lang={lang} />
         <RouteTransitionIndicator />
         <RouteFrame>{children}</RouteFrame>
