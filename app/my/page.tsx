@@ -235,7 +235,8 @@ export default async function MyPage({
   const now = Date.now();
 
   const hostMatches = (myPosts ?? []).map((post) => {
-    const approvedJoins = post.joins?.filter((join: any) => join.status === "approved") ?? [];
+    const postJoins = Array.isArray(post.joins) ? post.joins : [];
+    const approvedJoins = postJoins.filter((join: any) => join.status === "approved");
     const approved = approvedJoins.length;
     const players = approved + 1;
     const startTime = safeTime(post.start_at);
@@ -283,7 +284,8 @@ export default async function MyPage({
     const relatedPost = Array.isArray(join.posts) ? join.posts[0] : join.posts;
     const when = relatedPost?.start_at ?? join.created_at;
     const whenTime = safeTime(when);
-    const approved = relatedPost?.joins?.filter((item) => item.status === "approved").length ?? 0;
+    const relatedJoins = Array.isArray(relatedPost?.joins) ? relatedPost.joins : [];
+    const approved = relatedJoins.filter((item) => item.status === "approved").length;
     const players = approved + 1;
     const isPast = whenTime !== null ? whenTime < now : true;
     const relatedStartTime = safeTime(relatedPost?.start_at);
