@@ -325,25 +325,36 @@ export default async function MyMatchesPage() {
                   <div className="section">
                     {item.format === "single" && item.participants.length === 2 ? (
                       <p className="result-players">
-                        {item.participants.map((participant, idx) => {
+                        {(() => {
                           const winnerId = resultMap.get(item.id)?.winner_id ?? null;
-                          const isWinner = winnerId === participant.id;
-                          const other = item.participants[idx === 0 ? 1 : 0];
+                          const first = item.participants[0];
+                          const second = item.participants[1];
+                          const firstWinner = winnerId === first.id;
+                          const secondWinner = winnerId === second.id;
                           return (
-                            <span key={`today-result-${item.id}-${participant.id}`}>
-                              <Link className="link-inline" href={`/u/${participant.id}`}>
+                            <>
+                              <Link className="link-inline" href={`/u/${first.id}`}>
                                 <span className="result-player-line">
-                                  <ProfileAvatar name={participant.display_name} avatarUrl={participant.avatar_url} size="sm" />
-                                  <span className="result-player-name">{participant.display_name}</span>
-                                  <span className={isWinner ? "result-tag-win" : "result-tag-loss"}>
-                                    {isWinner ? copy.winner : copy.loser}
+                                  <ProfileAvatar name={first.display_name} avatarUrl={first.avatar_url} size="sm" />
+                                  <span className="result-player-name">{first.display_name}</span>
+                                  <span className={firstWinner ? "result-tag-win" : "result-tag-loss"}>
+                                    {firstWinner ? copy.winner : copy.loser}
                                   </span>
                                 </span>
                               </Link>
-                              {idx === 0 ? <span className="result-vs">vs</span> : ""}
-                            </span>
+                              <span className="result-vs">vs</span>
+                              <Link className="link-inline" href={`/u/${second.id}`}>
+                                <span className="result-player-line">
+                                  <ProfileAvatar name={second.display_name} avatarUrl={second.avatar_url} size="sm" />
+                                  <span className="result-player-name">{second.display_name}</span>
+                                  <span className={secondWinner ? "result-tag-win" : "result-tag-loss"}>
+                                    {secondWinner ? copy.winner : copy.loser}
+                                  </span>
+                                </span>
+                              </Link>
+                            </>
                           );
-                        })}
+                        })()}
                       </p>
                     ) : null}
                     <p className="result-scoreline">
@@ -426,25 +437,36 @@ export default async function MyMatchesPage() {
                     <div className="section">
                       {item.format === "single" && item.participants.length === 2 ? (
                         <p className="result-players">
-                          {item.participants.map((participant, idx) => {
+                          {(() => {
                             const winnerId = resultMap.get(item.id)?.winner_id ?? null;
-                            const isWinner = winnerId === participant.id;
-                            const other = item.participants[idx === 0 ? 1 : 0];
+                            const first = item.participants[0];
+                            const second = item.participants[1];
+                            const firstWinner = winnerId === first.id;
+                            const secondWinner = winnerId === second.id;
                             return (
-                              <span key={`done-result-${item.id}-${participant.id}`}>
-                                <Link className="link-inline" href={`/u/${participant.id}`}>
+                              <>
+                                <Link className="link-inline" href={`/u/${first.id}`}>
                                   <span className="result-player-line">
-                                    <ProfileAvatar name={participant.display_name} avatarUrl={participant.avatar_url} size="sm" />
-                                    <span className="result-player-name">{participant.display_name}</span>
-                                    <span className={isWinner ? "result-tag-win" : "result-tag-loss"}>
-                                      {isWinner ? copy.winner : copy.loser}
+                                    <ProfileAvatar name={first.display_name} avatarUrl={first.avatar_url} size="sm" />
+                                    <span className="result-player-name">{first.display_name}</span>
+                                    <span className={firstWinner ? "result-tag-win" : "result-tag-loss"}>
+                                      {firstWinner ? copy.winner : copy.loser}
                                     </span>
                                   </span>
                                 </Link>
-                                {idx === 0 ? <span className="result-vs">vs</span> : ""}
-                              </span>
+                                <span className="result-vs">vs</span>
+                                <Link className="link-inline" href={`/u/${second.id}`}>
+                                  <span className="result-player-line">
+                                    <ProfileAvatar name={second.display_name} avatarUrl={second.avatar_url} size="sm" />
+                                    <span className="result-player-name">{second.display_name}</span>
+                                    <span className={secondWinner ? "result-tag-win" : "result-tag-loss"}>
+                                      {secondWinner ? copy.winner : copy.loser}
+                                    </span>
+                                  </span>
+                                </Link>
+                              </>
                             );
-                          })}
+                          })()}
                         </p>
                       ) : null}
                       <p className="result-scoreline">

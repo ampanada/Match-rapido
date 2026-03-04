@@ -761,6 +761,9 @@ a {
 .result-vs {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  margin: 0 2px;
   color: #b9c7df;
   font-size: 12px;
   line-height: 1;

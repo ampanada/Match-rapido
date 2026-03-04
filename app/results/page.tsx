@@ -1,4 +1,5 @@
 import BottomNav from "@/components/BottomNav";
+import ProfileAvatar from "@/components/ProfileAvatar";
 import { getServerLang } from "@/lib/i18n-server";
 import { formatCordobaDate, formatSlotRange, getCordobaHHMM } from "@/lib/constants/slots";
 import { createClient } from "@/lib/supabase/server";
@@ -15,8 +16,8 @@ export default async function ResultsPage({
   const copy =
     lang === "ko"
       ? {
-          title: "경기 결과",
-          topStreakTitle: "상단 연승 플레이어",
+          title: "실시간 경기 결과",
+          topStreakTitle: "실시간 Top5 연승 플레이어",
           slogan: "1세트 슬램 · 한 세트 승부",
           rule: "룰: 1세트 승부 결과를 기록하며, 확정 시 승률 통계에 반영됩니다.",
           mechanismTitle: "승률/연승 계산 기준",
@@ -31,13 +32,15 @@ export default async function ResultsPage({
           set: "1세트",
           court: "코트",
           winner: "승자",
+          winTag: "승",
+          lossTag: "패",
           unknownCourt: "코트 미지정",
           streakUnit: "연승",
           bestStreak: "최고"
         }
       : {
-          title: "Resultados",
-          topStreakTitle: "Jugadores en racha",
+          title: "Resultados en vivo",
+          topStreakTitle: "Top5 en racha en vivo",
           slogan: "1 Set Slam · Partido a un set",
           rule: "Regla: se registra un solo set y, al confirmarse, impacta en el porcentaje de victorias.",
           mechanismTitle: "Como se calcula porcentaje/racha",
@@ -52,6 +55,8 @@ export default async function ResultsPage({
           set: "1 Set Slam",
           court: "Cancha",
           winner: "Ganador",
+          winTag: "W",
+          lossTag: "L",
           unknownCourt: "Cancha sin definir",
           streakUnit: "seguidas",
           bestStreak: "mejor"
@@ -63,7 +68,7 @@ export default async function ResultsPage({
     supabase
       .from("match_results")
       .select(
-        "id,score,winner_id,confirmed_at,created_at,player_a,player_b,player_a_profile:profiles!match_results_player_a_fkey(id,display_name),player_b_profile:profiles!match_results_player_b_fkey(id,display_name),posts!match_results_post_id_fkey(start_at,court_no)"
+        "id,score,winner_id,confirmed_at,created_at,player_a,player_b,player_a_profile:profiles!match_results_player_a_fkey(id,display_name,avatar_url),player_b_profile:profiles!match_results_player_b_fkey(id,display_name,avatar_url),posts!match_results_post_id_fkey(start_at,court_no)"
       )
       .eq("status", "confirmed")
       .order("confirmed_at", { ascending: false })
@@ -71,7 +76,7 @@ export default async function ResultsPage({
       .limit(50),
     supabase
       .from("profiles")
-      .select("id,display_name,current_streak,best_streak,wins,losses")
+      .select("id,display_name,avatar_url,current_streak,best_streak,wins,losses")
       .order("current_streak", { ascending: false })
       .order("best_streak", { ascending: false })
       .order("wins", { ascending: false })
@@ -89,10 +94,10 @@ export default async function ResultsPage({
 
   const { data: fallbackProfiles } =
     missingProfileIds.length > 0
-      ? await supabase.from("profiles").select("id,display_name").in("id", missingProfileIds)
-      : { data: [] as { id: string; display_name: string | null }[] };
+      ? await supabase.from("profiles").select("id,display_name,avatar_url").in("id", missingProfileIds)
+      : { data: [] as { id: string; display_name: string | null; avatar_url: string | null }[] };
 
-  const fallbackNameMap = new Map((fallbackProfiles ?? []).map((profile) => [profile.id, profile.display_name]));
+  const fallbackProfileMap = new Map((fallbackProfiles ?? []).map((profile) => [profile.id, profile]));
 
   return (
     <main className="shell">
@@ -102,7 +107,7 @@ export default async function ResultsPage({
       <p className="notice success">{copy.slogan}</p>
       <p className="muted">{copy.rule}</p>
 
-      <section className="activity-list">
+      <section className="activity-list streak-top-list">
         <div className="row">
           <h2 className="activity-title">{copy.topStreakTitle}</h2>
           <Link
@@ -114,10 +119,18 @@ export default async function ResultsPage({
         </div>
         {(streakLeaders ?? []).slice(0, 5).map((player, index) => (
           <Link className="activity-link" href={`/u/${player.id}`} key={`mini-streak-${player.id}`}>
-            <article className="activity-item">
-              <p className="activity-message">
-                #{index + 1} {player.display_name || (lang === "ko" ? "플레이어" : "Jugador")}
-              </p>
+            <article className="activity-item streak-top-item">
+              <div className="streak-top-main">
+                <span className="streak-rank">#{index + 1}</span>
+                <ProfileAvatar
+                  name={player.display_name || (lang === "ko" ? "플레이어" : "Jugador")}
+                  avatarUrl={player.avatar_url}
+                  size="sm"
+                />
+                <p className="activity-message">
+                  {player.display_name || (lang === "ko" ? "플레이어" : "Jugador")}
+                </p>
+              </div>
               <p className="activity-time">
                 {player.current_streak} {copy.streakUnit} · W/L {player.wins}/{player.losses}
               </p>
@@ -127,13 +140,13 @@ export default async function ResultsPage({
       </section>
 
       {showGuide ? (
-        <article className="card">
+        <article className="card mechanism-card">
           <strong>{copy.mechanismTitle}</strong>
-          <p className="muted">• {copy.mechanism1}</p>
-          <p className="muted">• {copy.mechanism2}</p>
-          <p className="muted">• {copy.mechanism3}</p>
-          <p className="muted">• {copy.mechanism4}</p>
-          <p className="muted">• {copy.mechanism5}</p>
+          <p className="muted mechanism-item">• {copy.mechanism1}</p>
+          <p className="muted mechanism-item">• {copy.mechanism2}</p>
+          <p className="muted mechanism-item">• {copy.mechanism3}</p>
+          <p className="muted mechanism-item">• {copy.mechanism4}</p>
+          <p className="muted mechanism-item">• {copy.mechanism5}</p>
         </article>
       ) : null}
 
@@ -152,12 +165,20 @@ export default async function ResultsPage({
           const playerBId = playerB?.id ?? result.player_b ?? null;
           const playerAName =
             playerA?.display_name ||
-            (playerAId ? fallbackNameMap.get(playerAId) : null) ||
+            (playerAId ? fallbackProfileMap.get(playerAId)?.display_name : null) ||
             (lang === "ko" ? "플레이어 A" : "Jugador A");
           const playerBName =
             playerB?.display_name ||
-            (playerBId ? fallbackNameMap.get(playerBId) : null) ||
+            (playerBId ? fallbackProfileMap.get(playerBId)?.display_name : null) ||
             (lang === "ko" ? "플레이어 B" : "Jugador B");
+          const playerAAvatar =
+            playerA?.avatar_url ??
+            (playerAId ? fallbackProfileMap.get(playerAId)?.avatar_url : null) ??
+            null;
+          const playerBAvatar =
+            playerB?.avatar_url ??
+            (playerBId ? fallbackProfileMap.get(playerBId)?.avatar_url : null) ??
+            null;
 
           return (
             <article className="card result-card" key={result.id}>
@@ -169,16 +190,22 @@ export default async function ResultsPage({
 
               <p className="result-players">
                 <Link className={`link-inline${playerAId ? "" : " disabled-link"}`} href={playerAId ? `/u/${playerAId}` : "#"}>
-                  <span className={isAWinner ? "winner-name" : "loss-name"}>
-                    {playerAName}
-                    {isAWinner ? <em className="winner-chip">{copy.winner}</em> : null}
+                  <span className="result-player-line">
+                    <ProfileAvatar name={playerAName} avatarUrl={playerAAvatar} size="sm" />
+                    <span className="result-player-name">{playerAName}</span>
+                    <span className={isAWinner ? "result-tag-win" : "result-tag-loss"}>
+                      {isAWinner ? copy.winTag : copy.lossTag}
+                    </span>
                   </span>
                 </Link>{" "}
                 vs{" "}
                 <Link className={`link-inline${playerBId ? "" : " disabled-link"}`} href={playerBId ? `/u/${playerBId}` : "#"}>
-                  <span className={isBWinner ? "winner-name" : "loss-name"}>
-                    {playerBName}
-                    {isBWinner ? <em className="winner-chip">{copy.winner}</em> : null}
+                  <span className="result-player-line">
+                    <ProfileAvatar name={playerBName} avatarUrl={playerBAvatar} size="sm" />
+                    <span className="result-player-name">{playerBName}</span>
+                    <span className={isBWinner ? "result-tag-win" : "result-tag-loss"}>
+                      {isBWinner ? copy.winTag : copy.lossTag}
+                    </span>
                   </span>
                 </Link>
               </p>
