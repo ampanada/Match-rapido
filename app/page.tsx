@@ -1,6 +1,7 @@
 import BottomNav from "@/components/BottomNav";
 import FiltersBar from "@/components/FiltersBar";
 import PostCard from "@/components/PostCard";
+import ProfileAvatar from "@/components/ProfileAvatar";
 import { getCordobaDateString, getCordobaHHMM, getCordobaWeekday } from "@/lib/constants/slots";
 import { getServerLang } from "@/lib/i18n-server";
 import { createClient } from "@/lib/supabase/server";
@@ -93,6 +94,12 @@ export default async function Home({
     query,
     supabase.from("activity_feed").select("id,type,user_id,related_post_id,message,created_at").order("created_at", { ascending: false }).limit(10)
   ]);
+  const activityUserIds = Array.from(new Set((activityData ?? []).map((item) => item.user_id).filter(Boolean)));
+  const { data: activityProfiles } =
+    activityUserIds.length > 0
+      ? await supabase.from("profiles").select("id,display_name,avatar_url").in("id", activityUserIds)
+      : { data: [] as { id: string; display_name: string | null; avatar_url: string | null }[] };
+  const activityProfileMap = new Map((activityProfiles ?? []).map((profile) => [profile.id, profile]));
 
   const items =
     data?.map((post) => {
@@ -177,14 +184,23 @@ export default async function Home({
           <h2 className="activity-title">{copy.activityTitle}</h2>
         </div>
         {(activityData ?? []).length === 0 ? <p className="muted">{copy.activityEmpty}</p> : null}
-        {(activityData ?? []).map((item) => (
-          <Link key={item.id} className="activity-link" href={getActivityHref(item)}>
-            <article className="activity-item">
-              <p className="activity-message">{item.message}</p>
-              <p className="activity-time">{relativeTimeLabel(item.created_at, lang)}</p>
-            </article>
-          </Link>
-        ))}
+        {(activityData ?? []).map((item) => {
+          const actor = activityProfileMap.get(item.user_id);
+          const actorName = actor?.display_name || (lang === "ko" ? "플레이어" : "Jugador");
+          return (
+            <Link key={item.id} className="activity-link" href={getActivityHref(item)}>
+              <article className="activity-item">
+                <div className="activity-item-main">
+                  <ProfileAvatar name={actorName} avatarUrl={actor?.avatar_url ?? null} size="sm" />
+                  <div className="activity-copy">
+                    <p className="activity-message">{item.message}</p>
+                    <p className="activity-time">{relativeTimeLabel(item.created_at, lang)}</p>
+                  </div>
+                </div>
+              </article>
+            </Link>
+          );
+        })}
       </section>
 
       <FiltersBar selectedFormat={params.format} lang={lang} />
