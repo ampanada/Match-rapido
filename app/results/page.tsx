@@ -1,7 +1,7 @@
 import BottomNav from "@/components/BottomNav";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import { getServerLang } from "@/lib/i18n-server";
-import { formatCordobaDate, formatSlotRange, getCordobaHHMM } from "@/lib/constants/slots";
+import { formatCordobaDate, formatSlotRange, getCordobaDateString, getCordobaHHMM, getCordobaWeekday } from "@/lib/constants/slots";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 
@@ -34,6 +34,12 @@ export default async function ResultsPage({
           winner: "승자",
           winTag: "승",
           lossTag: "패",
+          todayBadge: "오늘",
+          completedLabel: "완료",
+          participants: "참여자",
+          participantItem: "참여자",
+          hostTag: "호스트",
+          recorded: "기록됨",
           unknownCourt: "코트 미지정",
           streakUnit: "연승",
           bestStreak: "최고"
@@ -57,6 +63,12 @@ export default async function ResultsPage({
           winner: "Ganador",
           winTag: "W",
           lossTag: "L",
+          todayBadge: "Hoy",
+          completedLabel: "Completado",
+          participants: "Participantes",
+          participantItem: "Jugador",
+          hostTag: "Host",
+          recorded: "Registrado",
           unknownCourt: "Cancha sin definir",
           streakUnit: "seguidas",
           bestStreak: "mejor"
@@ -68,7 +80,7 @@ export default async function ResultsPage({
     supabase
       .from("match_results")
       .select(
-        "id,score,winner_id,confirmed_at,created_at,player_a,player_b,player_a_profile:profiles!match_results_player_a_fkey(id,display_name,avatar_url),player_b_profile:profiles!match_results_player_b_fkey(id,display_name,avatar_url),posts!match_results_post_id_fkey(start_at,court_no)"
+        "id,score,winner_id,confirmed_at,created_at,player_a,player_b,player_a_profile:profiles!match_results_player_a_fkey(id,display_name,avatar_url),player_b_profile:profiles!match_results_player_b_fkey(id,display_name,avatar_url),posts!match_results_post_id_fkey(start_at,court_no,host_id)"
       )
       .eq("status", "confirmed")
       .order("confirmed_at", { ascending: false })
@@ -98,6 +110,8 @@ export default async function ResultsPage({
       : { data: [] as { id: string; display_name: string | null; avatar_url: string | null }[] };
 
   const fallbackProfileMap = new Map((fallbackProfiles ?? []).map((profile) => [profile.id, profile]));
+  const dateLocale = lang === "ko" ? "ko-KR" : "es-AR";
+  const todayKey = getCordobaDateString();
 
   return (
     <main className="shell">
@@ -158,6 +172,9 @@ export default async function ResultsPage({
           const playerB = Array.isArray(result.player_b_profile) ? result.player_b_profile[0] : result.player_b_profile;
           const post = Array.isArray(result.posts) ? result.posts[0] : result.posts;
           const when = post?.start_at ?? result.created_at;
+          const whenDate = getCordobaDateString(new Date(when));
+          const weekday = getCordobaWeekday(whenDate, dateLocale);
+          const isToday = whenDate === todayKey;
           const slotLabel = post?.start_at ? formatSlotRange(getCordobaHHMM(post.start_at)) : "";
           const isAWinner = result.winner_id === playerA?.id;
           const isBWinner = result.winner_id === playerB?.id;
@@ -181,11 +198,36 @@ export default async function ResultsPage({
             null;
 
           return (
-            <article className="card result-card" key={result.id}>
-              <div className="result-meta-strong">
-                <strong>{formatCordobaDate(when, lang === "ko" ? "ko-KR" : "es-AR")}</strong>
-                {slotLabel ? <span>{slotLabel}</span> : null}
-                <span>{post?.court_no ? `${copy.court} ${post.court_no}` : copy.unknownCourt}</span>
+            <article className="card match-card match-card-completed result-card" key={result.id}>
+              <div className="row">
+                {isToday ? <span className="badge">{copy.todayBadge}</span> : <span className="badge">{copy.completedLabel}</span>}
+                <span className="muted">{copy.completedLabel}</span>
+              </div>
+              <p className="match-date-line">
+                <strong>
+                  {formatCordobaDate(when, dateLocale)} ({weekday})
+                  {slotLabel ? ` · ${slotLabel}` : ""}
+                </strong>
+              </p>
+              <p className="muted">{post?.court_no ? `${copy.court} ${post.court_no}` : copy.unknownCourt}</p>
+              <p className="muted">{copy.participants}</p>
+              <div className="participant-list">
+                {[{ id: playerAId, name: playerAName, avatar: playerAAvatar }, { id: playerBId, name: playerBName, avatar: playerBAvatar }].map(
+                  (player, idx) => (
+                    <Link
+                      key={`${result.id}-participant-${player.id ?? idx}`}
+                      className={`participant-chip${player.id ? "" : " disabled-link"}`}
+                      href={player.id ? `/u/${player.id}` : "#"}
+                    >
+                      <span className="participant-row">
+                        <span className="participant-index">{copy.participantItem} {idx + 1}</span>
+                        <ProfileAvatar name={player.name} avatarUrl={player.avatar} size="sm" />
+                        <strong className="participant-name">{player.name}</strong>
+                        {player.id && post?.host_id && player.id === post.host_id ? <span className="participant-role">{copy.hostTag}</span> : null}
+                      </span>
+                    </Link>
+                  )
+                )}
               </div>
 
               <p className="result-players">
@@ -211,7 +253,7 @@ export default async function ResultsPage({
               </p>
 
               <p className="result-scoreline">
-                <span className="muted">{copy.set} · 1 Set Slam</span>
+                <span className="muted">{copy.recorded}</span>
                 <strong>{result.score}</strong>
               </p>
             </article>
