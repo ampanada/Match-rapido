@@ -7,7 +7,7 @@ import { getServerLang } from "@/lib/i18n-server";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Club Match MVP",
+  title: "Match Rapido",
   description: "Emparejamiento rapido de tenis para clubes"
 };
 
