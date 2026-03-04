@@ -79,7 +79,7 @@ export default async function Home({
   let query = supabase
     .from("posts")
     .select(
-      "id,host_id,start_at,format,level,needed,court_no,note,status,profiles!posts_host_id_fkey(display_name,avatar_url),joins(id,status)"
+      "id,host_id,start_at,format,level,needed,court_no,note,status,profiles!posts_host_id_fkey(id,display_name,avatar_url),joins(id,user_id,status,profiles!joins_user_id_fkey(id,display_name,avatar_url))"
     )
     .eq("status", "open")
     .gte("start_at", expiryCutoffIso)
@@ -97,9 +97,40 @@ export default async function Home({
   const items =
     data?.map((post) => {
       const profile = Array.isArray(post.profiles) ? post.profiles[0] : post.profiles;
+      const hostName = profile?.display_name || (lang === "ko" ? "호스트" : "Host");
+      const hostAvatarUrl = profile?.avatar_url ?? null;
+      const approvedJoins = post.joins?.filter((join) => join.status === "approved") ?? [];
+      const participantMap = new Map<
+        string,
+        {
+          id: string;
+          name: string;
+          avatarUrl: string | null;
+          isHost: boolean;
+        }
+      >();
+
+      participantMap.set(post.host_id, {
+        id: post.host_id,
+        name: hostName,
+        avatarUrl: hostAvatarUrl,
+        isHost: true
+      });
+
+      approvedJoins.forEach((join) => {
+        const joinProfile = Array.isArray(join.profiles) ? join.profiles[0] : join.profiles;
+        const joinName = joinProfile?.display_name || (lang === "ko" ? "참여자" : "Jugador");
+        participantMap.set(join.user_id, {
+          id: join.user_id,
+          name: joinName,
+          avatarUrl: joinProfile?.avatar_url ?? null,
+          isHost: false
+        });
+      });
 
       return {
         id: post.id,
+        hostId: post.host_id,
         start_at: post.start_at,
         format: post.format,
         level: post.level,
@@ -107,9 +138,10 @@ export default async function Home({
         court_no: post.court_no,
         note: post.note,
         status: post.status,
-        joinsCount: post.joins?.filter((join) => join.status === "approved").length ?? 0,
-        hostName: profile?.display_name || (lang === "ko" ? "호스트" : "Host"),
-        hostAvatarUrl: profile?.avatar_url ?? null,
+        joinsCount: approvedJoins.length,
+        hostName,
+        hostAvatarUrl,
+        participants: Array.from(participantMap.values()),
         isExpired: new Date(post.start_at).getTime() + 30 * 60 * 1000 < Date.now()
       };
     }) ?? [];

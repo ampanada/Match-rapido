@@ -1,8 +1,9 @@
 "use client";
 
 import { formatLabel } from "@/lib/constants/filters";
-import { formatCordobaDate, formatSlotRange, getCordobaHHMM } from "@/lib/constants/slots";
+import { formatCordobaDate, formatSlotRange, getCordobaDateString, getCordobaHHMM, getCordobaWeekday } from "@/lib/constants/slots";
 import ProfileAvatar from "@/components/ProfileAvatar";
+import MotionProfileLink from "@/components/MotionProfileLink";
 import { useRouter } from "next/navigation";
 
 interface PostCardProps {
@@ -17,6 +18,13 @@ interface PostCardProps {
     joinsCount: number;
     hostName: string;
     hostAvatarUrl?: string | null;
+    hostId: string;
+    participants: Array<{
+      id: string;
+      name: string;
+      avatarUrl: string | null;
+      isHost: boolean;
+    }>;
     isExpired: boolean;
   };
   lang: "es" | "ko";
@@ -32,6 +40,9 @@ export default function PostCard({ post, lang }: PostCardProps) {
           open: "모집중",
           hostRecruit: "호스트 외",
           recruitSuffix: "명 모집",
+          participants: "참여자",
+          participantItem: "참여자",
+          hostTag: "호스트",
           emptyNote: "메모 없음",
           detail: "상세 보기"
         }
@@ -40,6 +51,9 @@ export default function PostCard({ post, lang }: PostCardProps) {
           open: "Abierto",
           hostRecruit: "Buscando",
           recruitSuffix: " mas (sin contar host)",
+          participants: "Participantes",
+          participantItem: "Jugador",
+          hostTag: "Host",
           emptyNote: "Sin nota",
           detail: "Ver detalle"
         };
@@ -47,6 +61,8 @@ export default function PostCard({ post, lang }: PostCardProps) {
   const recruitCount = Math.max(post.needed - 1, 0);
   const isCompleted = post.status === "closed" || currentPlayers >= post.needed || post.isExpired;
   const startHHMM = getCordobaHHMM(post.start_at);
+  const dayKey = getCordobaDateString(new Date(post.start_at));
+  const weekday = getCordobaWeekday(dayKey, dateLocale);
   const detailHref = `/post/${post.id}`;
 
   function moveToDetail() {
@@ -61,15 +77,17 @@ export default function PostCard({ post, lang }: PostCardProps) {
   return (
     <article className="card">
       <div className="row">
-        <span className="host-name-row">
+        <MotionProfileLink className="host-name-row" href={`/u/${post.hostId}`}>
           <ProfileAvatar name={post.hostName} avatarUrl={post.hostAvatarUrl ?? null} size="sm" />
           <strong className="host-name-text">{post.hostName}</strong>
-        </span>
+        </MotionProfileLink>
         <span className={`status-chip ${isCompleted ? "done" : "open"}`}>{isCompleted ? copy.done : copy.open}</span>
       </div>
-      <span className="muted">
-        {formatCordobaDate(post.start_at, dateLocale)} · {formatSlotRange(startHHMM)}
-      </span>
+      <div className="result-date-hero">
+        <span className="result-weekday">{weekday}</span>
+        <span className="result-date-text">{formatCordobaDate(post.start_at, dateLocale)}</span>
+        <span className="result-time-pill">{formatSlotRange(startHHMM)}</span>
+      </div>
       <div className="badges">
         <span className="badge">{formatLabel(post.format, lang)}</span>
         {post.court_no ? <span className="badge">{lang === "ko" ? `${post.court_no}번코트` : `Cancha ${post.court_no}`}</span> : null}
@@ -81,6 +99,19 @@ export default function PostCard({ post, lang }: PostCardProps) {
         {copy.hostRecruit} {recruitCount}
         {copy.recruitSuffix}
       </span>
+      <p className="muted">{copy.participants}</p>
+      <div className="participant-list">
+        {post.participants.map((participant, idx) => (
+          <MotionProfileLink key={`${post.id}-p-${participant.id}`} className="participant-chip" href={`/u/${participant.id}`}>
+            <span className="participant-row">
+              <span className="participant-index">{copy.participantItem} {idx + 1}</span>
+              <ProfileAvatar name={participant.name} avatarUrl={participant.avatarUrl} size="sm" />
+              <strong className="participant-name">{participant.name}</strong>
+              {participant.isHost ? <span className="participant-role">{copy.hostTag}</span> : null}
+            </span>
+          </MotionProfileLink>
+        ))}
+      </div>
       <p className="note">{post.note || copy.emptyNote}</p>
       <button className="link-btn" type="button" onClick={moveToDetail}>
         {copy.detail}
