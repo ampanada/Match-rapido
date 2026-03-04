@@ -1,5 +1,6 @@
 import BottomNav from "@/components/BottomNav";
 import LocalizedFileInput from "@/components/LocalizedFileInput";
+import LogoutConfirmButton from "@/components/LogoutConfirmButton";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import SubmitButton from "@/components/SubmitButton";
 import { getServerLang } from "@/lib/i18n-server";
@@ -54,7 +55,6 @@ export default async function MyPage({
           invalidAvatar: "이미지 파일만 업로드할 수 있습니다. (jpg, png, webp)",
           avatarTooLarge: "이미지 용량이 너무 큽니다. 최대 5MB",
           uploadFailed: "프로필 사진 업로드에 실패했습니다.",
-          logout: "로그아웃",
           profile: "프로필 / WhatsApp 연동",
           profileGuide: "아르헨티나(+54)가 기본입니다. 필요하면 국가번호를 바꿔서 저장하세요.",
           displayName: "WhatsApp 이름(표시 이름)",
@@ -66,7 +66,6 @@ export default async function MyPage({
           save: "저장",
           editProfile: "수정하기",
           savePending: "저장 중...",
-          logoutPending: "로그아웃 중...",
           myPosts: "내가 올린 매치",
           resultTab: "결과 등록",
           matchesTab: "내 매치",
@@ -102,7 +101,6 @@ export default async function MyPage({
           invalidAvatar: "Solo se permiten imagenes (jpg/png/webp).",
           avatarTooLarge: "La imagen es demasiado grande. Maximo 5MB.",
           uploadFailed: "No se pudo subir la foto de perfil.",
-          logout: "Cerrar sesion",
           profile: "Perfil / WhatsApp",
           profileGuide: "El prefijo por defecto es Argentina (+54). Puedes cambiarlo.",
           displayName: "Nombre de WhatsApp (visible)",
@@ -114,7 +112,6 @@ export default async function MyPage({
           save: "Guardar",
           editProfile: "Editar",
           savePending: "Guardando...",
-          logoutPending: "Saliendo...",
           myPosts: "Mis publicaciones",
           resultTab: "Cargar resultado",
           matchesTab: "Mis partidos",
@@ -141,8 +138,8 @@ export default async function MyPage({
           players: "Jugadores",
           morePast: "Registros pasados adicionales"
         };
-  const dateLocale = lang === "ko" ? "ko-KR" : "es-AR";
 
+  const dateLocale = lang === "ko" ? "ko-KR" : "es-AR";
   const supabase = await createClient();
   const {
     data: { user }
@@ -198,10 +195,7 @@ export default async function MyPage({
   const hostPostIds = (myPosts ?? []).map((post) => post.id);
   const { data: hostResults } =
     hostPostIds.length > 0
-      ? await supabase
-          .from("match_results")
-          .select("post_id,status,score")
-          .in("post_id", hostPostIds)
+      ? await supabase.from("match_results").select("post_id,status,score").in("post_id", hostPostIds)
       : { data: [] as any[] };
   const resultByPostId = new Map((hostResults ?? []).map((item) => [item.post_id, item]));
 
@@ -230,8 +224,8 @@ export default async function MyPage({
             ? copy.closeAuto
             : "-";
     const result = resultByPostId.get(post.id);
-
     const isEditable = post.status === "open" && !isPast && !isExpired;
+
     return {
       ...post,
       players,
@@ -258,7 +252,6 @@ export default async function MyPage({
     const isExpired = relatedPost?.start_at ? new Date(relatedPost.start_at).getTime() + 30 * 60 * 1000 < now : false;
     const isClosed = relatedPost?.status === "closed";
     const label = isClosed ? copy.hostClosed : isExpired ? copy.expired : copy.ongoing;
-
     return { ...join, relatedPost, when, players, label, isPast };
   });
 
@@ -266,6 +259,7 @@ export default async function MyPage({
   const pastJoin = joinMatches.filter((join) => join.isPast);
   const pastHostPreview = pastHost.slice(0, 20);
   const pastJoinPreview = pastJoin.slice(0, 20);
+
   const pastHostGrouped = pastHostPreview.reduce<Record<string, typeof pastHostPreview>>((acc, post) => {
     const key = getCordobaDateString(new Date(post.start_at));
     if (!acc[key]) {
@@ -274,6 +268,7 @@ export default async function MyPage({
     acc[key].push(post);
     return acc;
   }, {});
+
   const pastJoinGrouped = pastJoinPreview.reduce<Record<string, typeof pastJoinPreview>>((acc, join) => {
     const key = getCordobaDateString(new Date(join.when));
     if (!acc[key]) {
@@ -282,17 +277,12 @@ export default async function MyPage({
     acc[key].push(join);
     return acc;
   }, {});
+
   const resultTargets = pastHost.filter(
     (post) => post.format === "single" && post.players >= 2 && post.resultStatus !== "confirmed"
   );
-  const view = searchParams?.view === "result" ? "result" : "matches";
 
-  async function signOut() {
-    "use server";
-    const supabase = await createClient();
-    await supabase.auth.signOut();
-    redirect("/");
-  }
+  const view = searchParams?.view === "result" ? "result" : "matches";
 
   async function saveProfile(formData: FormData) {
     "use server";
@@ -306,11 +296,11 @@ export default async function MyPage({
       redirect("/login");
     }
 
-      const { data: currentProfile } = await supabase
-        .from("profiles")
-        .select("display_name,avatar_url")
-        .eq("id", user.id)
-        .maybeSingle();
+    const { data: currentProfile } = await supabase
+      .from("profiles")
+      .select("display_name,avatar_url")
+      .eq("id", user.id)
+      .maybeSingle();
 
     const displayName = String(formData.get("display_name") || "").trim();
     const countryCode = String(formData.get("country_code") || "+54").trim();
@@ -318,34 +308,35 @@ export default async function MyPage({
     const whatsapp = normalizeWhatsapp(countryCode, localNumberRaw);
     const avatarFile = formData.get("avatar_file");
 
-      if (whatsapp && !/^\+\d{8,15}$/.test(whatsapp)) {
-        redirect("/my?error=invalid_whatsapp");
+    if (whatsapp && !/^\+\d{8,15}$/.test(whatsapp)) {
+      redirect("/my?error=invalid_whatsapp");
+    }
+
+    let avatarUrl: string | null = currentProfile?.avatar_url ?? null;
+    if (avatarFile instanceof File && avatarFile.size > 0) {
+      if (!avatarFile.type.startsWith("image/")) {
+        redirect("/my?error=invalid_avatar");
+      }
+      if (avatarFile.size > 5 * 1024 * 1024) {
+        redirect("/my?error=avatar_too_large");
       }
 
-      let avatarUrl: string | null = currentProfile?.avatar_url ?? null;
-      if (avatarFile instanceof File && avatarFile.size > 0) {
-        if (!avatarFile.type.startsWith("image/")) {
-          redirect("/my?error=invalid_avatar");
-        }
-        if (avatarFile.size > 5 * 1024 * 1024) {
-          redirect("/my?error=avatar_too_large");
-        }
+      const ext = avatarFile.name.includes(".") ? avatarFile.name.split(".").pop()!.toLowerCase() : "jpg";
+      const safeExt = ["jpg", "jpeg", "png", "webp"].includes(ext) ? ext : "jpg";
+      const filePath = `${user.id}/${Date.now()}.${safeExt}`;
 
-        const ext = avatarFile.name.includes(".") ? avatarFile.name.split(".").pop()!.toLowerCase() : "jpg";
-        const safeExt = ["jpg", "jpeg", "png", "webp"].includes(ext) ? ext : "jpg";
-        const filePath = `${user.id}/${Date.now()}.${safeExt}`;
-        const { error: uploadError } = await supabase.storage.from("avatars").upload(filePath, avatarFile, {
-          upsert: true,
-          contentType: avatarFile.type
-        });
+      const { error: uploadError } = await supabase.storage.from("avatars").upload(filePath, avatarFile, {
+        upsert: true,
+        contentType: avatarFile.type
+      });
 
-        if (uploadError) {
-          redirect("/my?error=upload_failed");
-        }
-
-        const publicUrlData = supabase.storage.from("avatars").getPublicUrl(filePath);
-        avatarUrl = publicUrlData.data.publicUrl;
+      if (uploadError) {
+        redirect("/my?error=upload_failed");
       }
+
+      const publicUrlData = supabase.storage.from("avatars").getPublicUrl(filePath);
+      avatarUrl = publicUrlData.data.publicUrl;
+    }
 
     const { error: saveError } = await supabase.from("profiles").upsert(
       {
@@ -374,16 +365,13 @@ export default async function MyPage({
             <h1>{profileName || copy.title}</h1>
           </div>
         </div>
-        <form action={signOut}>
-          <SubmitButton idleLabel={copy.logout} pendingLabel={copy.logoutPending} className="button button-soft" />
-        </form>
       </header>
 
       <section className="section">
         {searchParams?.error === "invalid_whatsapp" ? <p className="notice">{copy.invalidWa}</p> : null}
         {searchParams?.error === "save_failed" ? <p className="notice">{copy.saveFailed}</p> : null}
-        {searchParams?.error === "invalid_avatar" ? <p className="notice">{copy.invalidAvatar ?? copy.invalidWa}</p> : null}
-        {searchParams?.error === "avatar_too_large" ? <p className="notice">{copy.avatarTooLarge ?? copy.invalidWa}</p> : null}
+        {searchParams?.error === "invalid_avatar" ? <p className="notice">{copy.invalidAvatar}</p> : null}
+        {searchParams?.error === "avatar_too_large" ? <p className="notice">{copy.avatarTooLarge}</p> : null}
         {searchParams?.error === "upload_failed" ? <p className="notice">{copy.uploadFailed}</p> : null}
 
         <article className="card">
@@ -585,6 +573,10 @@ export default async function MyPage({
             </div>
           ))}
           {pastJoin.length > 20 ? <p className="muted">{copy.morePast}: +{pastJoin.length - 20}</p> : null}
+        </article>
+
+        <article className="card">
+          <LogoutConfirmButton lang={lang} />
         </article>
       </section>
 

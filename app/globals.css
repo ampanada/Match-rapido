@@ -905,6 +905,37 @@ a {
   }
 }
 
+.logout-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.logout-mini-btn {
+  border: 0;
+  background: transparent;
+  color: #8f9ab0;
+  font-size: 12px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.logout-confirm-box {
+  width: 100%;
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+}
+
+.logout-confirm-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.disabled-link {
+  pointer-events: none;
+  opacity: 0.72;
+}
+
 @media (max-width: 360px) {
   .filters,
   .actions {

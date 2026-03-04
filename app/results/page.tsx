@@ -62,7 +62,7 @@ export default async function ResultsPage({
     supabase
       .from("match_results")
       .select(
-        "id,score,winner_id,confirmed_at,created_at,player_a_profile:profiles!match_results_player_a_fkey(id,display_name),player_b_profile:profiles!match_results_player_b_fkey(id,display_name),posts!match_results_post_id_fkey(start_at,court_no)"
+        "id,score,winner_id,confirmed_at,created_at,player_a,player_b,player_a_profile:profiles!match_results_player_a_fkey(id,display_name),player_b_profile:profiles!match_results_player_b_fkey(id,display_name),posts!match_results_post_id_fkey(start_at,court_no)"
       )
       .eq("status", "confirmed")
       .order("confirmed_at", { ascending: false })
@@ -77,6 +77,21 @@ export default async function ResultsPage({
       .order("total_matches", { ascending: false })
       .limit(5)
   ]);
+
+  const missingProfileIds = Array.from(
+    new Set(
+      (results ?? [])
+        .flatMap((result: any) => [result.player_a, result.player_b])
+        .filter(Boolean)
+    )
+  );
+
+  const { data: fallbackProfiles } =
+    missingProfileIds.length > 0
+      ? await supabase.from("profiles").select("id,display_name").in("id", missingProfileIds)
+      : { data: [] as { id: string; display_name: string | null }[] };
+
+  const fallbackNameMap = new Map((fallbackProfiles ?? []).map((profile) => [profile.id, profile.display_name]));
 
   return (
     <main className="shell">
@@ -132,6 +147,16 @@ export default async function ResultsPage({
           const slotLabel = post?.start_at ? formatSlotRange(getCordobaHHMM(post.start_at)) : "";
           const isAWinner = result.winner_id === playerA?.id;
           const isBWinner = result.winner_id === playerB?.id;
+          const playerAId = playerA?.id ?? result.player_a ?? null;
+          const playerBId = playerB?.id ?? result.player_b ?? null;
+          const playerAName =
+            playerA?.display_name ||
+            (playerAId ? fallbackNameMap.get(playerAId) : null) ||
+            (lang === "ko" ? "플레이어 A" : "Jugador A");
+          const playerBName =
+            playerB?.display_name ||
+            (playerBId ? fallbackNameMap.get(playerBId) : null) ||
+            (lang === "ko" ? "플레이어 B" : "Jugador B");
 
           return (
             <article className="card result-card" key={result.id}>
@@ -142,16 +167,16 @@ export default async function ResultsPage({
               </div>
 
               <p className="result-players">
-                <Link className="link-inline" href={`/u/${playerA?.id}`}>
+                <Link className={`link-inline${playerAId ? "" : " disabled-link"}`} href={playerAId ? `/u/${playerAId}` : "#"}>
                   <span className={isAWinner ? "winner-name" : "loss-name"}>
-                    {playerA?.display_name || (lang === "ko" ? "플레이어 A" : "Jugador A")}
+                    {playerAName}
                     {isAWinner ? <em className="winner-chip">{copy.winner}</em> : null}
                   </span>
                 </Link>{" "}
                 vs{" "}
-                <Link className="link-inline" href={`/u/${playerB?.id}`}>
+                <Link className={`link-inline${playerBId ? "" : " disabled-link"}`} href={playerBId ? `/u/${playerBId}` : "#"}>
                   <span className={isBWinner ? "winner-name" : "loss-name"}>
-                    {playerB?.display_name || (lang === "ko" ? "플레이어 B" : "Jugador B")}
+                    {playerBName}
                     {isBWinner ? <em className="winner-chip">{copy.winner}</em> : null}
                   </span>
                 </Link>
