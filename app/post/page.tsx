@@ -6,6 +6,16 @@ import { SLOT_START_TIMES, formatSlotRange, getCordobaDateString, isValidSlotSta
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
+function isNextRedirectError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "digest" in error &&
+    typeof (error as { digest?: unknown }).digest === "string" &&
+    (error as { digest: string }).digest.includes("NEXT_REDIRECT")
+  );
+}
+
 export default async function PostPage({
   searchParams
 }: {
@@ -142,6 +152,9 @@ export default async function PostPage({
 
       redirect(`/post/${data.id}?createdAt=${encodeURIComponent(new Date().toISOString())}`);
     } catch (e) {
+      if (isNextRedirectError(e)) {
+        throw e;
+      }
       const msg = e instanceof Error ? e.message : "unknown";
       redirect(`/post?error=create_failed&message=${encodeURIComponent(msg)}`);
     }
