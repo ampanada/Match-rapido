@@ -64,6 +64,8 @@ export default async function MyMatchesPage() {
           noCourt: "코트 미지정",
           players: "인원",
           participants: "참여자",
+          participantItem: "참여자",
+          hostTag: "호스트",
           singleRate: "1 Set Slam 승률",
           h2hRate: "H2H",
           winner: "승",
@@ -86,6 +88,8 @@ export default async function MyMatchesPage() {
           noCourt: "Sin cancha",
           players: "Jugadores",
           participants: "Participantes",
+          participantItem: "Jugador",
+          hostTag: "Host",
           singleRate: "Winrate 1 Set Slam",
           h2hRate: "H2H",
           winner: "W",
@@ -274,14 +278,6 @@ export default async function MyMatchesPage() {
     .sort((a, b) => b.startMs - a.startMs);
 
   const dateLocale = lang === "ko" ? "ko-KR" : "es-AR";
-  const h2hRate = (aId: string, bId: string, selfId: string) => {
-    const data = h2hMap.get(pairKey(aId, bId));
-    if (!data || data.total === 0) {
-      return 0;
-    }
-    return Math.round(((data.winsById.get(selfId) ?? 0) / data.total) * 100);
-  };
-
   return (
     <main className="shell">
       <header className="top">
@@ -301,7 +297,7 @@ export default async function MyMatchesPage() {
                   <span className="badge">{copy.todayBadge}</span>
                   <span className="muted">{item.isPlayingNow ? copy.todayBadge : copy.completedLabel}</span>
                 </div>
-                <p>
+                <p className="match-date-line">
                   <strong>
                     {formatCordobaDate(item.start_at, dateLocale)} ({weekday}) · {formatSlotRange(startHHMM)}
                   </strong>
@@ -309,11 +305,13 @@ export default async function MyMatchesPage() {
                 <p className="muted">{item.court_no ? `${copy.court} ${item.court_no}` : copy.noCourt}</p>
                 <p className="muted">{copy.participants}</p>
                 <div className="participant-list">
-                  {item.participants.map((participant) => (
+                  {item.participants.map((participant, idx) => (
                     <Link key={`today-player-${item.id}-${participant.id}`} className="participant-chip" href={`/u/${participant.id}`}>
                       <span className="participant-row">
+                        <span className="participant-index">{copy.participantItem} {idx + 1}</span>
                         <ProfileAvatar name={participant.display_name} avatarUrl={participant.avatar_url} size="sm" />
                         <strong className="participant-name">{participant.display_name}</strong>
+                        {participant.id === item.host_id ? <span className="participant-role">{copy.hostTag}</span> : null}
                       </span>
                     </Link>
                   ))}
@@ -342,7 +340,7 @@ export default async function MyMatchesPage() {
                                   </span>
                                 </span>
                               </Link>
-                              {idx === 0 ? " vs " : ""}
+                              {idx === 0 ? <span className="result-vs">vs</span> : ""}
                             </span>
                           );
                         })}
@@ -367,7 +365,7 @@ export default async function MyMatchesPage() {
             const weekday = getCordobaWeekday(getCordobaDateString(new Date(item.startMs)), dateLocale);
             return (
               <article key={`upcoming-${item.id}`} className="card match-card match-card-upcoming">
-                <p>
+                <p className="match-date-line">
                   <strong>
                     {formatCordobaDate(item.start_at, dateLocale)} ({weekday}) · {formatSlotRange(startHHMM)}
                   </strong>
@@ -378,11 +376,13 @@ export default async function MyMatchesPage() {
                 </p>
                 <p className="muted">{copy.participants}</p>
                 <div className="participant-list">
-                  {item.participants.map((participant) => (
+                  {item.participants.map((participant, idx) => (
                     <Link key={`up-player-${item.id}-${participant.id}`} className="participant-chip" href={`/u/${participant.id}`}>
                       <span className="participant-row">
+                        <span className="participant-index">{copy.participantItem} {idx + 1}</span>
                         <ProfileAvatar name={participant.display_name} avatarUrl={participant.avatar_url} size="sm" />
                         <strong className="participant-name">{participant.display_name}</strong>
+                        {participant.id === item.host_id ? <span className="participant-role">{copy.hostTag}</span> : null}
                       </span>
                     </Link>
                   ))}
@@ -406,11 +406,13 @@ export default async function MyMatchesPage() {
                     {formatCordobaDate(item.start_at, dateLocale)} ({weekday}) | {formatSlotRange(startHHMM)} | {item.court_no ? `${copy.court} ${item.court_no}` : copy.noCourt} | {copy.completedLabel}
                   </p>
                   <div className="participant-list">
-                    {item.participants.map((participant) => (
+                    {item.participants.map((participant, idx) => (
                       <Link key={`done-player-${item.id}-${participant.id}`} className="participant-chip" href={`/u/${participant.id}`}>
                         <span className="participant-row">
+                          <span className="participant-index">{copy.participantItem} {idx + 1}</span>
                           <ProfileAvatar name={participant.display_name} avatarUrl={participant.avatar_url} size="sm" />
                           <strong className="participant-name">{participant.display_name}</strong>
+                          {participant.id === item.host_id ? <span className="participant-role">{copy.hostTag}</span> : null}
                         </span>
                       </Link>
                     ))}
@@ -439,7 +441,7 @@ export default async function MyMatchesPage() {
                                     </span>
                                   </span>
                                 </Link>
-                                {idx === 0 ? " vs " : ""}
+                                {idx === 0 ? <span className="result-vs">vs</span> : ""}
                               </span>
                             );
                           })}
