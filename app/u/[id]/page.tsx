@@ -91,7 +91,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
     supabase
       .from("match_results")
       .select(
-        "id,player_a,player_b,winner_id,score,confirmed_at,posts!match_results_post_id_fkey(start_at,court_no),player_a_profile:profiles!match_results_player_a_fkey(id,display_name),player_b_profile:profiles!match_results_player_b_fkey(id,display_name)"
+        "id,player_a,player_b,winner_id,score,confirmed_at,posts!match_results_post_id_fkey(start_at,court_no),player_a_profile:profiles!match_results_player_a_fkey(id,display_name,avatar_url),player_b_profile:profiles!match_results_player_b_fkey(id,display_name,avatar_url)"
       )
       .eq("status", "confirmed")
       .or(`player_a.eq.${id},player_b.eq.${id}`)
@@ -143,10 +143,10 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
   const rivalIds = Array.from(rivalStats.keys());
   const { data: rivalProfiles } =
     rivalIds.length > 0
-      ? await supabase.from("profiles").select("id,display_name").in("id", rivalIds)
-      : { data: [] as { id: string; display_name: string | null }[] };
+      ? await supabase.from("profiles").select("id,display_name,avatar_url").in("id", rivalIds)
+      : { data: [] as { id: string; display_name: string | null; avatar_url: string | null }[] };
 
-  const rivalNameMap = new Map((rivalProfiles ?? []).map((p) => [p.id, p.display_name]));
+  const rivalProfileMap = new Map((rivalProfiles ?? []).map((p) => [p.id, p]));
 
   const topRivals: RivalStat[] = rivalIds
     .map((rivalId) => {
@@ -163,7 +163,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
 
       return {
         rivalId,
-        rivalName: rivalNameMap.get(rivalId) || (lang === "ko" ? "상대" : "Rival"),
+        rivalName: rivalProfileMap.get(rivalId)?.display_name || (lang === "ko" ? "상대" : "Rival"),
         wins: stat.wins,
         losses: stat.losses,
         total: stat.total,
@@ -281,7 +281,14 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           <article className="card" key={item.rivalId}>
             <p className="result-players">
               <Link className="link-inline" href={`/u/${item.rivalId}`}>
-                {item.rivalName}
+                <span className="result-player-line">
+                  <ProfileAvatar
+                    name={item.rivalName}
+                    avatarUrl={rivalProfileMap.get(item.rivalId)?.avatar_url ?? null}
+                    size="sm"
+                  />
+                  <span className="result-player-name">{item.rivalName}</span>
+                </span>
               </Link>
             </p>
             <p className="result-summary">
@@ -292,8 +299,21 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
             </p>
             {item.total >= 2 && item.streakCount > 1 ? (
               <p className="muted">
-                {(item.streakWinnerId === id ? (lang === "ko" ? "나" : "Yo") : item.rivalName) +
-                  (lang === "ko" ? ` ${item.streakCount}연승 🔥` : ` lleva ${item.streakCount} seguidas 🔥`)}
+                {item.streakWinnerId === id ? (
+                  (lang === "ko" ? "나" : "Yo") + (lang === "ko" ? ` ${item.streakCount}연승 🔥` : ` lleva ${item.streakCount} seguidas 🔥`)
+                ) : (
+                  <span className="result-player-line">
+                    <ProfileAvatar
+                      name={item.rivalName}
+                      avatarUrl={rivalProfileMap.get(item.rivalId)?.avatar_url ?? null}
+                      size="sm"
+                    />
+                    <span className="result-player-name">
+                      {item.rivalName}
+                      {lang === "ko" ? ` ${item.streakCount}연승 🔥` : ` lleva ${item.streakCount} seguidas 🔥`}
+                    </span>
+                  </span>
+                )}
               </p>
             ) : null}
           </article>
@@ -309,10 +329,10 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           const playerB = Array.isArray(result.player_b_profile) ? result.player_b_profile[0] : result.player_b_profile;
           const post = Array.isArray(result.posts) ? result.posts[0] : result.posts;
           const isWin = result.winner_id === id;
-          const opponentName =
-            result.player_a === id
-              ? playerB?.display_name || (lang === "ko" ? "상대" : "Rival")
-              : playerA?.display_name || (lang === "ko" ? "상대" : "Rival");
+          const opponent = result.player_a === id ? playerB : playerA;
+          const opponentName = opponent?.display_name || (lang === "ko" ? "상대" : "Rival");
+          const opponentAvatar = opponent?.avatar_url ?? null;
+          const opponentId = opponent?.id ?? null;
 
           return (
             <article className="card result-card" key={result.id}>
@@ -322,9 +342,12 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
                 <span>{post?.court_no ? `${copy.court} ${post.court_no}` : copy.unknownCourt}</span>
               </div>
               <p className="result-players">
-                <strong className={isWin ? "winner-name" : "loss-name"}>{isWin ? copy.win : copy.loss}</strong> ·{" "}
-                <Link className="link-inline" href={result.player_a === id ? `/u/${playerB?.id}` : `/u/${playerA?.id}`}>
-                  {opponentName}
+                <span className={isWin ? "result-tag-win" : "result-tag-loss"}>{isWin ? copy.win : copy.loss}</span> ·{" "}
+                <Link className={`link-inline${opponentId ? "" : " disabled-link"}`} href={opponentId ? `/u/${opponentId}` : "#"}>
+                  <span className="result-player-line">
+                    <ProfileAvatar name={opponentName} avatarUrl={opponentAvatar} size="sm" />
+                    <span className="result-player-name">{opponentName}</span>
+                  </span>
                 </Link>
               </p>
               <p className="result-scoreline">

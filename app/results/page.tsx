@@ -203,12 +203,11 @@ export default async function ResultsPage({
                 {isToday ? <span className="badge">{copy.todayBadge}</span> : <span className="badge">{copy.completedLabel}</span>}
                 <span className="muted">{copy.completedLabel}</span>
               </div>
-              <p className="match-date-line">
-                <strong>
-                  {formatCordobaDate(when, dateLocale)} ({weekday})
-                  {slotLabel ? ` · ${slotLabel}` : ""}
-                </strong>
-              </p>
+              <div className="result-date-hero">
+                <span className="result-weekday">{weekday}</span>
+                <span className="result-date-text">{formatCordobaDate(when, dateLocale)}</span>
+                {slotLabel ? <span className="result-time-pill">{slotLabel}</span> : null}
+              </div>
               <p className="muted">{post?.court_no ? `${copy.court} ${post.court_no}` : copy.unknownCourt}</p>
               <p className="muted">{copy.participants}</p>
               <div className="participant-list">

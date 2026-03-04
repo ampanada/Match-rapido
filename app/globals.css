@@ -691,6 +691,10 @@ a {
 .result-card {
   gap: 10px;
   border-color: #506585;
+  background:
+    radial-gradient(120% 100% at 0% -15%, rgba(114, 176, 255, 0.18), transparent 60%),
+    radial-gradient(130% 120% at 100% 100%, rgba(255, 154, 206, 0.1), transparent 62%),
+    linear-gradient(160deg, #1d2a42 0%, #182238 55%, #141d2f 100%);
 }
 
 .result-meta-strong {
@@ -806,6 +810,37 @@ a {
   margin: 0;
   color: #c7d3e8;
   font-size: 13px;
+}
+
+.result-date-hero {
+  margin: 0;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.result-weekday {
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0.2px;
+  color: #eaf3ff;
+}
+
+.result-date-text {
+  font-size: 13px;
+  color: #cad9f2;
+}
+
+.result-time-pill {
+  margin-left: auto;
+  border: 1px solid rgba(138, 170, 230, 0.5);
+  background: rgba(58, 82, 126, 0.34);
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 11px;
+  color: #dce9ff;
+  font-weight: 700;
 }
 
 .match-date-line {
