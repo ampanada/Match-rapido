@@ -66,6 +66,10 @@ export function formatSlotRange(start: string) {
 }
 
 export function getCordobaDateString(date = new Date()) {
+  if (Number.isNaN(date.getTime())) {
+    return "1970-01-01";
+  }
+
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: CLUB_TIMEZONE,
     year: "numeric",
@@ -131,11 +135,22 @@ export function formatCordobaDate(isoText: string, locale = "ko-KR") {
 }
 
 export function getCordobaWeekday(dateText: string, locale = "ko-KR") {
-  const iso = zonedDateTimeToIso(dateText, "12:00");
-  return new Intl.DateTimeFormat(locale, {
-    timeZone: CLUB_TIMEZONE,
-    weekday: "long"
-  }).format(new Date(iso));
+  try {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateText)) {
+      return "-";
+    }
+    const iso = zonedDateTimeToIso(dateText, "12:00");
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) {
+      return "-";
+    }
+    return new Intl.DateTimeFormat(locale, {
+      timeZone: CLUB_TIMEZONE,
+      weekday: "long"
+    }).format(date);
+  } catch {
+    return "-";
+  }
 }
 
 export function getCordobaDayBoundsIso(dateText: string) {
