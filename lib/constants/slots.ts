@@ -59,6 +59,9 @@ export function toSlotEnd(start: string) {
 }
 
 export function formatSlotRange(start: string) {
+  if (!/^\d{2}:\d{2}$/.test(start)) {
+    return "-";
+  }
   return `${start}–${toSlotEnd(start)}`;
 }
 
@@ -101,6 +104,9 @@ export function zonedDateTimeToIso(dateText: string, timeText: string, timeZone 
 
 export function getCordobaHHMM(isoText: string) {
   const date = new Date(isoText);
+  if (Number.isNaN(date.getTime())) {
+    return "--:--";
+  }
 
   return new Intl.DateTimeFormat("en-GB", {
     timeZone: CLUB_TIMEZONE,
@@ -112,6 +118,9 @@ export function getCordobaHHMM(isoText: string) {
 
 export function formatCordobaDate(isoText: string, locale = "ko-KR") {
   const date = new Date(isoText);
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
 
   return new Intl.DateTimeFormat(locale, {
     timeZone: CLUB_TIMEZONE,
