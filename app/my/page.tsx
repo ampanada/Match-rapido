@@ -175,6 +175,7 @@ export default async function MyPage({
     redirect("/login?reason=auth_required");
   }
 
+  try {
   let { data: myProfile } = await supabase
     .from("profiles")
     .select("display_name,whatsapp,avatar_url")
@@ -720,4 +721,20 @@ export default async function MyPage({
       <BottomNav />
     </main>
   );
+  } catch (error) {
+    console.error("[my/page] render_failed", error);
+    return (
+      <main className="shell">
+        <header className="top">
+          <h1>{lang === "ko" ? "내 정보" : "Mi cuenta"}</h1>
+        </header>
+        <p className="notice">
+          {lang === "ko"
+            ? "페이지를 불러오는 중 문제가 발생했습니다. 새로고침 후 다시 시도해 주세요."
+            : "Ocurrio un problema al cargar esta pagina. Intenta recargar."}
+        </p>
+        <BottomNav />
+      </main>
+    );
+  }
 }
