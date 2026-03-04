@@ -12,13 +12,37 @@ function safeTime(value: unknown) {
 
 type MatchItem = {
   id: string;
+  host_id: string;
   start_at: string;
   format: string;
   needed: number;
   court_no: number | null;
   status: string;
-  joins: Array<{ status: string; user_id: string }>;
+  profiles:
+    | { id: string; display_name: string | null; wins: number; losses: number; total_matches: number }
+    | Array<{ id: string; display_name: string | null; wins: number; losses: number; total_matches: number }>
+    | null;
+  joins: Array<{
+    status: string;
+    user_id: string;
+    profiles:
+      | { id: string; display_name: string | null; wins: number; losses: number; total_matches: number }
+      | Array<{ id: string; display_name: string | null; wins: number; losses: number; total_matches: number }>
+      | null;
+  }>;
 };
+
+type Participant = {
+  id: string;
+  display_name: string;
+  wins: number;
+  losses: number;
+  total_matches: number;
+};
+
+function pairKey(a: string, b: string) {
+  return a < b ? `${a}::${b}` : `${b}::${a}`;
+}
 
 export default async function MyMatchesPage() {
   const lang = await getServerLang();
@@ -37,6 +61,11 @@ export default async function MyMatchesPage() {
           court: "코트",
           noCourt: "코트 미지정",
           players: "인원",
+          participants: "참여자",
+          singleRate: "1 Set Slam 승률",
+          h2hRate: "H2H",
+          winner: "승",
+          loser: "패",
           completedLabel: "완료",
           recorded: "기록됨",
           hostManualClose: "매치 임의 마감"
@@ -54,6 +83,11 @@ export default async function MyMatchesPage() {
           court: "Cancha",
           noCourt: "Sin cancha",
           players: "Jugadores",
+          participants: "Participantes",
+          singleRate: "Winrate 1 Set Slam",
+          h2hRate: "H2H",
+          winner: "W",
+          loser: "L",
           completedLabel: "Completado",
           recorded: "registrado",
           hostManualClose: "Cierre manual sin rival"
@@ -71,13 +105,13 @@ export default async function MyMatchesPage() {
   const [hostResponse, joinResponse] = await Promise.all([
     supabase
       .from("posts")
-      .select("id,start_at,format,needed,court_no,status,joins(status,user_id)")
+      .select("id,host_id,start_at,format,needed,court_no,status,profiles!posts_host_id_fkey(id,display_name,wins,losses,total_matches),joins(status,user_id,profiles!joins_user_id_fkey(id,display_name,wins,losses,total_matches))")
       .eq("host_id", user.id)
       .order("start_at", { ascending: false })
       .limit(80),
     supabase
       .from("joins")
-      .select("post_id,posts!joins_post_id_fkey(id,start_at,format,needed,court_no,status,joins(status,user_id))")
+      .select("post_id,posts!joins_post_id_fkey(id,host_id,start_at,format,needed,court_no,status,profiles!posts_host_id_fkey(id,display_name,wins,losses,total_matches),joins(status,user_id,profiles!joins_user_id_fkey(id,display_name,wins,losses,total_matches)))")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(80)
@@ -100,10 +134,45 @@ export default async function MyMatchesPage() {
 
   const { data: results } =
     postIds.length > 0
-      ? await supabase.from("match_results").select("post_id,status,score").in("post_id", postIds)
-      : { data: [] as { post_id: string; status: string; score: string }[] };
+      ? await supabase.from("match_results").select("post_id,status,score,winner_id").in("post_id", postIds)
+      : { data: [] as { post_id: string; status: string; score: string; winner_id: string | null }[] };
 
   const resultMap = new Map((results ?? []).map((result) => [result.post_id, result]));
+
+  const participantIds = Array.from(
+    new Set(
+      mergedPosts.flatMap((post) => {
+        const ids = [post.host_id];
+        const joins = Array.isArray(post.joins) ? post.joins : [];
+        joins
+          .filter((join) => join.status === "approved")
+          .forEach((join) => ids.push(join.user_id));
+        return ids;
+      })
+    )
+  );
+
+  const { data: h2hRows } =
+    participantIds.length > 1
+      ? await supabase
+          .from("match_results")
+          .select("player_a,player_b,winner_id")
+          .eq("status", "confirmed")
+          .in("player_a", participantIds)
+          .in("player_b", participantIds)
+          .limit(800)
+      : { data: [] as { player_a: string; player_b: string; winner_id: string | null }[] };
+
+  const h2hMap = new Map<string, { total: number; winsById: Map<string, number> }>();
+  (h2hRows ?? []).forEach((row) => {
+    const key = pairKey(row.player_a, row.player_b);
+    const existing = h2hMap.get(key) ?? { total: 0, winsById: new Map<string, number>() };
+    existing.total += 1;
+    if (row.winner_id) {
+      existing.winsById.set(row.winner_id, (existing.winsById.get(row.winner_id) ?? 0) + 1);
+    }
+    h2hMap.set(key, existing);
+  });
 
   const now = Date.now();
   const durationMs = SLOT_MINUTES * 60 * 1000;
@@ -116,6 +185,14 @@ export default async function MyMatchesPage() {
       }
 
       const joins = Array.isArray(post.joins) ? post.joins : [];
+      const hostProfileRaw = Array.isArray(post.profiles) ? post.profiles[0] : post.profiles;
+      const hostProfile: Participant = {
+        id: hostProfileRaw?.id ?? post.host_id,
+        display_name: hostProfileRaw?.display_name || (lang === "ko" ? "호스트" : "Host"),
+        wins: hostProfileRaw?.wins ?? 0,
+        losses: hostProfileRaw?.losses ?? 0,
+        total_matches: hostProfileRaw?.total_matches ?? 0
+      };
       const approvedCount = joins.filter((join) => join.status === "approved").length;
       const currentPlayers = approvedCount + 1;
       const isSingleReady = post.format === "single" && approvedCount === 1;
@@ -128,10 +205,30 @@ export default async function MyMatchesPage() {
       const isUpcoming = startMs > now;
       const isCompleted = now >= startMs + durationMs;
 
+      const participantMap = new Map<string, Participant>();
+      participantMap.set(hostProfile.id, hostProfile);
+
+      joins
+        .filter((join) => join.status === "approved")
+        .forEach((join) => {
+          const raw = Array.isArray(join.profiles) ? join.profiles[0] : join.profiles;
+          if (!raw) {
+            return;
+          }
+          participantMap.set(raw.id, {
+            id: raw.id,
+            display_name: raw.display_name || (lang === "ko" ? "참여자" : "Jugador"),
+            wins: raw.wins ?? 0,
+            losses: raw.losses ?? 0,
+            total_matches: raw.total_matches ?? 0
+          });
+        });
+
       return {
         ...post,
         startMs,
         currentPlayers,
+        participants: Array.from(participantMap.values()),
         isSingleReady,
         hostManualClose,
         hasConfirmedResult,
@@ -146,6 +243,7 @@ export default async function MyMatchesPage() {
     MatchItem & {
       startMs: number;
       currentPlayers: number;
+      participants: Participant[];
       isSingleReady: boolean;
       hostManualClose: boolean;
       hasConfirmedResult: boolean;
@@ -172,6 +270,15 @@ export default async function MyMatchesPage() {
     .sort((a, b) => b.startMs - a.startMs);
 
   const dateLocale = lang === "ko" ? "ko-KR" : "es-AR";
+  const toRate = (participant: Participant) =>
+    participant.total_matches > 0 ? Math.round((participant.wins / participant.total_matches) * 100) : 0;
+  const h2hRate = (aId: string, bId: string, selfId: string) => {
+    const data = h2hMap.get(pairKey(aId, bId));
+    if (!data || data.total === 0) {
+      return 0;
+    }
+    return Math.round(((data.winsById.get(selfId) ?? 0) / data.total) * 100);
+  };
 
   return (
     <main className="shell">
@@ -198,13 +305,55 @@ export default async function MyMatchesPage() {
                   </strong>
                 </p>
                 <p className="muted">{item.court_no ? `${copy.court} ${item.court_no}` : copy.noCourt}</p>
+                <p className="muted">{copy.participants}</p>
+                <div className="participant-list">
+                  {item.participants.map((participant) => (
+                    <Link key={`today-player-${item.id}-${participant.id}`} className="participant-chip" href={`/u/${participant.id}`}>
+                      <span>{participant.display_name}</span>
+                      {item.format === "single" ? (
+                        <em>
+                          {copy.singleRate} {toRate(participant)}% · {copy.h2hRate}{" "}
+                          {item.participants.length === 2
+                            ? h2hRate(item.participants[0].id, item.participants[1].id, participant.id)
+                            : 0}
+                          %
+                        </em>
+                      ) : null}
+                    </Link>
+                  ))}
+                </div>
                 {item.hostManualClose ? <p className="notice">{copy.hostManualClose}</p> : null}
-                {item.isSingleReady && !item.hasConfirmedResult ? (
+                {item.isSingleReady && !item.hasConfirmedResult && item.startMs <= now && !item.hostManualClose ? (
                   <Link className="link-btn" href={`/post/${item.id}?record=1`}>
                     {copy.record}
                   </Link>
                 ) : item.hasConfirmedResult ? (
-                  <p className="muted">{item.resultScore} {copy.recorded}</p>
+                  <div className="section">
+                    {item.format === "single" && item.participants.length === 2 ? (
+                      <p className="result-players">
+                        {item.participants.map((participant, idx) => {
+                          const winnerId = resultMap.get(item.id)?.winner_id ?? null;
+                          const isWinner = winnerId === participant.id;
+                          const other = item.participants[idx === 0 ? 1 : 0];
+                          return (
+                            <span key={`today-result-${item.id}-${participant.id}`}>
+                              <Link className="link-inline" href={`/u/${participant.id}`}>
+                                <span className={isWinner ? "winner-name" : "loss-name"}>
+                                  {participant.display_name} ({copy.h2hRate} {h2hRate(participant.id, other.id, participant.id)}%)
+                                  <em className="winner-chip">{isWinner ? copy.winner : copy.loser}</em>
+                                </span>
+                              </Link>
+                              {idx === 0 ? " vs " : ""}
+                            </span>
+                          );
+                        })}
+                      </p>
+                    ) : null}
+                    <p className="result-scoreline">
+                      <span className="muted">{copy.recorded}</span>
+                      <strong>{item.resultScore}</strong>
+                    </p>
+                  </div>
                 ) : null}
               </article>
             );
@@ -228,6 +377,23 @@ export default async function MyMatchesPage() {
                 <p className="muted">
                   {copy.players}: {item.currentPlayers}/{item.needed}
                 </p>
+                <p className="muted">{copy.participants}</p>
+                <div className="participant-list">
+                  {item.participants.map((participant) => (
+                    <Link key={`up-player-${item.id}-${participant.id}`} className="participant-chip" href={`/u/${participant.id}`}>
+                      <span>{participant.display_name}</span>
+                      {item.format === "single" ? (
+                        <em>
+                          {copy.singleRate} {toRate(participant)}% · {copy.h2hRate}{" "}
+                          {item.participants.length === 2
+                            ? h2hRate(item.participants[0].id, item.participants[1].id, participant.id)
+                            : 0}
+                          %
+                        </em>
+                      ) : null}
+                    </Link>
+                  ))}
+                </div>
                 {item.hostManualClose ? <p className="notice">{copy.hostManualClose}</p> : null}
               </article>
             );
@@ -235,7 +401,7 @@ export default async function MyMatchesPage() {
         </article>
 
         <article className="card">
-          <details className="compact-block" open={false}>
+          <details className="compact-block" open>
             <summary>{copy.completedTitle}</summary>
             {completed.length === 0 ? <p className="muted">{copy.noCompleted}</p> : null}
             {completed.map((item) => {
@@ -246,13 +412,54 @@ export default async function MyMatchesPage() {
                   <p className="compact-line">
                     {formatCordobaDate(item.start_at, dateLocale)} ({weekday}) | {formatSlotRange(startHHMM)} | {item.court_no ? `${copy.court} ${item.court_no}` : copy.noCourt} | {copy.completedLabel}
                   </p>
+                  <div className="participant-list">
+                    {item.participants.map((participant) => (
+                      <Link key={`done-player-${item.id}-${participant.id}`} className="participant-chip" href={`/u/${participant.id}`}>
+                        <span>{participant.display_name}</span>
+                        {item.format === "single" ? (
+                          <em>
+                            {copy.singleRate} {toRate(participant)}% · {copy.h2hRate}{" "}
+                            {item.participants.length === 2
+                              ? h2hRate(item.participants[0].id, item.participants[1].id, participant.id)
+                              : 0}
+                            %
+                          </em>
+                        ) : null}
+                      </Link>
+                    ))}
+                  </div>
                   {item.hostManualClose ? <p className="notice">{copy.hostManualClose}</p> : null}
-                  {item.isSingleReady && !item.hasConfirmedResult ? (
+                  {item.isSingleReady && !item.hasConfirmedResult && item.startMs <= now && !item.hostManualClose ? (
                     <Link className="link-btn" href={`/post/${item.id}?record=1`}>
                       {copy.record}
                     </Link>
                   ) : item.hasConfirmedResult ? (
-                    <p className="muted">{item.resultScore} {copy.recorded}</p>
+                    <div className="section">
+                      {item.format === "single" && item.participants.length === 2 ? (
+                        <p className="result-players">
+                          {item.participants.map((participant, idx) => {
+                            const winnerId = resultMap.get(item.id)?.winner_id ?? null;
+                            const isWinner = winnerId === participant.id;
+                            const other = item.participants[idx === 0 ? 1 : 0];
+                            return (
+                              <span key={`done-result-${item.id}-${participant.id}`}>
+                                <Link className="link-inline" href={`/u/${participant.id}`}>
+                                  <span className={isWinner ? "winner-name" : "loss-name"}>
+                                    {participant.display_name} ({copy.h2hRate} {h2hRate(participant.id, other.id, participant.id)}%)
+                                    <em className="winner-chip">{isWinner ? copy.winner : copy.loser}</em>
+                                  </span>
+                                </Link>
+                                {idx === 0 ? " vs " : ""}
+                              </span>
+                            );
+                          })}
+                        </p>
+                      ) : null}
+                      <p className="result-scoreline">
+                        <span className="muted">{copy.recorded}</span>
+                        <strong>{item.resultScore}</strong>
+                      </p>
+                    </div>
                   ) : null}
                 </article>
               );
