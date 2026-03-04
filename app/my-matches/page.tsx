@@ -1,5 +1,5 @@
 import BottomNav from "@/components/BottomNav";
-import { formatCordobaDate, formatSlotRange, getCordobaHHMM, SLOT_MINUTES } from "@/lib/constants/slots";
+import { formatCordobaDate, formatSlotRange, getCordobaDateString, getCordobaHHMM, getCordobaWeekday, SLOT_MINUTES } from "@/lib/constants/slots";
 import { getServerLang } from "@/lib/i18n-server";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
@@ -26,35 +26,37 @@ export default async function MyMatchesPage() {
     lang === "ko"
       ? {
           title: "내 매칭",
-          nowTitle: "지금 플레이 중",
+          todayTitle: "오늘 매칭",
           upcomingTitle: "다가오는 매칭",
           completedTitle: "플레이 완료",
-          nowBadge: "지금 플레이 중",
+          todayBadge: "오늘",
           record: "점수 기록",
-          noNow: "지금 플레이 중인 매치가 없습니다.",
+          noToday: "오늘 매칭이 없습니다.",
           noUpcoming: "다가오는 매칭이 없습니다.",
           noCompleted: "완료된 매칭이 없습니다.",
           court: "코트",
           noCourt: "코트 미지정",
           players: "인원",
           completedLabel: "완료",
-          recorded: "기록됨"
+          recorded: "기록됨",
+          hostManualClose: "매치 임의 마감"
         }
       : {
           title: "Mis partidos",
-          nowTitle: "Jugando ahora",
+          todayTitle: "Partidos de hoy",
           upcomingTitle: "Proximos partidos",
           completedTitle: "Completados",
-          nowBadge: "Jugando ahora",
+          todayBadge: "Hoy",
           record: "Registrar marcador",
-          noNow: "No hay partidos en juego ahora.",
+          noToday: "No hay partidos de hoy.",
           noUpcoming: "No hay partidos proximos.",
           noCompleted: "No hay partidos completados.",
           court: "Cancha",
           noCourt: "Sin cancha",
           players: "Jugadores",
           completedLabel: "Completado",
-          recorded: "registrado"
+          recorded: "registrado",
+          hostManualClose: "Cierre manual sin rival"
         };
 
   const supabase = await createClient();
@@ -117,9 +119,11 @@ export default async function MyMatchesPage() {
       const approvedCount = joins.filter((join) => join.status === "approved").length;
       const currentPlayers = approvedCount + 1;
       const isSingleReady = post.format === "single" && approvedCount === 1;
+      const hostManualClose = approvedCount === 0 && post.status === "closed";
       const result = resultMap.get(post.id);
       const hasConfirmedResult = result?.status === "confirmed";
 
+      const dateKey = getCordobaDateString(new Date(startMs));
       const isPlayingNow = now >= startMs && now < startMs + durationMs;
       const isUpcoming = startMs > now;
       const isCompleted = now >= startMs + durationMs;
@@ -129,8 +133,10 @@ export default async function MyMatchesPage() {
         startMs,
         currentPlayers,
         isSingleReady,
+        hostManualClose,
         hasConfirmedResult,
         resultScore: result?.score ?? null,
+        dateKey,
         isPlayingNow,
         isUpcoming,
         isCompleted
@@ -141,24 +147,28 @@ export default async function MyMatchesPage() {
       startMs: number;
       currentPlayers: number;
       isSingleReady: boolean;
+      hostManualClose: boolean;
       hasConfirmedResult: boolean;
       resultScore: string | null;
+      dateKey: string;
       isPlayingNow: boolean;
       isUpcoming: boolean;
       isCompleted: boolean;
     }
   >;
 
-  const playingNow = normalized
-    .filter((item) => item.isPlayingNow)
+  const todayKey = getCordobaDateString();
+
+  const todayMatches = normalized
+    .filter((item) => item.dateKey === todayKey)
     .sort((a, b) => a.startMs - b.startMs);
 
   const upcoming = normalized
-    .filter((item) => item.isUpcoming)
+    .filter((item) => item.isUpcoming && item.dateKey !== todayKey)
     .sort((a, b) => a.startMs - b.startMs);
 
   const completed = normalized
-    .filter((item) => item.isCompleted)
+    .filter((item) => item.isCompleted && item.dateKey !== todayKey)
     .sort((a, b) => b.startMs - a.startMs);
 
   const dateLocale = lang === "ko" ? "ko-KR" : "es-AR";
@@ -171,22 +181,24 @@ export default async function MyMatchesPage() {
 
       <section className="section">
         <article className="card">
-          <strong>{copy.nowTitle}</strong>
-          {playingNow.length === 0 ? <p className="muted">{copy.noNow}</p> : null}
-          {playingNow.map((item) => {
+          <strong>{copy.todayTitle}</strong>
+          {todayMatches.length === 0 ? <p className="muted">{copy.noToday}</p> : null}
+          {todayMatches.map((item) => {
             const startHHMM = getCordobaHHMM(item.start_at);
+            const weekday = getCordobaWeekday(getCordobaDateString(new Date(item.startMs)), dateLocale);
             return (
-              <article key={`now-${item.id}`} className="card">
+              <article key={`today-${item.id}`} className="card match-card match-card-today">
                 <div className="row">
-                  <span className="badge">{copy.nowBadge}</span>
-                  <span className="muted">{copy.completedLabel}</span>
+                  <span className="badge">{copy.todayBadge}</span>
+                  <span className="muted">{item.isPlayingNow ? copy.todayBadge : copy.completedLabel}</span>
                 </div>
                 <p>
                   <strong>
-                    {formatCordobaDate(item.start_at, dateLocale)} · {formatSlotRange(startHHMM)}
+                    {formatCordobaDate(item.start_at, dateLocale)} ({weekday}) · {formatSlotRange(startHHMM)}
                   </strong>
                 </p>
                 <p className="muted">{item.court_no ? `${copy.court} ${item.court_no}` : copy.noCourt}</p>
+                {item.hostManualClose ? <p className="notice">{copy.hostManualClose}</p> : null}
                 {item.isSingleReady && !item.hasConfirmedResult ? (
                   <Link className="link-btn" href={`/post/${item.id}?record=1`}>
                     {copy.record}
@@ -204,17 +216,19 @@ export default async function MyMatchesPage() {
           {upcoming.length === 0 ? <p className="muted">{copy.noUpcoming}</p> : null}
           {upcoming.map((item) => {
             const startHHMM = getCordobaHHMM(item.start_at);
+            const weekday = getCordobaWeekday(getCordobaDateString(new Date(item.startMs)), dateLocale);
             return (
-              <article key={`upcoming-${item.id}`} className="card">
+              <article key={`upcoming-${item.id}`} className="card match-card match-card-upcoming">
                 <p>
                   <strong>
-                    {formatCordobaDate(item.start_at, dateLocale)} · {formatSlotRange(startHHMM)}
+                    {formatCordobaDate(item.start_at, dateLocale)} ({weekday}) · {formatSlotRange(startHHMM)}
                   </strong>
                 </p>
                 <p className="muted">{item.court_no ? `${copy.court} ${item.court_no}` : copy.noCourt}</p>
                 <p className="muted">
                   {copy.players}: {item.currentPlayers}/{item.needed}
                 </p>
+                {item.hostManualClose ? <p className="notice">{copy.hostManualClose}</p> : null}
               </article>
             );
           })}
@@ -226,11 +240,13 @@ export default async function MyMatchesPage() {
             {completed.length === 0 ? <p className="muted">{copy.noCompleted}</p> : null}
             {completed.map((item) => {
               const startHHMM = getCordobaHHMM(item.start_at);
+              const weekday = getCordobaWeekday(getCordobaDateString(new Date(item.startMs)), dateLocale);
               return (
-                <article key={`completed-${item.id}`} className="card">
+                <article key={`completed-${item.id}`} className="card match-card match-card-completed">
                   <p className="compact-line">
-                    {formatCordobaDate(item.start_at, dateLocale)} | {formatSlotRange(startHHMM)} | {item.court_no ? `${copy.court} ${item.court_no}` : copy.noCourt} | {copy.completedLabel}
+                    {formatCordobaDate(item.start_at, dateLocale)} ({weekday}) | {formatSlotRange(startHHMM)} | {item.court_no ? `${copy.court} ${item.court_no}` : copy.noCourt} | {copy.completedLabel}
                   </p>
+                  {item.hostManualClose ? <p className="notice">{copy.hostManualClose}</p> : null}
                   {item.isSingleReady && !item.hasConfirmedResult ? (
                     <Link className="link-btn" href={`/post/${item.id}?record=1`}>
                       {copy.record}
