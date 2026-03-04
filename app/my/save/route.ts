@@ -17,7 +17,7 @@ function normalizeWhatsapp(countryCode: string, rawInput: string) {
 
 export async function POST(request: Request) {
   function redirectWithReason(path: string, reason: string) {
-    return NextResponse.redirect(new URL(`${path}&reason=${encodeURIComponent(reason)}`, request.url));
+    return NextResponse.redirect(new URL(`${path}&reason=${encodeURIComponent(reason)}`, request.url), 303);
   }
 
   const supabase = await createClient();
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return NextResponse.redirect(new URL("/login", request.url), 303);
   }
 
   const formData = await request.formData();
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   const avatarFile = formData.get("avatar_file");
 
   if (whatsapp && !/^\+\d{8,15}$/.test(whatsapp)) {
-    return NextResponse.redirect(new URL("/my?error=invalid_whatsapp", request.url));
+    return NextResponse.redirect(new URL("/my?error=invalid_whatsapp", request.url), 303);
   }
 
   const { data: currentProfile } = await supabase
@@ -50,10 +50,10 @@ export async function POST(request: Request) {
 
   if (avatarFile instanceof File && avatarFile.size > 0) {
     if (!avatarFile.type.startsWith("image/")) {
-      return NextResponse.redirect(new URL("/my?error=invalid_avatar", request.url));
+      return NextResponse.redirect(new URL("/my?error=invalid_avatar", request.url), 303);
     }
     if (avatarFile.size > 5 * 1024 * 1024) {
-      return NextResponse.redirect(new URL("/my?error=avatar_too_large", request.url));
+      return NextResponse.redirect(new URL("/my?error=avatar_too_large", request.url), 303);
     }
 
     const ext = avatarFile.name.includes(".") ? avatarFile.name.split(".").pop()!.toLowerCase() : "jpg";
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     });
 
     if (uploadError) {
-      return NextResponse.redirect(new URL("/my?error=upload_failed", request.url));
+      return NextResponse.redirect(new URL("/my?error=upload_failed", request.url), 303);
     }
 
     const publicUrlData = supabase.storage.from("avatars").getPublicUrl(filePath);
@@ -109,5 +109,5 @@ export async function POST(request: Request) {
   revalidatePath("/my");
   revalidatePath("/");
 
-  return NextResponse.redirect(new URL("/my?saved=1", request.url));
+  return NextResponse.redirect(new URL("/my?saved=1", request.url), 303);
 }
