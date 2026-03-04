@@ -1,5 +1,6 @@
 import BottomNav from "@/components/BottomNav";
 import ProfileAvatar from "@/components/ProfileAvatar";
+import MotionProfileLink from "@/components/MotionProfileLink";
 import { getServerLang } from "@/lib/i18n-server";
 import { formatCordobaDate, formatSlotRange, getCordobaDateString, getCordobaHHMM, getCordobaWeekday } from "@/lib/constants/slots";
 import { createClient } from "@/lib/supabase/server";
@@ -132,7 +133,7 @@ export default async function ResultsPage({
           </Link>
         </div>
         {(streakLeaders ?? []).slice(0, 5).map((player, index) => (
-          <Link className="activity-link" href={`/u/${player.id}`} key={`mini-streak-${player.id}`}>
+          <MotionProfileLink className="activity-link" href={`/u/${player.id}`} key={`mini-streak-${player.id}`}>
             <article className="activity-item streak-top-item">
               <div className="streak-top-main">
                 <span className="streak-rank">#{index + 1}</span>
@@ -149,7 +150,7 @@ export default async function ResultsPage({
                 {player.current_streak} {copy.streakUnit} · W/L {player.wins}/{player.losses}
               </p>
             </article>
-          </Link>
+          </MotionProfileLink>
         ))}
       </section>
 
@@ -213,7 +214,7 @@ export default async function ResultsPage({
               <div className="participant-list">
                 {[{ id: playerAId, name: playerAName, avatar: playerAAvatar }, { id: playerBId, name: playerBName, avatar: playerBAvatar }].map(
                   (player, idx) => (
-                    <Link
+                    <MotionProfileLink
                       key={`${result.id}-participant-${player.id ?? idx}`}
                       className={`participant-chip${player.id ? "" : " disabled-link"}`}
                       href={player.id ? `/u/${player.id}` : "#"}
@@ -224,13 +225,13 @@ export default async function ResultsPage({
                         <strong className="participant-name">{player.name}</strong>
                         {player.id && post?.host_id && player.id === post.host_id ? <span className="participant-role">{copy.hostTag}</span> : null}
                       </span>
-                    </Link>
+                    </MotionProfileLink>
                   )
                 )}
               </div>
 
               <p className="result-players">
-                <Link className={`link-inline${playerAId ? "" : " disabled-link"}`} href={playerAId ? `/u/${playerAId}` : "#"}>
+                <MotionProfileLink className={`link-inline${playerAId ? "" : " disabled-link"}`} href={playerAId ? `/u/${playerAId}` : "#"}>
                   <span className="result-player-line">
                     <ProfileAvatar name={playerAName} avatarUrl={playerAAvatar} size="sm" />
                     <span className="result-player-name">{playerAName}</span>
@@ -238,9 +239,9 @@ export default async function ResultsPage({
                       {isAWinner ? copy.winTag : copy.lossTag}
                     </span>
                   </span>
-                </Link>{" "}
+                </MotionProfileLink>{" "}
                 vs{" "}
-                <Link className={`link-inline${playerBId ? "" : " disabled-link"}`} href={playerBId ? `/u/${playerBId}` : "#"}>
+                <MotionProfileLink className={`link-inline${playerBId ? "" : " disabled-link"}`} href={playerBId ? `/u/${playerBId}` : "#"}>
                   <span className="result-player-line">
                     <ProfileAvatar name={playerBName} avatarUrl={playerBAvatar} size="sm" />
                     <span className="result-player-name">{playerBName}</span>
@@ -248,7 +249,7 @@ export default async function ResultsPage({
                       {isBWinner ? copy.winTag : copy.lossTag}
                     </span>
                   </span>
-                </Link>
+                </MotionProfileLink>
               </p>
 
               <p className="result-scoreline">

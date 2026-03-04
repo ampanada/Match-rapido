@@ -370,6 +370,22 @@ a {
   text-underline-offset: 2px;
 }
 
+.profile-link-motion {
+  transition: transform 0.18s ease, filter 0.18s ease, box-shadow 0.18s ease;
+  transform-origin: center;
+}
+
+.profile-link-motion:active {
+  transform: scale(1.035);
+  filter: brightness(1.06);
+}
+
+.profile-link-motion.is-pressing {
+  transform: scale(1.045);
+  box-shadow: 0 0 0 3px rgba(124, 173, 255, 0.2), 0 0 18px rgba(124, 173, 255, 0.35);
+  border-radius: 10px;
+}
+
 .profile-settings-btn {
   display: inline-flex;
   align-items: center;

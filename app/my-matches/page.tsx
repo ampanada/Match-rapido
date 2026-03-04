@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import ProfileAvatar from "@/components/ProfileAvatar";
+import MotionProfileLink from "@/components/MotionProfileLink";
 
 function safeTime(value: unknown) {
   const ms = new Date(String(value ?? "")).getTime();
@@ -306,14 +307,14 @@ export default async function MyMatchesPage() {
                 <p className="muted">{copy.participants}</p>
                 <div className="participant-list">
                   {item.participants.map((participant, idx) => (
-                    <Link key={`today-player-${item.id}-${participant.id}`} className="participant-chip" href={`/u/${participant.id}`}>
+                    <MotionProfileLink key={`today-player-${item.id}-${participant.id}`} className="participant-chip" href={`/u/${participant.id}`}>
                       <span className="participant-row">
                         <span className="participant-index">{copy.participantItem} {idx + 1}</span>
                         <ProfileAvatar name={participant.display_name} avatarUrl={participant.avatar_url} size="sm" />
                         <strong className="participant-name">{participant.display_name}</strong>
                         {participant.id === item.host_id ? <span className="participant-role">{copy.hostTag}</span> : null}
                       </span>
-                    </Link>
+                    </MotionProfileLink>
                   ))}
                 </div>
                 {item.hostManualClose ? <p className="notice">{copy.hostManualClose}</p> : null}
@@ -333,7 +334,7 @@ export default async function MyMatchesPage() {
                           const secondWinner = winnerId === second.id;
                           return (
                             <>
-                              <Link className="link-inline" href={`/u/${first.id}`}>
+                              <MotionProfileLink className="link-inline" href={`/u/${first.id}`}>
                                 <span className="result-player-line">
                                   <ProfileAvatar name={first.display_name} avatarUrl={first.avatar_url} size="sm" />
                                   <span className="result-player-name">{first.display_name}</span>
@@ -341,9 +342,9 @@ export default async function MyMatchesPage() {
                                     {firstWinner ? copy.winner : copy.loser}
                                   </span>
                                 </span>
-                              </Link>
+                              </MotionProfileLink>
                               <span className="result-vs">vs</span>
-                              <Link className="link-inline" href={`/u/${second.id}`}>
+                              <MotionProfileLink className="link-inline" href={`/u/${second.id}`}>
                                 <span className="result-player-line">
                                   <ProfileAvatar name={second.display_name} avatarUrl={second.avatar_url} size="sm" />
                                   <span className="result-player-name">{second.display_name}</span>
@@ -351,7 +352,7 @@ export default async function MyMatchesPage() {
                                     {secondWinner ? copy.winner : copy.loser}
                                   </span>
                                 </span>
-                              </Link>
+                              </MotionProfileLink>
                             </>
                           );
                         })()}
@@ -388,14 +389,14 @@ export default async function MyMatchesPage() {
                 <p className="muted">{copy.participants}</p>
                 <div className="participant-list">
                   {item.participants.map((participant, idx) => (
-                    <Link key={`up-player-${item.id}-${participant.id}`} className="participant-chip" href={`/u/${participant.id}`}>
+                    <MotionProfileLink key={`up-player-${item.id}-${participant.id}`} className="participant-chip" href={`/u/${participant.id}`}>
                       <span className="participant-row">
                         <span className="participant-index">{copy.participantItem} {idx + 1}</span>
                         <ProfileAvatar name={participant.display_name} avatarUrl={participant.avatar_url} size="sm" />
                         <strong className="participant-name">{participant.display_name}</strong>
                         {participant.id === item.host_id ? <span className="participant-role">{copy.hostTag}</span> : null}
                       </span>
-                    </Link>
+                    </MotionProfileLink>
                   ))}
                 </div>
                 {item.hostManualClose ? <p className="notice">{copy.hostManualClose}</p> : null}
@@ -418,14 +419,14 @@ export default async function MyMatchesPage() {
                   </p>
                   <div className="participant-list">
                     {item.participants.map((participant, idx) => (
-                      <Link key={`done-player-${item.id}-${participant.id}`} className="participant-chip" href={`/u/${participant.id}`}>
+                      <MotionProfileLink key={`done-player-${item.id}-${participant.id}`} className="participant-chip" href={`/u/${participant.id}`}>
                         <span className="participant-row">
                           <span className="participant-index">{copy.participantItem} {idx + 1}</span>
                           <ProfileAvatar name={participant.display_name} avatarUrl={participant.avatar_url} size="sm" />
                           <strong className="participant-name">{participant.display_name}</strong>
                           {participant.id === item.host_id ? <span className="participant-role">{copy.hostTag}</span> : null}
                         </span>
-                      </Link>
+                      </MotionProfileLink>
                     ))}
                   </div>
                   {item.hostManualClose ? <p className="notice">{copy.hostManualClose}</p> : null}
@@ -445,7 +446,7 @@ export default async function MyMatchesPage() {
                             const secondWinner = winnerId === second.id;
                             return (
                               <>
-                                <Link className="link-inline" href={`/u/${first.id}`}>
+                                <MotionProfileLink className="link-inline" href={`/u/${first.id}`}>
                                   <span className="result-player-line">
                                     <ProfileAvatar name={first.display_name} avatarUrl={first.avatar_url} size="sm" />
                                     <span className="result-player-name">{first.display_name}</span>
@@ -453,9 +454,9 @@ export default async function MyMatchesPage() {
                                       {firstWinner ? copy.winner : copy.loser}
                                     </span>
                                   </span>
-                                </Link>
+                                </MotionProfileLink>
                                 <span className="result-vs">vs</span>
-                                <Link className="link-inline" href={`/u/${second.id}`}>
+                                <MotionProfileLink className="link-inline" href={`/u/${second.id}`}>
                                   <span className="result-player-line">
                                     <ProfileAvatar name={second.display_name} avatarUrl={second.avatar_url} size="sm" />
                                     <span className="result-player-name">{second.display_name}</span>
@@ -463,7 +464,7 @@ export default async function MyMatchesPage() {
                                       {secondWinner ? copy.winner : copy.loser}
                                     </span>
                                   </span>
-                                </Link>
+                                </MotionProfileLink>
                               </>
                             );
                           })()}

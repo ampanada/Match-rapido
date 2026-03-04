@@ -1,5 +1,6 @@
 import BottomNav from "@/components/BottomNav";
 import ProfileAvatar from "@/components/ProfileAvatar";
+import MotionProfileLink from "@/components/MotionProfileLink";
 import { getServerLang } from "@/lib/i18n-server";
 import { formatCordobaDate, formatSlotRange, getCordobaHHMM } from "@/lib/constants/slots";
 import { createClient } from "@/lib/supabase/server";
@@ -280,7 +281,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
         {topRivals.map((item) => (
           <article className="card" key={item.rivalId}>
             <p className="result-players">
-              <Link className="link-inline" href={`/u/${item.rivalId}`}>
+              <MotionProfileLink className="link-inline" href={`/u/${item.rivalId}`}>
                 <span className="result-player-line">
                   <ProfileAvatar
                     name={item.rivalName}
@@ -289,7 +290,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
                   />
                   <span className="result-player-name">{item.rivalName}</span>
                 </span>
-              </Link>
+              </MotionProfileLink>
             </p>
             <p className="result-summary">
               {copy.rivalsTotal}: <strong>{item.wins}</strong>-<strong>{item.losses}</strong> ({item.total})
@@ -343,12 +344,12 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
               </div>
               <p className="result-players">
                 <span className={isWin ? "result-tag-win" : "result-tag-loss"}>{isWin ? copy.win : copy.loss}</span> ·{" "}
-                <Link className={`link-inline${opponentId ? "" : " disabled-link"}`} href={opponentId ? `/u/${opponentId}` : "#"}>
+                <MotionProfileLink className={`link-inline${opponentId ? "" : " disabled-link"}`} href={opponentId ? `/u/${opponentId}` : "#"}>
                   <span className="result-player-line">
                     <ProfileAvatar name={opponentName} avatarUrl={opponentAvatar} size="sm" />
                     <span className="result-player-name">{opponentName}</span>
                   </span>
-                </Link>
+                </MotionProfileLink>
               </p>
               <p className="result-scoreline">
                 <span className="muted">{copy.score}</span>
