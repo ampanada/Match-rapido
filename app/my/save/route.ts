@@ -16,6 +16,10 @@ function normalizeWhatsapp(countryCode: string, rawInput: string) {
 }
 
 export async function POST(request: Request) {
+  function redirectWithReason(path: string, reason: string) {
+    return NextResponse.redirect(new URL(`${path}&reason=${encodeURIComponent(reason)}`, request.url));
+  }
+
   const supabase = await createClient();
   const {
     data: { user }
@@ -70,7 +74,7 @@ export async function POST(request: Request) {
   }
 
   if (!user.email) {
-    return NextResponse.redirect(new URL("/my?error=save_failed", request.url));
+    return redirectWithReason("/my?error=save_failed", "missing_email");
   }
 
   const payload = {
@@ -87,7 +91,7 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   if (updateError) {
-    return NextResponse.redirect(new URL("/my?error=save_failed", request.url));
+    return redirectWithReason("/my?error=save_failed", `update:${updateError.code ?? "no_code"}:${updateError.message}`);
   }
 
   if (!updated) {
@@ -98,7 +102,7 @@ export async function POST(request: Request) {
     });
 
     if (insertError) {
-      return NextResponse.redirect(new URL("/my?error=save_failed", request.url));
+      return redirectWithReason("/my?error=save_failed", `insert:${insertError.code ?? "no_code"}:${insertError.message}`);
     }
   }
 

@@ -27,7 +27,7 @@ function splitWhatsapp(whatsapp: string | null | undefined) {
 export default async function MyPage({
   searchParams
 }: {
-  searchParams?: Promise<{ error?: string; saved?: string }>;
+  searchParams?: Promise<{ error?: string; saved?: string; reason?: string }>;
 }) {
   noStore();
   const params = (await searchParams) ?? {};
@@ -140,6 +140,7 @@ export default async function MyPage({
         {params.error === "avatar_too_large" ? <p className="notice">{copy.avatarTooLarge}</p> : null}
         {params.error === "upload_failed" ? <p className="notice">{copy.uploadFailed}</p> : null}
         {params.saved === "1" ? <p className="notice success">{copy.saveDone}</p> : null}
+        {params.reason ? <p className="muted">reason: {params.reason}</p> : null}
 
         <article className="card">
           <strong>{copy.profile}</strong>
