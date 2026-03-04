@@ -44,10 +44,11 @@ function getActivityHref(item: { type: string; related_post_id: string | null; u
 export default async function Home({
   searchParams
 }: {
-  searchParams: {
+  searchParams?: Promise<{
     format?: string;
-  };
+  }>;
 }) {
+  const params = (await searchParams) ?? {};
   const lang = await getServerLang();
   const copy =
     lang === "ko"
@@ -84,8 +85,8 @@ export default async function Home({
     .gte("start_at", expiryCutoffIso)
     .order("start_at", { ascending: true });
 
-  if (searchParams.format) {
-    query = query.eq("format", searchParams.format);
+  if (params.format) {
+    query = query.eq("format", params.format);
   }
 
   const [{ data, error }, { data: activityData }] = await Promise.all([
@@ -150,7 +151,7 @@ export default async function Home({
         ))}
       </section>
 
-      <FiltersBar selectedFormat={searchParams.format} lang={lang} />
+      <FiltersBar selectedFormat={params.format} lang={lang} />
 
       <section className="section">
         {error ? <p className="notice">{copy.loadError}</p> : null}

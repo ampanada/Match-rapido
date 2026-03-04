@@ -7,10 +7,11 @@ import Link from "next/link";
 export default async function ResultsPage({
   searchParams
 }: {
-  searchParams?: { guide?: string };
+  searchParams?: Promise<{ guide?: string }>;
 }) {
+  const params = (await searchParams) ?? {};
   const lang = await getServerLang();
-  const showGuide = searchParams?.guide === "1";
+  const showGuide = params.guide === "1";
   const copy =
     lang === "ko"
       ? {

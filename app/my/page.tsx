@@ -54,9 +54,10 @@ function upcomingPrioritySort<T extends { status?: string | null; start_at?: str
 export default async function MyPage({
   searchParams
 }: {
-  searchParams?: { error?: string; view?: string; saved?: string; debug?: string };
+  searchParams?: Promise<{ error?: string; view?: string; saved?: string; debug?: string }>;
 }) {
   noStore();
+  const params = (await searchParams) ?? {};
   const lang = await getServerLang();
   const copy =
     lang === "ko"
@@ -332,7 +333,7 @@ export default async function MyPage({
     }))
   ].sort(upcomingPrioritySort);
 
-  const view = searchParams?.view === "result" ? "result" : "matches";
+  const view = params.view === "result" ? "result" : "matches";
 
   function debugErrorCode(stage: string, extra?: string) {
     return encodeURIComponent(extra ? `${stage}:${extra}` : stage);
@@ -467,14 +468,14 @@ export default async function MyPage({
       </header>
 
       <section className="section">
-        {searchParams?.error === "invalid_whatsapp" ? <p className="notice">{copy.invalidWa}</p> : null}
-        {searchParams?.error === "save_failed" ? <p className="notice">{copy.saveFailed}</p> : null}
-        {searchParams?.error === "save_verify_failed" ? <p className="notice">{copy.saveVerifyFailed}</p> : null}
-        {searchParams?.error === "invalid_avatar" ? <p className="notice">{copy.invalidAvatar}</p> : null}
-        {searchParams?.error === "avatar_too_large" ? <p className="notice">{copy.avatarTooLarge}</p> : null}
-        {searchParams?.error === "upload_failed" ? <p className="notice">{copy.uploadFailed}</p> : null}
-        {searchParams?.saved === "1" ? <p className="notice success">{copy.saveDone}</p> : null}
-        {searchParams?.debug ? <p className="muted">debug: {searchParams.debug}</p> : null}
+        {params.error === "invalid_whatsapp" ? <p className="notice">{copy.invalidWa}</p> : null}
+        {params.error === "save_failed" ? <p className="notice">{copy.saveFailed}</p> : null}
+        {params.error === "save_verify_failed" ? <p className="notice">{copy.saveVerifyFailed}</p> : null}
+        {params.error === "invalid_avatar" ? <p className="notice">{copy.invalidAvatar}</p> : null}
+        {params.error === "avatar_too_large" ? <p className="notice">{copy.avatarTooLarge}</p> : null}
+        {params.error === "upload_failed" ? <p className="notice">{copy.uploadFailed}</p> : null}
+        {params.saved === "1" ? <p className="notice success">{copy.saveDone}</p> : null}
+        {params.debug ? <p className="muted">debug: {params.debug}</p> : null}
 
         {view === "matches" && upcomingCombined.length > 0 ? (
           <article className="card">

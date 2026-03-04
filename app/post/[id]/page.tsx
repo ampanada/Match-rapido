@@ -19,9 +19,10 @@ export default async function PostDetailPage({
   searchParams
 }: {
   params: Promise<{ id: string }>;
-  searchParams?: { createdAt?: string };
+  searchParams?: Promise<{ createdAt?: string }>;
 }) {
   const { id } = await params;
+  const qs = (await searchParams) ?? {};
   const lang = await getServerLang();
   const copy =
     lang === "ko"
@@ -395,9 +396,9 @@ export default async function PostDetailPage({
         </p>
       </header>
 
-      {searchParams?.createdAt ? (
+      {qs.createdAt ? (
         <p className="notice success">
-          {copy.created} {new Date(searchParams.createdAt).toLocaleString(dateLocale)}
+          {copy.created} {new Date(qs.createdAt).toLocaleString(dateLocale)}
         </p>
       ) : null}
 

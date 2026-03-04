@@ -9,8 +9,9 @@ import { redirect } from "next/navigation";
 export default async function PostPage({
   searchParams
 }: {
-  searchParams?: { error?: string; at?: string; start?: string; message?: string };
+  searchParams?: Promise<{ error?: string; at?: string; start?: string; message?: string }>;
 }) {
+  const params = (await searchParams) ?? {};
   const lang = await getServerLang();
   const copy =
     lang === "ko"
@@ -146,13 +147,13 @@ export default async function PostPage({
     }
   }
 
-  const duplicateErrorTime = searchParams?.at ? new Date(searchParams.at) : null;
-  const isDuplicateError = searchParams?.error === "duplicate";
-  const isInvalidSlotError = searchParams?.error === "invalid_slot";
-  const pastStart = searchParams?.start ? new Date(searchParams.start) : null;
-  const isPastError = searchParams?.error === "past";
-  const isCreateFailed = searchParams?.error === "create_failed";
-  const createFailedMessage = searchParams?.message ? decodeURIComponent(searchParams.message) : "";
+  const duplicateErrorTime = params.at ? new Date(params.at) : null;
+  const isDuplicateError = params.error === "duplicate";
+  const isInvalidSlotError = params.error === "invalid_slot";
+  const pastStart = params.start ? new Date(params.start) : null;
+  const isPastError = params.error === "past";
+  const isCreateFailed = params.error === "create_failed";
+  const createFailedMessage = params.message ? decodeURIComponent(params.message) : "";
   const defaultDate = getCordobaDateString();
   const dateLocale = lang === "ko" ? "ko-KR" : "es-AR";
 
