@@ -8,6 +8,7 @@ import { formatCordobaDate, formatSlotRange, getCordobaDateString, getCordobaHHM
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { unstable_noStore as noStore } from "next/cache";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 const COUNTRY_CODES = ["+54", "+82", "+1", "+34", "+55", "+81"] as const;
@@ -53,7 +54,7 @@ function upcomingPrioritySort<T extends { status?: string | null; start_at?: str
 export default async function MyPage({
   searchParams
 }: {
-  searchParams?: { error?: string; view?: string; saved?: string };
+  searchParams?: { error?: string; view?: string; saved?: string; debug?: string };
 }) {
   noStore();
   const lang = await getServerLang();
@@ -65,7 +66,9 @@ export default async function MyPage({
           account: "계정",
           invalidWa: "WhatsApp 번호 형식이 올바르지 않습니다. 예: +5491122334455",
           saveFailed: "이름/번호 저장에 실패했습니다. 다시 시도해 주세요.",
+          saveVerifyFailed: "저장 후 확인에 실패했습니다. 다시 저장해 주세요.",
           saveDone: "저장되었습니다.",
+          savedWhatsappLabel: "현재 저장된 WhatsApp",
           invalidAvatar: "이미지 파일만 업로드할 수 있습니다. (jpg, png, webp)",
           avatarTooLarge: "이미지 용량이 너무 큽니다. 최대 5MB",
           uploadFailed: "프로필 사진 업로드에 실패했습니다.",
@@ -112,7 +115,9 @@ export default async function MyPage({
           account: "Cuenta",
           invalidWa: "Formato invalido. Ejemplo: +5491122334455",
           saveFailed: "No se pudo guardar nombre/numero. Intenta de nuevo.",
+          saveVerifyFailed: "No se pudo verificar el guardado. Intenta nuevamente.",
           saveDone: "Guardado correctamente.",
+          savedWhatsappLabel: "WhatsApp guardado actualmente",
           invalidAvatar: "Solo se permiten imagenes (jpg/png/webp).",
           avatarTooLarge: "La imagen es demasiado grande. Maximo 5MB.",
           uploadFailed: "No se pudo subir la foto de perfil.",
@@ -329,6 +334,10 @@ export default async function MyPage({
 
   const view = searchParams?.view === "result" ? "result" : "matches";
 
+  function debugErrorCode(stage: string, extra?: string) {
+    return encodeURIComponent(extra ? `${stage}:${extra}` : stage);
+  }
+
   async function saveProfile(formData: FormData) {
     "use server";
 
@@ -376,7 +385,8 @@ export default async function MyPage({
       });
 
       if (uploadError) {
-        redirect("/my?error=upload_failed");
+        console.error("[my/saveProfile] upload_failed", uploadError);
+        redirect(`/my?error=upload_failed&debug=${debugErrorCode("upload_failed", uploadError.message)}`);
       }
 
       const publicUrlData = supabase.storage.from("avatars").getPublicUrl(filePath);
@@ -384,7 +394,7 @@ export default async function MyPage({
     }
 
     if (!user.email) {
-      redirect("/my?error=save_failed");
+      redirect(`/my?error=save_failed&debug=${debugErrorCode("missing_email")}`);
     }
 
     const profilePayload = {
@@ -401,7 +411,8 @@ export default async function MyPage({
       .maybeSingle();
 
     if (updateError) {
-      redirect("/my?error=save_failed");
+      console.error("[my/saveProfile] update_error", updateError);
+      redirect(`/my?error=save_failed&debug=${debugErrorCode("update_error", updateError.message)}`);
     }
 
     if (!updated) {
@@ -412,10 +423,35 @@ export default async function MyPage({
       });
 
       if (insertError) {
-        redirect("/my?error=save_failed");
+        console.error("[my/saveProfile] insert_error", insertError);
+        redirect(`/my?error=save_failed&debug=${debugErrorCode("insert_error", insertError.message)}`);
       }
     }
 
+    const { data: verifyProfile, error: verifyError } = await supabase
+      .from("profiles")
+      .select("id,display_name,whatsapp")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (verifyError || !verifyProfile) {
+      console.error("[my/saveProfile] verify_read_error", verifyError);
+      redirect(`/my?error=save_verify_failed&debug=${debugErrorCode("verify_read_error", verifyError?.message)}`);
+    }
+
+    const expectedName = profilePayload.display_name ?? null;
+    const expectedWhatsapp = profilePayload.whatsapp ?? null;
+    const actualName = verifyProfile.display_name ?? null;
+    const actualWhatsapp = verifyProfile.whatsapp ?? null;
+
+    if (expectedName !== actualName || expectedWhatsapp !== actualWhatsapp) {
+      const mismatch = `expected(${expectedName ?? "null"},${expectedWhatsapp ?? "null"})_actual(${actualName ?? "null"},${actualWhatsapp ?? "null"})`;
+      console.error("[my/saveProfile] verify_mismatch", mismatch);
+      redirect(`/my?error=save_verify_failed&debug=${debugErrorCode("verify_mismatch", mismatch)}`);
+    }
+
+    revalidatePath("/my");
+    revalidatePath("/");
     redirect("/my?saved=1");
   }
 
@@ -433,10 +469,12 @@ export default async function MyPage({
       <section className="section">
         {searchParams?.error === "invalid_whatsapp" ? <p className="notice">{copy.invalidWa}</p> : null}
         {searchParams?.error === "save_failed" ? <p className="notice">{copy.saveFailed}</p> : null}
+        {searchParams?.error === "save_verify_failed" ? <p className="notice">{copy.saveVerifyFailed}</p> : null}
         {searchParams?.error === "invalid_avatar" ? <p className="notice">{copy.invalidAvatar}</p> : null}
         {searchParams?.error === "avatar_too_large" ? <p className="notice">{copy.avatarTooLarge}</p> : null}
         {searchParams?.error === "upload_failed" ? <p className="notice">{copy.uploadFailed}</p> : null}
         {searchParams?.saved === "1" ? <p className="notice success">{copy.saveDone}</p> : null}
+        {searchParams?.debug ? <p className="muted">debug: {searchParams.debug}</p> : null}
 
         {view === "matches" && upcomingCombined.length > 0 ? (
           <article className="card">
@@ -486,6 +524,9 @@ export default async function MyPage({
               </div>
             </div>
             <p className="muted">{copy.saveFormat}</p>
+            <p className="muted">
+              {copy.savedWhatsappLabel}: {myProfile?.whatsapp || "-"}
+            </p>
             <SubmitButton
               idleLabel={myProfile?.whatsapp ? copy.editProfile : copy.save}
               pendingLabel={copy.savePending}
