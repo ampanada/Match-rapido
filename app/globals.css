@@ -5,6 +5,7 @@
   --text: #f7f8fb;
   --muted: #a9b3c6;
   --accent: #4f8cff;
+  --top-nav-h: 44px;
   --card-top-glow: rgba(114, 160, 255, 0.18);
   --card-bottom-glow: rgba(12, 18, 31, 0.54);
   --card-shadow-soft: 0 18px 36px rgba(4, 8, 16, 0.34);
@@ -44,7 +45,7 @@ a {
   width: min(100%, 420px);
   min-height: 100dvh;
   margin: 0 auto;
-  padding: 94px 14px calc(84px + env(safe-area-inset-bottom));
+  padding: 92px 14px calc(84px + env(safe-area-inset-bottom));
 }
 
 .club-tabs-wrap {
@@ -53,26 +54,36 @@ a {
   left: 50%;
   transform: translateX(-50%);
   width: min(100%, 420px);
+  height: var(--top-nav-h);
   z-index: 30;
   background: rgba(15, 17, 21, 0.95);
   border-bottom: 1px solid var(--line);
   backdrop-filter: blur(8px);
+  overflow: hidden;
 }
 
 .club-tabs {
   display: flex;
   gap: 8px;
-  padding: 8px 10px;
+  align-items: center;
+  height: 100%;
+  padding: 6px 10px;
   justify-content: flex-start;
 }
 
 .club-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--panel);
   color: var(--muted);
-  font-size: 12px;
-  padding: 6px 10px;
+  font-size: 11px;
+  line-height: 1;
+  height: 30px;
+  padding: 0 10px;
+  white-space: nowrap;
 }
 
 .club-tab.active {
@@ -85,9 +96,32 @@ a {
   opacity: 0.65;
 }
 
+.club-tab-avatar {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  max-width: 16px;
+  max-height: 16px;
+  display: block;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 1px solid #3d4b66;
+  flex-shrink: 0;
+}
+
+.club-tab-avatar-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 800;
+  color: #0e1521;
+  background: linear-gradient(140deg, #7bb3ff, #92cbff);
+}
+
 .global-notice-wrap {
   position: fixed;
-  top: 38px;
+  top: var(--top-nav-h);
   left: 50%;
   transform: translateX(-50%);
   width: min(100%, 420px);
