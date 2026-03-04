@@ -524,6 +524,76 @@ a {
   box-shadow: var(--card-shadow-soft);
 }
 
+.match-card {
+  border-color: #4f6388;
+  box-shadow: 0 10px 24px rgba(7, 13, 24, 0.28);
+}
+
+.match-card-today {
+  background:
+    radial-gradient(120% 100% at 0% -20%, rgba(255, 155, 208, 0.2), transparent 58%),
+    radial-gradient(110% 120% at 100% 0%, rgba(108, 150, 255, 0.18), transparent 62%),
+    linear-gradient(150deg, #2b2b48 0%, #2d2c52 45%, #1e2740 100%);
+}
+
+.match-card-upcoming {
+  background:
+    radial-gradient(110% 90% at 0% 0%, rgba(130, 199, 255, 0.2), transparent 58%),
+    radial-gradient(120% 130% at 100% 100%, rgba(132, 162, 255, 0.16), transparent 62%),
+    linear-gradient(155deg, #1e304a 0%, #24395b 55%, #1a2a43 100%);
+}
+
+.match-card-completed {
+  background:
+    radial-gradient(100% 85% at 0% -10%, rgba(174, 187, 255, 0.12), transparent 60%),
+    linear-gradient(160deg, #21293a 0%, #1c2332 55%, #171f2b 100%);
+}
+
+.participant-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+.participant-chip {
+  display: block;
+  border: 1px solid rgba(126, 160, 233, 0.45);
+  border-radius: 12px;
+  background: linear-gradient(150deg, rgba(67, 94, 146, 0.42), rgba(45, 64, 101, 0.3));
+  padding: 7px 10px;
+}
+
+.participant-chip span {
+  font-size: 12px;
+  font-weight: 700;
+  color: #e8efff;
+}
+
+.participant-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.participant-index {
+  min-width: 56px;
+  font-size: 10px;
+  color: #b7c7e6;
+  font-weight: 700;
+}
+
+.participant-name {
+  color: #e8efff;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.participant-chip em {
+  font-style: normal;
+  font-size: 10px;
+  color: #b9c9e8;
+}
+
 .card::before {
   content: "";
   position: absolute;
@@ -580,6 +650,37 @@ a {
 .result-players {
   margin: 0;
   font-size: 14px;
+}
+
+.result-player-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.result-player-name {
+  color: #eef3ff;
+  font-weight: 700;
+}
+
+.result-tag-win,
+.result-tag-loss {
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.result-tag-win {
+  border: 1px solid #1f8f5f;
+  background: #12563a;
+  color: #b8ffd9;
+}
+
+.result-tag-loss {
+  border: 1px solid #b0333d;
+  background: #661e25;
+  color: #ffb2b8;
 }
 
 .winner-name {
@@ -667,6 +768,16 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+}
+
+.host-name-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.host-name-text {
+  line-height: 1.2;
 }
 
 .day-title {

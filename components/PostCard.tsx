@@ -1,7 +1,8 @@
- "use client";
+"use client";
 
 import { formatLabel } from "@/lib/constants/filters";
 import { formatCordobaDate, formatSlotRange, getCordobaHHMM } from "@/lib/constants/slots";
+import ProfileAvatar from "@/components/ProfileAvatar";
 import { useRouter } from "next/navigation";
 
 interface PostCardProps {
@@ -15,6 +16,7 @@ interface PostCardProps {
     status: string;
     joinsCount: number;
     hostName: string;
+    hostAvatarUrl?: string | null;
     isExpired: boolean;
   };
   lang: "es" | "ko";
@@ -59,7 +61,10 @@ export default function PostCard({ post, lang }: PostCardProps) {
   return (
     <article className="card">
       <div className="row">
-        <strong>{post.hostName}</strong>
+        <span className="host-name-row">
+          <ProfileAvatar name={post.hostName} avatarUrl={post.hostAvatarUrl ?? null} size="sm" />
+          <strong className="host-name-text">{post.hostName}</strong>
+        </span>
         <span className={`status-chip ${isCompleted ? "done" : "open"}`}>{isCompleted ? copy.done : copy.open}</span>
       </div>
       <span className="muted">
