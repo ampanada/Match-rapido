@@ -4,6 +4,7 @@ import { getServerLang } from "@/lib/i18n-server";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import ProfileAvatar from "@/components/ProfileAvatar";
 
 function safeTime(value: unknown) {
   const ms = new Date(String(value ?? "")).getTime();
@@ -19,15 +20,15 @@ type MatchItem = {
   court_no: number | null;
   status: string;
   profiles:
-    | { id: string; display_name: string | null; wins: number; losses: number; total_matches: number }
-    | Array<{ id: string; display_name: string | null; wins: number; losses: number; total_matches: number }>
+    | { id: string; display_name: string | null; avatar_url: string | null; wins: number; losses: number; total_matches: number }
+    | Array<{ id: string; display_name: string | null; avatar_url: string | null; wins: number; losses: number; total_matches: number }>
     | null;
   joins: Array<{
     status: string;
     user_id: string;
     profiles:
-      | { id: string; display_name: string | null; wins: number; losses: number; total_matches: number }
-      | Array<{ id: string; display_name: string | null; wins: number; losses: number; total_matches: number }>
+      | { id: string; display_name: string | null; avatar_url: string | null; wins: number; losses: number; total_matches: number }
+      | Array<{ id: string; display_name: string | null; avatar_url: string | null; wins: number; losses: number; total_matches: number }>
       | null;
   }>;
 };
@@ -35,6 +36,7 @@ type MatchItem = {
 type Participant = {
   id: string;
   display_name: string;
+  avatar_url: string | null;
   wins: number;
   losses: number;
   total_matches: number;
@@ -105,13 +107,13 @@ export default async function MyMatchesPage() {
   const [hostResponse, joinResponse] = await Promise.all([
     supabase
       .from("posts")
-      .select("id,host_id,start_at,format,needed,court_no,status,profiles!posts_host_id_fkey(id,display_name,wins,losses,total_matches),joins(status,user_id,profiles!joins_user_id_fkey(id,display_name,wins,losses,total_matches))")
+      .select("id,host_id,start_at,format,needed,court_no,status,profiles!posts_host_id_fkey(id,display_name,avatar_url,wins,losses,total_matches),joins(status,user_id,profiles!joins_user_id_fkey(id,display_name,avatar_url,wins,losses,total_matches))")
       .eq("host_id", user.id)
       .order("start_at", { ascending: false })
       .limit(80),
     supabase
       .from("joins")
-      .select("post_id,posts!joins_post_id_fkey(id,host_id,start_at,format,needed,court_no,status,profiles!posts_host_id_fkey(id,display_name,wins,losses,total_matches),joins(status,user_id,profiles!joins_user_id_fkey(id,display_name,wins,losses,total_matches)))")
+      .select("post_id,posts!joins_post_id_fkey(id,host_id,start_at,format,needed,court_no,status,profiles!posts_host_id_fkey(id,display_name,avatar_url,wins,losses,total_matches),joins(status,user_id,profiles!joins_user_id_fkey(id,display_name,avatar_url,wins,losses,total_matches)))")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(80)
@@ -189,6 +191,7 @@ export default async function MyMatchesPage() {
       const hostProfile: Participant = {
         id: hostProfileRaw?.id ?? post.host_id,
         display_name: hostProfileRaw?.display_name || (lang === "ko" ? "호스트" : "Host"),
+        avatar_url: hostProfileRaw?.avatar_url ?? null,
         wins: hostProfileRaw?.wins ?? 0,
         losses: hostProfileRaw?.losses ?? 0,
         total_matches: hostProfileRaw?.total_matches ?? 0
@@ -218,6 +221,7 @@ export default async function MyMatchesPage() {
           participantMap.set(raw.id, {
             id: raw.id,
             display_name: raw.display_name || (lang === "ko" ? "참여자" : "Jugador"),
+            avatar_url: raw.avatar_url ?? null,
             wins: raw.wins ?? 0,
             losses: raw.losses ?? 0,
             total_matches: raw.total_matches ?? 0
@@ -270,8 +274,6 @@ export default async function MyMatchesPage() {
     .sort((a, b) => b.startMs - a.startMs);
 
   const dateLocale = lang === "ko" ? "ko-KR" : "es-AR";
-  const toRate = (participant: Participant) =>
-    participant.total_matches > 0 ? Math.round((participant.wins / participant.total_matches) * 100) : 0;
   const h2hRate = (aId: string, bId: string, selfId: string) => {
     const data = h2hMap.get(pairKey(aId, bId));
     if (!data || data.total === 0) {
@@ -309,16 +311,10 @@ export default async function MyMatchesPage() {
                 <div className="participant-list">
                   {item.participants.map((participant) => (
                     <Link key={`today-player-${item.id}-${participant.id}`} className="participant-chip" href={`/u/${participant.id}`}>
-                      <span>{participant.display_name}</span>
-                      {item.format === "single" ? (
-                        <em>
-                          {copy.singleRate} {toRate(participant)}% · {copy.h2hRate}{" "}
-                          {item.participants.length === 2
-                            ? h2hRate(item.participants[0].id, item.participants[1].id, participant.id)
-                            : 0}
-                          %
-                        </em>
-                      ) : null}
+                      <span className="participant-row">
+                        <ProfileAvatar name={participant.display_name} avatarUrl={participant.avatar_url} size="sm" />
+                        <strong className="participant-name">{participant.display_name}</strong>
+                      </span>
                     </Link>
                   ))}
                 </div>
@@ -338,9 +334,12 @@ export default async function MyMatchesPage() {
                           return (
                             <span key={`today-result-${item.id}-${participant.id}`}>
                               <Link className="link-inline" href={`/u/${participant.id}`}>
-                                <span className={isWinner ? "winner-name" : "loss-name"}>
-                                  {participant.display_name} ({copy.h2hRate} {h2hRate(participant.id, other.id, participant.id)}%)
-                                  <em className="winner-chip">{isWinner ? copy.winner : copy.loser}</em>
+                                <span className="result-player-line">
+                                  <ProfileAvatar name={participant.display_name} avatarUrl={participant.avatar_url} size="sm" />
+                                  <span className="result-player-name">{participant.display_name}</span>
+                                  <span className={isWinner ? "result-tag-win" : "result-tag-loss"}>
+                                    {isWinner ? copy.winner : copy.loser}
+                                  </span>
                                 </span>
                               </Link>
                               {idx === 0 ? " vs " : ""}
@@ -381,16 +380,10 @@ export default async function MyMatchesPage() {
                 <div className="participant-list">
                   {item.participants.map((participant) => (
                     <Link key={`up-player-${item.id}-${participant.id}`} className="participant-chip" href={`/u/${participant.id}`}>
-                      <span>{participant.display_name}</span>
-                      {item.format === "single" ? (
-                        <em>
-                          {copy.singleRate} {toRate(participant)}% · {copy.h2hRate}{" "}
-                          {item.participants.length === 2
-                            ? h2hRate(item.participants[0].id, item.participants[1].id, participant.id)
-                            : 0}
-                          %
-                        </em>
-                      ) : null}
+                      <span className="participant-row">
+                        <ProfileAvatar name={participant.display_name} avatarUrl={participant.avatar_url} size="sm" />
+                        <strong className="participant-name">{participant.display_name}</strong>
+                      </span>
                     </Link>
                   ))}
                 </div>
@@ -415,16 +408,10 @@ export default async function MyMatchesPage() {
                   <div className="participant-list">
                     {item.participants.map((participant) => (
                       <Link key={`done-player-${item.id}-${participant.id}`} className="participant-chip" href={`/u/${participant.id}`}>
-                        <span>{participant.display_name}</span>
-                        {item.format === "single" ? (
-                          <em>
-                            {copy.singleRate} {toRate(participant)}% · {copy.h2hRate}{" "}
-                            {item.participants.length === 2
-                              ? h2hRate(item.participants[0].id, item.participants[1].id, participant.id)
-                              : 0}
-                            %
-                          </em>
-                        ) : null}
+                        <span className="participant-row">
+                          <ProfileAvatar name={participant.display_name} avatarUrl={participant.avatar_url} size="sm" />
+                          <strong className="participant-name">{participant.display_name}</strong>
+                        </span>
                       </Link>
                     ))}
                   </div>
@@ -444,9 +431,12 @@ export default async function MyMatchesPage() {
                             return (
                               <span key={`done-result-${item.id}-${participant.id}`}>
                                 <Link className="link-inline" href={`/u/${participant.id}`}>
-                                  <span className={isWinner ? "winner-name" : "loss-name"}>
-                                    {participant.display_name} ({copy.h2hRate} {h2hRate(participant.id, other.id, participant.id)}%)
-                                    <em className="winner-chip">{isWinner ? copy.winner : copy.loser}</em>
+                                  <span className="result-player-line">
+                                    <ProfileAvatar name={participant.display_name} avatarUrl={participant.avatar_url} size="sm" />
+                                    <span className="result-player-name">{participant.display_name}</span>
+                                    <span className={isWinner ? "result-tag-win" : "result-tag-loss"}>
+                                      {isWinner ? copy.winner : copy.loser}
+                                    </span>
                                   </span>
                                 </Link>
                                 {idx === 0 ? " vs " : ""}
