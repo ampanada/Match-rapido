@@ -19,10 +19,11 @@ export default async function PostDetailPage({
   searchParams
 }: {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ createdAt?: string }>;
+  searchParams?: Promise<{ createdAt?: string; record?: string }>;
 }) {
   const { id } = await params;
   const qs = (await searchParams) ?? {};
+  const shouldFocusRecord = qs.record === "1";
   const lang = await getServerLang();
   const copy =
     lang === "ko"
@@ -501,7 +502,7 @@ export default async function PostDetailPage({
                   <option value={post.host_id}>{hostName}</option>
                   <option value={playerB}>{singleJoinName}</option>
                 </select>
-                <input className="input" name="score" placeholder={copy.scorePlaceholder} required />
+                <input className="input" name="score" placeholder={copy.scorePlaceholder} required autoFocus={shouldFocusRecord} />
                 <SubmitButton idleLabel={copy.registerResult} pendingLabel={copy.registeringResult} />
               </form>
             ) : null}
