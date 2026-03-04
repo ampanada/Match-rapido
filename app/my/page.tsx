@@ -7,6 +7,7 @@ import { getServerLang } from "@/lib/i18n-server";
 import { formatCordobaDate, formatSlotRange, getCordobaDateString, getCordobaHHMM, getCordobaWeekday } from "@/lib/constants/slots";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
+import { unstable_noStore as noStore } from "next/cache";
 import { redirect } from "next/navigation";
 
 const COUNTRY_CODES = ["+54", "+82", "+1", "+34", "+55", "+81"] as const;
@@ -38,11 +39,23 @@ function normalizeWhatsapp(countryCode: string, rawInput: string) {
   return `${countryCode}${compact.replace(/[^\d]/g, "")}`;
 }
 
+function upcomingPrioritySort<T extends { status?: string | null; start_at?: string }>(a: T, b: T) {
+  const aClosed = a.status === "closed";
+  const bClosed = b.status === "closed";
+  if (aClosed !== bClosed) {
+    return aClosed ? 1 : -1;
+  }
+  const aTime = new Date(a.start_at ?? 0).getTime();
+  const bTime = new Date(b.start_at ?? 0).getTime();
+  return aTime - bTime;
+}
+
 export default async function MyPage({
   searchParams
 }: {
-  searchParams?: { error?: string; view?: string };
+  searchParams?: { error?: string; view?: string; saved?: string };
 }) {
+  noStore();
   const lang = await getServerLang();
   const copy =
     lang === "ko"
@@ -52,6 +65,7 @@ export default async function MyPage({
           account: "계정",
           invalidWa: "WhatsApp 번호 형식이 올바르지 않습니다. 예: +5491122334455",
           saveFailed: "이름/번호 저장에 실패했습니다. 다시 시도해 주세요.",
+          saveDone: "저장되었습니다.",
           invalidAvatar: "이미지 파일만 업로드할 수 있습니다. (jpg, png, webp)",
           avatarTooLarge: "이미지 용량이 너무 큽니다. 최대 5MB",
           uploadFailed: "프로필 사진 업로드에 실패했습니다.",
@@ -98,6 +112,7 @@ export default async function MyPage({
           account: "Cuenta",
           invalidWa: "Formato invalido. Ejemplo: +5491122334455",
           saveFailed: "No se pudo guardar nombre/numero. Intenta de nuevo.",
+          saveDone: "Guardado correctamente.",
           invalidAvatar: "Solo se permiten imagenes (jpg/png/webp).",
           avatarTooLarge: "La imagen es demasiado grande. Maximo 5MB.",
           uploadFailed: "No se pudo subir la foto de perfil.",
@@ -149,7 +164,7 @@ export default async function MyPage({
     redirect("/login?reason=auth_required");
   }
 
-  const { data: myProfile } = await supabase
+  let { data: myProfile } = await supabase
     .from("profiles")
     .select("display_name,whatsapp,avatar_url")
     .eq("id", user.id)
@@ -160,15 +175,22 @@ export default async function MyPage({
     (user.user_metadata?.name as string | undefined) ??
     null;
 
-  if ((!myProfile || !myProfile.display_name) && metadataName) {
-    await supabase.from("profiles").upsert(
+  if ((!myProfile || !myProfile.display_name) && metadataName && user.email) {
+    const { error: ensureProfileError } = await supabase.from("profiles").upsert(
       {
         id: user.id,
-        email: user.email ?? "",
+        email: user.email,
         display_name: metadataName
       },
       { onConflict: "id" }
     );
+    if (!ensureProfileError) {
+      myProfile = {
+        display_name: metadataName,
+        whatsapp: myProfile?.whatsapp ?? null,
+        avatar_url: myProfile?.avatar_url ?? null
+      };
+    }
   }
 
   const effectiveDisplayName = myProfile?.display_name || metadataName || null;
@@ -240,7 +262,9 @@ export default async function MyPage({
     };
   });
 
-  const upcomingHost = hostMatches.filter((post) => !post.isPast);
+  const upcomingHost = hostMatches
+    .filter((post) => !post.isPast)
+    .sort(upcomingPrioritySort);
   const pastHost = hostMatches.filter((post) => post.isPast);
 
   const joinMatches = (myJoins ?? []).map((join) => {
@@ -255,7 +279,9 @@ export default async function MyPage({
     return { ...join, relatedPost, when, players, label, isPast };
   });
 
-  const upcomingJoin = joinMatches.filter((join) => !join.isPast);
+  const upcomingJoin = joinMatches
+    .filter((join) => !join.isPast)
+    .sort(upcomingPrioritySort);
   const pastJoin = joinMatches.filter((join) => join.isPast);
   const pastHostPreview = pastHost.slice(0, 20);
   const pastJoinPreview = pastJoin.slice(0, 20);
@@ -281,6 +307,25 @@ export default async function MyPage({
   const resultTargets = pastHost.filter(
     (post) => post.format === "single" && post.players >= 2 && post.resultStatus !== "confirmed"
   );
+
+  const upcomingCombined = [
+    ...upcomingHost.map((post) => ({
+      id: post.id,
+      start_at: post.start_at,
+      status: post.status,
+      href: `/post/${post.id}`,
+      role: lang === "ko" ? "호스트" : "Host",
+      court_no: post.court_no
+    })),
+    ...upcomingJoin.map((join) => ({
+      id: join.post_id,
+      start_at: join.when,
+      status: join.relatedPost?.status ?? null,
+      href: `/post/${join.post_id}`,
+      role: lang === "ko" ? "참여" : "Join",
+      court_no: join.relatedPost?.court_no ?? null
+    }))
+  ].sort(upcomingPrioritySort);
 
   const view = searchParams?.view === "result" ? "result" : "matches";
 
@@ -338,22 +383,40 @@ export default async function MyPage({
       avatarUrl = publicUrlData.data.publicUrl;
     }
 
-    const { error: saveError } = await supabase.from("profiles").upsert(
-      {
-        id: user.id,
-        email: user.email ?? "",
-        display_name: displayName || currentProfile?.display_name || null,
-        whatsapp: whatsapp || null,
-        avatar_url: avatarUrl
-      },
-      { onConflict: "id" }
-    );
-
-    if (saveError) {
+    if (!user.email) {
       redirect("/my?error=save_failed");
     }
 
-    redirect("/my");
+    const profilePayload = {
+      display_name: displayName || currentProfile?.display_name || null,
+      whatsapp: whatsapp || null,
+      avatar_url: avatarUrl
+    };
+
+    const { data: updated, error: updateError } = await supabase
+      .from("profiles")
+      .update(profilePayload)
+      .eq("id", user.id)
+      .select("id")
+      .maybeSingle();
+
+    if (updateError) {
+      redirect("/my?error=save_failed");
+    }
+
+    if (!updated) {
+      const { error: insertError } = await supabase.from("profiles").insert({
+        id: user.id,
+        email: user.email,
+        ...profilePayload
+      });
+
+      if (insertError) {
+        redirect("/my?error=save_failed");
+      }
+    }
+
+    redirect("/my?saved=1");
   }
 
   return (
@@ -373,6 +436,28 @@ export default async function MyPage({
         {searchParams?.error === "invalid_avatar" ? <p className="notice">{copy.invalidAvatar}</p> : null}
         {searchParams?.error === "avatar_too_large" ? <p className="notice">{copy.avatarTooLarge}</p> : null}
         {searchParams?.error === "upload_failed" ? <p className="notice">{copy.uploadFailed}</p> : null}
+        {searchParams?.saved === "1" ? <p className="notice success">{copy.saveDone}</p> : null}
+
+        {view === "matches" && upcomingCombined.length > 0 ? (
+          <article className="card">
+            <strong>{copy.upcoming}</strong>
+            {upcomingCombined.map((item) => {
+              const itemStart = item.start_at ?? "";
+              const startHHMM = getCordobaHHMM(itemStart);
+              return (
+                <article key={`upcoming-combined-${item.role}-${item.id}`} className="card">
+                  <p className="compact-line">
+                    {formatCordobaDate(itemStart, dateLocale)} | {formatSlotRange(startHHMM)} |{" "}
+                    {item.court_no ? (lang === "ko" ? `${item.court_no}번코트` : `Cancha ${item.court_no}`) : "-"} | {item.role}
+                  </p>
+                  <Link className="link-btn" href={item.href}>
+                    {copy.detail}
+                  </Link>
+                </article>
+              );
+            })}
+          </article>
+        ) : null}
 
         <article className="card">
           <strong>{copy.account}</strong>
