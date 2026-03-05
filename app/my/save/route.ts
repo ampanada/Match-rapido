@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { claimGuestJoinsForUser } from "@/lib/joins/claimGuestJoins";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
@@ -47,6 +48,7 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   let avatarUrl: string | null = currentProfile?.avatar_url ?? null;
+  let uploadWarning: string | null = null;
 
   if (avatarFile instanceof File && avatarFile.size > 0) {
     if (!avatarFile.type.startsWith("image/")) {
@@ -66,11 +68,11 @@ export async function POST(request: Request) {
     });
 
     if (uploadError) {
-      return NextResponse.redirect(new URL("/my?error=upload_failed", request.url), 303);
+      uploadWarning = uploadError.message;
+    } else {
+      const publicUrlData = supabase.storage.from("avatars").getPublicUrl(filePath);
+      avatarUrl = publicUrlData.data.publicUrl;
     }
-
-    const publicUrlData = supabase.storage.from("avatars").getPublicUrl(filePath);
-    avatarUrl = publicUrlData.data.publicUrl;
   }
 
   if (!user.email) {
@@ -106,8 +108,14 @@ export async function POST(request: Request) {
     }
   }
 
+  await claimGuestJoinsForUser(supabase, user.id, payload.whatsapp);
+
   revalidatePath("/my");
   revalidatePath("/");
+  revalidatePath("/my-matches");
 
-  return NextResponse.redirect(new URL("/my?saved=1", request.url), 303);
+  const successUrl = uploadWarning
+    ? `/my?saved=1&warn=avatar_upload_failed&reason=${encodeURIComponent(uploadWarning)}`
+    : "/my?saved=1";
+  return NextResponse.redirect(new URL(successUrl, request.url), 303);
 }

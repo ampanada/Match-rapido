@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { claimGuestJoinsForUser } from "@/lib/joins/claimGuestJoins";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -33,9 +34,18 @@ export async function POST(request: Request) {
   const isClosed = !post || post.status === "closed" || currentPlayers >= post.needed || isExpired || isHost;
 
   if (!isClosed) {
-    const { error: joinError } = await supabase
-      .from("joins")
-      .upsert({ post_id: postId, user_id: user.id, status: "pending" }, { onConflict: "post_id,user_id" });
+    const { data: myProfile } = await supabase.from("profiles").select("whatsapp").eq("id", user.id).maybeSingle();
+    await claimGuestJoinsForUser(supabase, user.id, myProfile?.whatsapp);
+
+    const { data: alreadyLinked } = await supabase.from("joins").select("id").eq("post_id", postId).eq("user_id", user.id).maybeSingle();
+
+    const joinError = alreadyLinked
+      ? null
+      : (
+          await supabase
+            .from("joins")
+            .upsert({ post_id: postId, user_id: user.id, status: "pending" }, { onConflict: "post_id,user_id" })
+        ).error;
 
     if (!joinError && post?.host_id) {
       const [{ data: hostProfile }, { data: requesterProfile }] = await Promise.all([

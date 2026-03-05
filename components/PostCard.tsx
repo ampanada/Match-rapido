@@ -104,14 +104,24 @@ export default function PostCard({ post, lang }: PostCardProps) {
       <p className="muted">{copy.participants}</p>
       <div className="participant-list">
         {post.participants.map((participant, idx) => (
-          <MotionProfileLink key={`${post.id}-p-${participant.id}`} className="participant-chip" href={`/u/${participant.id}`}>
-            <span className="participant-row">
-              <span className="participant-index">{copy.participantItem} {idx + 1}</span>
-              <ProfileAvatar name={participant.name} avatarUrl={participant.avatarUrl} size="sm" />
-              <strong className="participant-name">{participant.name}</strong>
-              {participant.isHost ? <span className="participant-role">{copy.hostTag}</span> : null}
-            </span>
-          </MotionProfileLink>
+          participant.id.startsWith("guest:") ? (
+            <div key={`${post.id}-p-${participant.id}`} className="participant-chip">
+              <span className="participant-row">
+                <span className="participant-index">{copy.participantItem} {idx + 1}</span>
+                <ProfileAvatar name={participant.name} avatarUrl={participant.avatarUrl} size="sm" />
+                <strong className="participant-name">{participant.name}</strong>
+              </span>
+            </div>
+          ) : (
+            <MotionProfileLink key={`${post.id}-p-${participant.id}`} className="participant-chip" href={`/u/${participant.id}`}>
+              <span className="participant-row">
+                <span className="participant-index">{copy.participantItem} {idx + 1}</span>
+                <ProfileAvatar name={participant.name} avatarUrl={participant.avatarUrl} size="sm" />
+                <strong className="participant-name">{participant.name}</strong>
+                {participant.isHost ? <span className="participant-role">{copy.hostTag}</span> : null}
+              </span>
+            </MotionProfileLink>
+          )
         ))}
       </div>
       <p className="note">{post.note || copy.emptyNote}</p>

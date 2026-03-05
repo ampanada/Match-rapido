@@ -1,5 +1,6 @@
 import BottomNav from "@/components/BottomNav";
 import FiltersBar from "@/components/FiltersBar";
+import LoginSuccessToast from "@/components/LoginSuccessToast";
 import PostCard from "@/components/PostCard";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import { getCordobaDateString, getCordobaHHMM, getCordobaWeekday } from "@/lib/constants/slots";
@@ -47,9 +48,11 @@ export default async function Home({
 }: {
   searchParams?: Promise<{
     format?: string;
+    loggedIn?: string;
   }>;
 }) {
   const params = (await searchParams) ?? {};
+  const showLoggedInToast = params.loggedIn === "1";
   const lang = await getServerLang();
   const copy =
     lang === "ko"
@@ -80,7 +83,7 @@ export default async function Home({
   let query = supabase
     .from("posts")
     .select(
-      "id,host_id,start_at,format,level,needed,court_no,note,status,profiles!posts_host_id_fkey(id,display_name,avatar_url),joins(id,user_id,status,profiles!joins_user_id_fkey(id,display_name,avatar_url))"
+      "id,host_id,start_at,format,level,needed,court_no,note,status,profiles!posts_host_id_fkey(id,display_name,avatar_url),joins(id,user_id,status,guest_name,guest_whatsapp,profiles!joins_user_id_fkey(id,display_name,avatar_url))"
     )
     .eq("status", "open")
     .gte("start_at", expiryCutoffIso)
@@ -126,9 +129,10 @@ export default async function Home({
 
       approvedJoins.forEach((join) => {
         const joinProfile = Array.isArray(join.profiles) ? join.profiles[0] : join.profiles;
-        const joinName = joinProfile?.display_name || (lang === "ko" ? "참여자" : "Jugador");
-        participantMap.set(join.user_id, {
-          id: join.user_id,
+        const joinName = joinProfile?.display_name || join.guest_name || (lang === "ko" ? "참여자" : "Jugador");
+        const participantId = join.user_id ? join.user_id : `guest:${join.id}`;
+        participantMap.set(participantId, {
+          id: participantId,
           name: joinName,
           avatarUrl: joinProfile?.avatar_url ?? null,
           isHost: false
@@ -178,6 +182,7 @@ export default async function Home({
           {copy.create}
         </Link>
       </header>
+      {showLoggedInToast ? <LoginSuccessToast lang={lang} /> : null}
 
       <section className="activity-list">
         <div className="row">

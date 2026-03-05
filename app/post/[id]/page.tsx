@@ -1,13 +1,27 @@
 import BottomNav from "@/components/BottomNav";
+import LoginSuccessToast from "@/components/LoginSuccessToast";
+import ShareButtons from "@/components/ShareButtons";
 import SubmitButton from "@/components/SubmitButton";
 import { formatLabel } from "@/lib/constants/filters";
 import { getServerLang } from "@/lib/i18n-server";
 import { formatCordobaDate, formatSlotRange, getCordobaHHMM } from "@/lib/constants/slots";
 import { createClient } from "@/lib/supabase/server";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 function waLink(phone: string, text: string) {
   return `https://wa.me/${phone.replace(/[^\d]/g, "")}?text=${encodeURIComponent(text)}`;
+}
+
+function normalizeWhatsapp(raw: string) {
+  const compact = raw.replace(/\s+/g, "").replace(/-/g, "");
+  if (!compact) {
+    return "";
+  }
+  if (compact.startsWith("+")) {
+    return `+${compact.slice(1).replace(/[^\d]/g, "")}`;
+  }
+  return `+${compact.replace(/[^\d]/g, "")}`;
 }
 
 function isValidResultScore(score: string) {
@@ -19,7 +33,7 @@ export default async function PostDetailPage({
   searchParams
 }: {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ createdAt?: string; record?: string }>;
+  searchParams?: Promise<{ createdAt?: string; record?: string; loggedIn?: string; guestAdded?: string; guestError?: string }>;
 }) {
   const { id } = await params;
   const qs = (await searchParams) ?? {};
@@ -35,6 +49,7 @@ export default async function PostDetailPage({
           recruitSuffix: "명 모집",
           emptyNote: "메모 없음",
           join: "참여하기",
+          loginToJoin: "로그인하고 참여하기",
           joining: "참여 처리 중...",
           joined: "참여완료",
           pending: "승인 대기",
@@ -42,6 +57,7 @@ export default async function PostDetailPage({
           ask: "WhatsApp 문의",
           loginToAsk: "로그인하고 연락하기",
           noWhatsapp: "WhatsApp 없음",
+          shareTitle: "공유",
           close: "모집 마감",
           created: "작성 완료:",
           pendingRequests: "참여 요청",
@@ -66,7 +82,15 @@ export default async function PostDetailPage({
           h2hTotal: "총 전적",
           h2hRate: "승률",
           h2hNoData: "아직 두 선수의 확정 전적이 없습니다.",
-          closing: "마감 중..."
+          closing: "마감 중...",
+          addGuestTitle: "게스트 추가",
+          addGuestName: "이름",
+          addGuestWhatsapp: "WhatsApp 번호(선택)",
+          addGuestHint: "비회원도 먼저 등록 가능하며, 이후 같은 번호로 가입하면 자동 연결됩니다.",
+          addGuestSubmit: "게스트 등록",
+          addGuestSubmitting: "등록 중...",
+          guestAddedDone: "게스트가 추가되었습니다.",
+          guestInvalid: "게스트 이름 또는 WhatsApp 번호 형식이 올바르지 않습니다."
         }
       : {
           title: "Detalle del partido",
@@ -76,6 +100,7 @@ export default async function PostDetailPage({
           recruitSuffix: " mas (sin contar host)",
           emptyNote: "Sin nota",
           join: "Unirme",
+          loginToJoin: "Inicia sesión para participar",
           joining: "Uniendo...",
           joined: "Ya participo",
           pending: "Pendiente",
@@ -83,6 +108,7 @@ export default async function PostDetailPage({
           ask: "Contactar por WhatsApp",
           loginToAsk: "Inicia sesión para contactar",
           noWhatsapp: "Sin WhatsApp",
+          shareTitle: "Compartir",
           close: "Cerrar convocatoria",
           created: "Publicado:",
           pendingRequests: "Solicitudes pendientes",
@@ -107,7 +133,15 @@ export default async function PostDetailPage({
           h2hTotal: "Historial total",
           h2hRate: "Porcentaje",
           h2hNoData: "Aun no hay historial confirmado entre ambos.",
-          closing: "Cerrando..."
+          closing: "Cerrando...",
+          addGuestTitle: "Agregar invitado",
+          addGuestName: "Nombre",
+          addGuestWhatsapp: "WhatsApp (opcional)",
+          addGuestHint: "Puedes registrar invitados sin cuenta. Al registrarse con el mismo numero, se vinculan automaticamente.",
+          addGuestSubmit: "Registrar invitado",
+          addGuestSubmitting: "Registrando...",
+          guestAddedDone: "Invitado agregado correctamente.",
+          guestInvalid: "Nombre o formato de WhatsApp invalido."
         };
 
   const supabase = await createClient();
@@ -126,7 +160,7 @@ export default async function PostDetailPage({
     supabase.from("profiles").select("display_name,whatsapp").eq("id", post.host_id).maybeSingle(),
     supabase
       .from("joins")
-      .select("id,user_id,status,profiles!joins_user_id_fkey(display_name)")
+      .select("id,user_id,status,guest_name,guest_whatsapp,profiles!joins_user_id_fkey(display_name)")
       .eq("post_id", post.id)
   ]);
 
@@ -148,7 +182,8 @@ export default async function PostDetailPage({
   const startHHMM = getCordobaHHMM(post.start_at);
   const slotRange = formatSlotRange(startHHMM);
 
-  const singleOpponentId = approvedJoins[0]?.user_id ?? null;
+  const singleApprovedRegisteredJoin = approvedJoins.find((join: any) => !!join.user_id) ?? null;
+  const singleOpponentId = singleApprovedRegisteredJoin?.user_id ?? null;
   const canUseResultFeature = !!user && post.format === "single" && (isHost || user.id === singleOpponentId) && hasStarted;
   const playerA = post.host_id;
   const playerB = singleOpponentId;
@@ -284,12 +319,12 @@ export default async function PostDetailPage({
       redirect(`/post/${id}`);
     }
 
-    const approved = latestPost.joins?.filter((join: any) => join.status === "approved") ?? [];
+    const approved = latestPost.joins?.filter((join: any) => join.status === "approved" && !!join.user_id) ?? [];
     if (approved.length !== 1) {
       redirect(`/post/${id}`);
     }
 
-    const bId = approved[0].user_id;
+    const bId = approved[0].user_id as string;
     const participants = [latestPost.host_id, bId];
     if (!participants.includes(user.id) || !participants.includes(winnerId)) {
       redirect(`/post/${id}`);
@@ -366,11 +401,27 @@ export default async function PostDetailPage({
   const chatLink = hostWhatsapp
     ? waLink(hostWhatsapp, `Hola ${hostName}, consulta por el partido ${formatCordobaDate(post.start_at, "es-AR")} ${slotRange}.`)
     : "";
+  const sharePath = `/post/${post.id}`;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
+  let shareUrl = sharePath;
 
-  const singleJoinProfile = approvedJoins[0]
-    ? Array.isArray(approvedJoins[0].profiles)
-      ? approvedJoins[0].profiles[0]
-      : approvedJoins[0].profiles
+  if (siteUrl) {
+    shareUrl = `${siteUrl}${sharePath}`;
+  } else {
+    const requestHeaders = await headers();
+    const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
+    const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
+    if (host) {
+      shareUrl = `${proto}://${host}${sharePath}`;
+    }
+  }
+
+  const shareDateTimeLabel = `${formatCordobaDate(post.start_at, "es-AR")} · ${slotRange}`;
+
+  const singleJoinProfile = singleApprovedRegisteredJoin
+    ? Array.isArray(singleApprovedRegisteredJoin.profiles)
+      ? singleApprovedRegisteredJoin.profiles[0]
+      : singleApprovedRegisteredJoin.profiles
     : null;
   const singleJoinName = singleJoinProfile?.display_name || (lang === "ko" ? "참여자" : "Jugador");
   const canConfirmResult =
@@ -388,6 +439,60 @@ export default async function PostDetailPage({
       : singleJoinName
     : "";
 
+  async function addGuestJoin(formData: FormData) {
+    "use server";
+
+    const guestName = String(formData.get("guest_name") || "").trim();
+    const guestWhatsappRaw = String(formData.get("guest_whatsapp") || "").trim();
+    const guestWhatsapp = normalizeWhatsapp(guestWhatsappRaw);
+
+    if (!guestName || (guestWhatsapp && !/^\+\d{8,15}$/.test(guestWhatsapp))) {
+      redirect(`/post/${id}?guestError=invalid`);
+    }
+
+    const supabase = await createClient();
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      redirect(`/login?redirect_to=${encodeURIComponent(`/post/${id}`)}`);
+    }
+
+    const { data: latestPost } = await supabase
+      .from("posts")
+      .select("id,host_id,status,needed,start_at,joins(id,status)")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (!latestPost || latestPost.host_id !== user.id) {
+      redirect(`/post/${id}`);
+    }
+
+    const approvedCount = latestPost.joins?.filter((join: any) => join.status === "approved").length ?? 0;
+    const players = approvedCount + 1;
+    const expired = latestPost.start_at ? new Date(latestPost.start_at).getTime() + 30 * 60 * 1000 < Date.now() : true;
+    const isClosed = latestPost.status === "closed" || expired || players >= latestPost.needed;
+
+    if (isClosed) {
+      redirect(`/post/${id}`);
+    }
+
+    const { error } = await supabase.from("joins").insert({
+      post_id: id,
+      user_id: null,
+      status: "approved",
+      guest_name: guestName,
+      guest_whatsapp: guestWhatsapp || null
+    });
+
+    if (error) {
+      redirect(`/post/${id}?guestError=insert`);
+    }
+
+    redirect(`/post/${id}?guestAdded=1`);
+  }
+
   return (
     <main className="shell">
       <header className="top">
@@ -396,12 +501,15 @@ export default async function PostDetailPage({
           {formatCordobaDate(post.start_at, dateLocale)} · {slotRange}
         </p>
       </header>
+      {qs.loggedIn === "1" ? <LoginSuccessToast lang={lang} /> : null}
 
       {qs.createdAt ? (
         <p className="notice success">
           {copy.created} {new Date(qs.createdAt).toLocaleString(dateLocale)}
         </p>
       ) : null}
+      {qs.guestAdded === "1" ? <p className="notice success">{copy.guestAddedDone}</p> : null}
+      {qs.guestError ? <p className="notice">{copy.guestInvalid}</p> : null}
 
       <section className="card">
         <div className="row">
@@ -428,7 +536,11 @@ export default async function PostDetailPage({
         <p className="note">{post.note || copy.emptyNote}</p>
 
         <div className="actions">
-          {!isCompleted && !isJoined && !isHost ? (
+          {!user && !isCompleted ? (
+            <a className="button" href={`/login?redirect_to=${encodeURIComponent(`/post/${post.id}`)}`}>
+              {copy.loginToJoin}
+            </a>
+          ) : !isCompleted && !isJoined && !isHost ? (
             <form method="post" action="/join">
               <input type="hidden" name="post_id" value={post.id} />
               <input type="hidden" name="redirect_to" value={`/post/${post.id}`} />
@@ -449,7 +561,7 @@ export default async function PostDetailPage({
           ) : null}
 
           {!user ? (
-            <a className="link-btn" href="/login">
+            <a className="link-btn" href={`/login?redirect_to=${encodeURIComponent(`/post/${post.id}`)}`}>
               {copy.loginToAsk}
             </a>
           ) : chatLink ? (
@@ -463,10 +575,33 @@ export default async function PostDetailPage({
           )}
         </div>
 
+        <article className="card">
+          <strong>{copy.shareTitle}</strong>
+          <ShareButtons
+            url={shareUrl}
+            dateTimeLabel={shareDateTimeLabel}
+            courtNo={post.court_no}
+            format={post.format}
+            level={post.level}
+          />
+        </article>
+
         {isHost && !isCompleted ? (
           <form action={closePost}>
             <SubmitButton idleLabel={copy.close} pendingLabel={copy.closing} />
           </form>
+        ) : null}
+
+        {isHost && !isCompleted ? (
+          <article className="card">
+            <strong>{copy.addGuestTitle}</strong>
+            <form className="section" action={addGuestJoin}>
+              <input className="input" name="guest_name" placeholder={copy.addGuestName} required />
+              <input className="input" name="guest_whatsapp" placeholder={copy.addGuestWhatsapp} inputMode="tel" />
+              <SubmitButton idleLabel={copy.addGuestSubmit} pendingLabel={copy.addGuestSubmitting} />
+            </form>
+            <p className="muted">{copy.addGuestHint}</p>
+          </article>
         ) : null}
 
         {isHost && pendingJoins.length > 0 ? (
@@ -474,7 +609,7 @@ export default async function PostDetailPage({
             <strong>{copy.pendingRequests}</strong>
             {pendingJoins.map((join: any) => {
               const joinProfile = Array.isArray(join.profiles) ? join.profiles[0] : join.profiles;
-              const joinName = joinProfile?.display_name || (lang === "ko" ? "참여자" : "Jugador");
+              const joinName = joinProfile?.display_name || join.guest_name || (lang === "ko" ? "참여자" : "Jugador");
 
               return (
                 <form key={join.id} className="row" action={approveJoin}>

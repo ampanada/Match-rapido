@@ -25,8 +25,11 @@ type MatchItem = {
     | Array<{ id: string; display_name: string | null; avatar_url: string | null; wins: number; losses: number; total_matches: number }>
     | null;
   joins: Array<{
+    id: string;
     status: string;
-    user_id: string;
+    user_id: string | null;
+    guest_name: string | null;
+    guest_whatsapp: string | null;
     profiles:
       | { id: string; display_name: string | null; avatar_url: string | null; wins: number; losses: number; total_matches: number }
       | Array<{ id: string; display_name: string | null; avatar_url: string | null; wins: number; losses: number; total_matches: number }>
@@ -36,6 +39,7 @@ type MatchItem = {
 
 type Participant = {
   id: string;
+  profile_id: string | null;
   display_name: string;
   avatar_url: string | null;
   wins: number;
@@ -112,13 +116,17 @@ export default async function MyMatchesPage() {
   const [hostResponse, joinResponse] = await Promise.all([
     supabase
       .from("posts")
-      .select("id,host_id,start_at,format,needed,court_no,status,profiles!posts_host_id_fkey(id,display_name,avatar_url,wins,losses,total_matches),joins(status,user_id,profiles!joins_user_id_fkey(id,display_name,avatar_url,wins,losses,total_matches))")
+      .select(
+        "id,host_id,start_at,format,needed,court_no,status,profiles!posts_host_id_fkey(id,display_name,avatar_url,wins,losses,total_matches),joins(id,status,user_id,guest_name,guest_whatsapp,profiles!joins_user_id_fkey(id,display_name,avatar_url,wins,losses,total_matches))"
+      )
       .eq("host_id", user.id)
       .order("start_at", { ascending: false })
       .limit(80),
     supabase
       .from("joins")
-      .select("post_id,posts!joins_post_id_fkey(id,host_id,start_at,format,needed,court_no,status,profiles!posts_host_id_fkey(id,display_name,avatar_url,wins,losses,total_matches),joins(status,user_id,profiles!joins_user_id_fkey(id,display_name,avatar_url,wins,losses,total_matches)))")
+      .select(
+        "post_id,posts!joins_post_id_fkey(id,host_id,start_at,format,needed,court_no,status,profiles!posts_host_id_fkey(id,display_name,avatar_url,wins,losses,total_matches),joins(id,status,user_id,guest_name,guest_whatsapp,profiles!joins_user_id_fkey(id,display_name,avatar_url,wins,losses,total_matches)))"
+      )
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(80)
@@ -153,7 +161,11 @@ export default async function MyMatchesPage() {
         const joins = Array.isArray(post.joins) ? post.joins : [];
         joins
           .filter((join) => join.status === "approved")
-          .forEach((join) => ids.push(join.user_id));
+          .forEach((join) => {
+            if (join.user_id) {
+              ids.push(join.user_id);
+            }
+          });
         return ids;
       })
     )
@@ -195,6 +207,7 @@ export default async function MyMatchesPage() {
       const hostProfileRaw = Array.isArray(post.profiles) ? post.profiles[0] : post.profiles;
       const hostProfile: Participant = {
         id: hostProfileRaw?.id ?? post.host_id,
+        profile_id: hostProfileRaw?.id ?? post.host_id,
         display_name: hostProfileRaw?.display_name || (lang === "ko" ? "호스트" : "Host"),
         avatar_url: hostProfileRaw?.avatar_url ?? null,
         wins: hostProfileRaw?.wins ?? 0,
@@ -202,8 +215,9 @@ export default async function MyMatchesPage() {
         total_matches: hostProfileRaw?.total_matches ?? 0
       };
       const approvedCount = joins.filter((join) => join.status === "approved").length;
+      const approvedRegisteredCount = joins.filter((join) => join.status === "approved" && !!join.user_id).length;
       const currentPlayers = approvedCount + 1;
-      const isSingleReady = post.format === "single" && approvedCount === 1;
+      const isSingleReady = post.format === "single" && approvedRegisteredCount === 1;
       const hostManualClose = approvedCount === 0 && post.status === "closed";
       const result = resultMap.get(post.id);
       const hasConfirmedResult = result?.status === "confirmed";
@@ -220,17 +234,31 @@ export default async function MyMatchesPage() {
         .filter((join) => join.status === "approved")
         .forEach((join) => {
           const raw = Array.isArray(join.profiles) ? join.profiles[0] : join.profiles;
-          if (!raw) {
+          if (raw?.id) {
+            participantMap.set(raw.id, {
+              id: raw.id,
+              profile_id: raw.id,
+              display_name: raw.display_name || (lang === "ko" ? "참여자" : "Jugador"),
+              avatar_url: raw.avatar_url ?? null,
+              wins: raw.wins ?? 0,
+              losses: raw.losses ?? 0,
+              total_matches: raw.total_matches ?? 0
+            });
             return;
           }
-          participantMap.set(raw.id, {
-            id: raw.id,
-            display_name: raw.display_name || (lang === "ko" ? "참여자" : "Jugador"),
-            avatar_url: raw.avatar_url ?? null,
-            wins: raw.wins ?? 0,
-            losses: raw.losses ?? 0,
-            total_matches: raw.total_matches ?? 0
-          });
+
+          if (join.guest_name) {
+            const guestId = `guest:${join.id}`;
+            participantMap.set(guestId, {
+              id: guestId,
+              profile_id: null,
+              display_name: join.guest_name,
+              avatar_url: null,
+              wins: 0,
+              losses: 0,
+              total_matches: 0
+            });
+          }
         });
 
       return {
@@ -307,14 +335,28 @@ export default async function MyMatchesPage() {
                 <p className="muted">{copy.participants}</p>
                 <div className="participant-list">
                   {item.participants.map((participant, idx) => (
-                    <MotionProfileLink key={`today-player-${item.id}-${participant.id}`} className="participant-chip" href={`/u/${participant.id}`}>
-                      <span className="participant-row">
-                        <span className="participant-index">{copy.participantItem} {idx + 1}</span>
-                        <ProfileAvatar name={participant.display_name} avatarUrl={participant.avatar_url} size="sm" />
-                        <strong className="participant-name">{participant.display_name}</strong>
-                        {participant.id === item.host_id ? <span className="participant-role">{copy.hostTag}</span> : null}
-                      </span>
-                    </MotionProfileLink>
+                    participant.profile_id ? (
+                      <MotionProfileLink
+                        key={`today-player-${item.id}-${participant.id}`}
+                        className="participant-chip"
+                        href={`/u/${participant.profile_id}`}
+                      >
+                        <span className="participant-row">
+                          <span className="participant-index">{copy.participantItem} {idx + 1}</span>
+                          <ProfileAvatar name={participant.display_name} avatarUrl={participant.avatar_url} size="sm" />
+                          <strong className="participant-name">{participant.display_name}</strong>
+                          {participant.profile_id === item.host_id ? <span className="participant-role">{copy.hostTag}</span> : null}
+                        </span>
+                      </MotionProfileLink>
+                    ) : (
+                      <div key={`today-player-${item.id}-${participant.id}`} className="participant-chip">
+                        <span className="participant-row">
+                          <span className="participant-index">{copy.participantItem} {idx + 1}</span>
+                          <ProfileAvatar name={participant.display_name} avatarUrl={participant.avatar_url} size="sm" />
+                          <strong className="participant-name">{participant.display_name}</strong>
+                        </span>
+                      </div>
+                    )
                   ))}
                 </div>
                 {item.hostManualClose ? <p className="notice">{copy.hostManualClose}</p> : null}
@@ -334,7 +376,7 @@ export default async function MyMatchesPage() {
                           const secondWinner = winnerId === second.id;
                           return (
                             <>
-                              <MotionProfileLink className="link-inline" href={`/u/${first.id}`}>
+                              <MotionProfileLink className="link-inline" href={`/u/${first.profile_id ?? first.id}`}>
                                 <span className="result-player-line">
                                   <ProfileAvatar name={first.display_name} avatarUrl={first.avatar_url} size="sm" />
                                   <span className="result-player-name">{first.display_name}</span>
@@ -344,7 +386,7 @@ export default async function MyMatchesPage() {
                                 </span>
                               </MotionProfileLink>
                               <span className="result-vs">vs</span>
-                              <MotionProfileLink className="link-inline" href={`/u/${second.id}`}>
+                              <MotionProfileLink className="link-inline" href={`/u/${second.profile_id ?? second.id}`}>
                                 <span className="result-player-line">
                                   <ProfileAvatar name={second.display_name} avatarUrl={second.avatar_url} size="sm" />
                                   <span className="result-player-name">{second.display_name}</span>
@@ -389,14 +431,28 @@ export default async function MyMatchesPage() {
                 <p className="muted">{copy.participants}</p>
                 <div className="participant-list">
                   {item.participants.map((participant, idx) => (
-                    <MotionProfileLink key={`up-player-${item.id}-${participant.id}`} className="participant-chip" href={`/u/${participant.id}`}>
-                      <span className="participant-row">
-                        <span className="participant-index">{copy.participantItem} {idx + 1}</span>
-                        <ProfileAvatar name={participant.display_name} avatarUrl={participant.avatar_url} size="sm" />
-                        <strong className="participant-name">{participant.display_name}</strong>
-                        {participant.id === item.host_id ? <span className="participant-role">{copy.hostTag}</span> : null}
-                      </span>
-                    </MotionProfileLink>
+                    participant.profile_id ? (
+                      <MotionProfileLink
+                        key={`up-player-${item.id}-${participant.id}`}
+                        className="participant-chip"
+                        href={`/u/${participant.profile_id}`}
+                      >
+                        <span className="participant-row">
+                          <span className="participant-index">{copy.participantItem} {idx + 1}</span>
+                          <ProfileAvatar name={participant.display_name} avatarUrl={participant.avatar_url} size="sm" />
+                          <strong className="participant-name">{participant.display_name}</strong>
+                          {participant.profile_id === item.host_id ? <span className="participant-role">{copy.hostTag}</span> : null}
+                        </span>
+                      </MotionProfileLink>
+                    ) : (
+                      <div key={`up-player-${item.id}-${participant.id}`} className="participant-chip">
+                        <span className="participant-row">
+                          <span className="participant-index">{copy.participantItem} {idx + 1}</span>
+                          <ProfileAvatar name={participant.display_name} avatarUrl={participant.avatar_url} size="sm" />
+                          <strong className="participant-name">{participant.display_name}</strong>
+                        </span>
+                      </div>
+                    )
                   ))}
                 </div>
                 {item.hostManualClose ? <p className="notice">{copy.hostManualClose}</p> : null}
@@ -419,14 +475,28 @@ export default async function MyMatchesPage() {
                   </p>
                   <div className="participant-list">
                     {item.participants.map((participant, idx) => (
-                      <MotionProfileLink key={`done-player-${item.id}-${participant.id}`} className="participant-chip" href={`/u/${participant.id}`}>
-                        <span className="participant-row">
-                          <span className="participant-index">{copy.participantItem} {idx + 1}</span>
-                          <ProfileAvatar name={participant.display_name} avatarUrl={participant.avatar_url} size="sm" />
-                          <strong className="participant-name">{participant.display_name}</strong>
-                          {participant.id === item.host_id ? <span className="participant-role">{copy.hostTag}</span> : null}
-                        </span>
-                      </MotionProfileLink>
+                      participant.profile_id ? (
+                        <MotionProfileLink
+                          key={`done-player-${item.id}-${participant.id}`}
+                          className="participant-chip"
+                          href={`/u/${participant.profile_id}`}
+                        >
+                          <span className="participant-row">
+                            <span className="participant-index">{copy.participantItem} {idx + 1}</span>
+                            <ProfileAvatar name={participant.display_name} avatarUrl={participant.avatar_url} size="sm" />
+                            <strong className="participant-name">{participant.display_name}</strong>
+                            {participant.profile_id === item.host_id ? <span className="participant-role">{copy.hostTag}</span> : null}
+                          </span>
+                        </MotionProfileLink>
+                      ) : (
+                        <div key={`done-player-${item.id}-${participant.id}`} className="participant-chip">
+                          <span className="participant-row">
+                            <span className="participant-index">{copy.participantItem} {idx + 1}</span>
+                            <ProfileAvatar name={participant.display_name} avatarUrl={participant.avatar_url} size="sm" />
+                            <strong className="participant-name">{participant.display_name}</strong>
+                          </span>
+                        </div>
+                      )
                     ))}
                   </div>
                   {item.hostManualClose ? <p className="notice">{copy.hostManualClose}</p> : null}
@@ -446,7 +516,7 @@ export default async function MyMatchesPage() {
                             const secondWinner = winnerId === second.id;
                             return (
                               <>
-                                <MotionProfileLink className="link-inline" href={`/u/${first.id}`}>
+                                <MotionProfileLink className="link-inline" href={`/u/${first.profile_id ?? first.id}`}>
                                   <span className="result-player-line">
                                     <ProfileAvatar name={first.display_name} avatarUrl={first.avatar_url} size="sm" />
                                     <span className="result-player-name">{first.display_name}</span>
@@ -456,7 +526,7 @@ export default async function MyMatchesPage() {
                                   </span>
                                 </MotionProfileLink>
                                 <span className="result-vs">vs</span>
-                                <MotionProfileLink className="link-inline" href={`/u/${second.id}`}>
+                                <MotionProfileLink className="link-inline" href={`/u/${second.profile_id ?? second.id}`}>
                                   <span className="result-player-line">
                                     <ProfileAvatar name={second.display_name} avatarUrl={second.avatar_url} size="sm" />
                                     <span className="result-player-name">{second.display_name}</span>

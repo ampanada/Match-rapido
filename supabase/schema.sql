@@ -29,7 +29,10 @@ create table if not exists public.posts (
 create table if not exists public.joins (
   id uuid primary key default gen_random_uuid(),
   post_id uuid not null references public.posts(id) on delete cascade,
-  user_id uuid not null references public.profiles(id) on delete cascade,
+  user_id uuid references public.profiles(id) on delete cascade,
+  guest_name text,
+  guest_whatsapp text,
+  claimed_at timestamptz,
   status text not null default 'pending' check (status in ('pending', 'approved')),
   created_at timestamptz not null default now(),
   unique (post_id, user_id)
@@ -82,7 +85,20 @@ alter table public.posts
   check (format in ('single', 'double', 'mixed_double', 'men_double', 'women_double', 'rally'));
 alter table public.posts drop constraint if exists posts_court_no_check;
 alter table public.posts add constraint posts_court_no_check check (court_no is null or (court_no between 1 and 6));
+alter table public.joins alter column user_id drop not null;
 alter table public.joins add column if not exists status text not null default 'pending';
+alter table public.joins add column if not exists guest_name text;
+alter table public.joins add column if not exists guest_whatsapp text;
+alter table public.joins add column if not exists claimed_at timestamptz;
+update public.joins set guest_name = null where guest_name = '';
+update public.joins set guest_whatsapp = null where guest_whatsapp = '';
+alter table public.joins drop constraint if exists joins_identity_check;
+alter table public.joins
+  add constraint joins_identity_check
+  check (
+    (user_id is not null and guest_name is null and guest_whatsapp is null)
+    or (user_id is null and guest_name is not null)
+  );
 update public.joins set status = 'approved' where status is null;
 alter table public.joins drop constraint if exists joins_status_check;
 alter table public.joins add constraint joins_status_check check (status in ('pending', 'approved'));
@@ -106,7 +122,21 @@ language sql
 stable
 as $$
   select to_char(ts at time zone 'America/Argentina/Cordoba', 'HH24:MI') in
-    ('09:00', '10:30', '12:00', '13:30', '15:00', '16:30', '18:00', '19:30', '21:00');
+    (
+      '09:00', '09:30',
+      '10:00', '10:30',
+      '11:00', '11:30',
+      '12:00', '12:30',
+      '13:00', '13:30',
+      '14:00', '14:30',
+      '15:00', '15:30',
+      '16:00', '16:30',
+      '17:00', '17:30',
+      '18:00', '18:30',
+      '19:00', '19:30',
+      '20:00', '20:30',
+      '21:00'
+    );
 $$;
 
 alter table public.posts drop constraint if exists posts_slot_start_check;
@@ -119,6 +149,7 @@ create index if not exists idx_posts_status_start_at on public.posts(status, sta
 create index if not exists idx_posts_host_id on public.posts(host_id);
 create index if not exists idx_joins_post_id on public.joins(post_id);
 create index if not exists idx_joins_user_id on public.joins(user_id);
+create index if not exists idx_joins_guest_whatsapp on public.joins(guest_whatsapp) where user_id is null;
 create index if not exists idx_match_results_status_created_at on public.match_results(status, created_at desc);
 create index if not exists idx_match_results_player_a on public.match_results(player_a);
 create index if not exists idx_match_results_player_b on public.match_results(player_b);
@@ -178,6 +209,20 @@ on public.joins for insert
 to authenticated
 with check (auth.uid() = user_id);
 
+drop policy if exists "host can add guest joins on own post" on public.joins;
+create policy "host can add guest joins on own post"
+on public.joins for insert
+to authenticated
+with check (
+  user_id is null
+  and guest_name is not null
+  and exists (
+    select 1
+    from public.posts p
+    where p.id = joins.post_id and p.host_id = auth.uid()
+  )
+);
+
 drop policy if exists "host can approve joins on own post" on public.joins;
 create policy "host can approve joins on own post"
 on public.joins for update
@@ -203,6 +248,40 @@ on public.joins for delete
 to authenticated
 using (
   auth.uid() = user_id
+);
+
+drop policy if exists "user can claim guest join by whatsapp" on public.joins;
+create policy "user can claim guest join by whatsapp"
+on public.joins for update
+to authenticated
+using (
+  user_id is null
+  and guest_whatsapp is not null
+  and guest_whatsapp = (
+    select p.whatsapp
+    from public.profiles p
+    where p.id = auth.uid()
+  )
+)
+with check (
+  user_id = auth.uid()
+  and guest_name is null
+  and guest_whatsapp is null
+  and claimed_at is not null
+);
+
+drop policy if exists "user can delete claimable guest join" on public.joins;
+create policy "user can delete claimable guest join"
+on public.joins for delete
+to authenticated
+using (
+  user_id is null
+  and guest_whatsapp is not null
+  and guest_whatsapp = (
+    select p.whatsapp
+    from public.profiles p
+    where p.id = auth.uid()
+  )
 );
 
 drop policy if exists "confirmed results are public" on public.match_results;
@@ -319,7 +398,8 @@ begin
   into approved_join_count
   from public.joins j
   where j.post_id = new.post_id
-    and j.status = 'approved';
+    and j.status = 'approved'
+    and j.user_id is not null;
 
   if approved_join_count <> 1 then
     raise exception 'single result requires exactly 1 approved join';
@@ -327,7 +407,7 @@ begin
 
   select j.user_id into approved_user
   from public.joins j
-  where j.post_id = new.post_id and j.status = 'approved'
+  where j.post_id = new.post_id and j.status = 'approved' and j.user_id is not null
   limit 1;
 
   if not (
