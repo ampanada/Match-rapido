@@ -1,10 +1,12 @@
 create extension if not exists pgcrypto;
 
 create table if not exists public.profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
+  id uuid primary key,
   email text not null unique,
   display_name text,
   whatsapp text,
+  is_guest boolean not null default false,
+  created_by uuid references public.profiles(id),
   wins int not null default 0,
   losses int not null default 0,
   total_matches int not null default 0,
@@ -85,6 +87,7 @@ alter table public.posts
   check (format in ('single', 'double', 'mixed_double', 'men_double', 'women_double', 'rally'));
 alter table public.posts drop constraint if exists posts_court_no_check;
 alter table public.posts add constraint posts_court_no_check check (court_no is null or (court_no between 1 and 6));
+alter table public.profiles drop constraint if exists profiles_id_fkey;
 alter table public.joins alter column user_id drop not null;
 alter table public.joins add column if not exists status text not null default 'pending';
 alter table public.joins add column if not exists guest_name text;
@@ -108,6 +111,8 @@ alter table public.profiles add column if not exists total_matches int not null 
 alter table public.profiles add column if not exists current_streak int not null default 0;
 alter table public.profiles add column if not exists best_streak int not null default 0;
 alter table public.profiles add column if not exists avatar_url text;
+alter table public.profiles add column if not exists is_guest boolean not null default false;
+alter table public.profiles add column if not exists created_by uuid references public.profiles(id);
 alter table public.match_results add column if not exists submitted_by uuid references public.profiles(id);
 update public.match_results set submitted_by = player_a where submitted_by is null;
 alter table public.match_results alter column submitted_by set not null;
@@ -150,6 +155,7 @@ create index if not exists idx_posts_host_id on public.posts(host_id);
 create index if not exists idx_joins_post_id on public.joins(post_id);
 create index if not exists idx_joins_user_id on public.joins(user_id);
 create index if not exists idx_joins_guest_whatsapp on public.joins(guest_whatsapp) where user_id is null;
+create index if not exists idx_profiles_whatsapp on public.profiles(whatsapp);
 create index if not exists idx_match_results_status_created_at on public.match_results(status, created_at desc);
 create index if not exists idx_match_results_player_a on public.match_results(player_a);
 create index if not exists idx_match_results_player_b on public.match_results(player_b);
@@ -172,6 +178,16 @@ create policy "insert own profile"
 on public.profiles for insert
 to authenticated
 with check (auth.uid() = id);
+
+drop policy if exists "authenticated can insert guest profile" on public.profiles;
+create policy "authenticated can insert guest profile"
+on public.profiles for insert
+to authenticated
+with check (
+  is_guest = true
+  and created_by = auth.uid()
+  and id <> auth.uid()
+);
 
 drop policy if exists "update own profile" on public.profiles;
 create policy "update own profile"
@@ -319,7 +335,15 @@ with check (
   (
     status = 'confirmed'
     and auth.uid() in (player_a, player_b)
-    and auth.uid() <> submitted_by
+    and (
+      auth.uid() <> submitted_by
+      or exists (
+        select 1
+        from public.profiles gp
+        where gp.id in (player_a, player_b)
+          and gp.is_guest = true
+      )
+    )
   )
 );
 

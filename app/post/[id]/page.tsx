@@ -160,7 +160,7 @@ export default async function PostDetailPage({
     supabase.from("profiles").select("display_name,whatsapp").eq("id", post.host_id).maybeSingle(),
     supabase
       .from("joins")
-      .select("id,user_id,status,guest_name,guest_whatsapp,profiles!joins_user_id_fkey(display_name)")
+      .select("id,user_id,status,guest_name,guest_whatsapp,profiles!joins_user_id_fkey(id,display_name,is_guest)")
       .eq("post_id", post.id)
   ]);
 
@@ -424,12 +424,13 @@ export default async function PostDetailPage({
       : singleApprovedRegisteredJoin.profiles
     : null;
   const singleJoinName = singleJoinProfile?.display_name || (lang === "ko" ? "참여자" : "Jugador");
+  const opponentIsGuest = singleJoinProfile?.is_guest === true;
   const canConfirmResult =
     !!matchResult &&
     matchResult.status === "pending" &&
     !!user &&
-    user.id !== matchResult.submitted_by &&
-    [matchResult.player_a, matchResult.player_b].includes(user.id);
+    [matchResult.player_a, matchResult.player_b].includes(user.id) &&
+    (user.id !== matchResult.submitted_by || opponentIsGuest);
   const isResultSubmitter = !!matchResult && !!user && user.id === matchResult.submitted_by;
   const canCancelResult =
     !!matchResult && matchResult.status === "pending" && !!user && (user.id === matchResult.player_a || user.id === matchResult.player_b);
@@ -478,13 +479,63 @@ export default async function PostDetailPage({
       redirect(`/post/${id}`);
     }
 
-    const { error } = await supabase.from("joins").insert({
-      post_id: id,
-      user_id: null,
-      status: "approved",
-      guest_name: guestName,
-      guest_whatsapp: guestWhatsapp || null
-    });
+    let guestProfileId: string | null = null;
+
+    if (guestWhatsapp) {
+      const { data: existingGuest } = await supabase
+        .from("profiles")
+        .select("id,display_name")
+        .eq("is_guest", true)
+        .eq("whatsapp", guestWhatsapp)
+        .maybeSingle();
+
+      if (existingGuest?.id) {
+        guestProfileId = existingGuest.id;
+        if (existingGuest.display_name !== guestName) {
+          await supabase.from("profiles").update({ display_name: guestName }).eq("id", existingGuest.id).eq("is_guest", true);
+        }
+      }
+    }
+
+    if (!guestProfileId) {
+      const newGuestId = crypto.randomUUID();
+      const guestEmail = `guest+${newGuestId}@guest.local`;
+      const { error: createGuestError } = await supabase.from("profiles").insert({
+        id: newGuestId,
+        email: guestEmail,
+        display_name: guestName,
+        whatsapp: guestWhatsapp || null,
+        is_guest: true,
+        created_by: user.id
+      });
+
+      if (createGuestError && guestWhatsapp) {
+        const { data: fallbackGuest } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("is_guest", true)
+          .eq("whatsapp", guestWhatsapp)
+          .maybeSingle();
+        guestProfileId = fallbackGuest?.id ?? null;
+      } else if (!createGuestError) {
+        guestProfileId = newGuestId;
+      }
+    }
+
+    if (!guestProfileId) {
+      redirect(`/post/${id}?guestError=insert`);
+    }
+
+    const { error } = await supabase.from("joins").upsert(
+      {
+        post_id: id,
+        user_id: guestProfileId,
+        status: "approved",
+        guest_name: null,
+        guest_whatsapp: null
+      },
+      { onConflict: "post_id,user_id" }
+    );
 
     if (error) {
       redirect(`/post/${id}?guestError=insert`);
