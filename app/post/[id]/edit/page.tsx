@@ -19,10 +19,12 @@ export default async function EditPostPage({
     lang === "ko"
       ? {
           title: "매치 글 수정",
-          subtitle: "모집중인 내 글만 수정할 수 있습니다.",
+          subtitle: "내가 작성한 매치의 시간/포맷을 수정할 수 있습니다.",
           save: "수정 저장",
           savePending: "저장 중...",
           failed: "수정 실패:",
+          locked: "경기 시작 후에는 수정할 수 없습니다.",
+          neededTooSmall: "현재 참여 인원보다 모집 인원을 작게 설정할 수 없습니다.",
           autoClose: "자동 종료: 시작 후 90분",
           courtOptional: "코트 선택 (선택)",
           courtPlaceholder: "코트 미지정",
@@ -30,10 +32,12 @@ export default async function EditPostPage({
         }
       : {
           title: "Editar partido",
-          subtitle: "Solo puedes editar publicaciones abiertas.",
+          subtitle: "Puedes editar horario/formato de tus partidos.",
           save: "Guardar cambios",
           savePending: "Guardando...",
           failed: "Error al editar:",
+          locked: "No se puede editar despues del inicio del partido.",
+          neededTooSmall: "No puedes definir cupo menor al numero actual de participantes.",
           autoClose: "Cierre automatico: 90 minutos desde el inicio",
           courtOptional: "Cancha (opcional)",
           courtPlaceholder: "Sin cancha",
@@ -59,8 +63,8 @@ export default async function EditPostPage({
     redirect(`/post/${id}`);
   }
 
-  const isExpired = new Date(post.start_at).getTime() + 30 * 60 * 1000 < Date.now();
-  if (post.status !== "open" || isExpired) {
+  const hasStarted = new Date(post.start_at).getTime() <= Date.now();
+  if (hasStarted) {
     redirect(`/post/${id}`);
   }
 
@@ -79,7 +83,7 @@ export default async function EditPostPage({
 
       const { data: current } = await supabase
         .from("posts")
-        .select("id,host_id,status,start_at")
+        .select("id,host_id,status,start_at,joins(status)")
         .eq("id", id)
         .maybeSingle();
 
@@ -87,9 +91,8 @@ export default async function EditPostPage({
         redirect(`/post/${id}`);
       }
 
-      const expired = new Date(current.start_at).getTime() + 30 * 60 * 1000 < Date.now();
-      if (current.status !== "open" || expired) {
-        redirect(`/post/${id}`);
+      if (new Date(current.start_at).getTime() <= Date.now()) {
+        redirect(`/post/${id}/edit?error=locked`);
       }
 
       const date = String(formData.get("date") || "");
@@ -99,6 +102,8 @@ export default async function EditPostPage({
       const courtRaw = String(formData.get("court_no") || "").trim();
       const courtNo = courtRaw ? Number(courtRaw) : null;
       const note = String(formData.get("note") || "").trim();
+      const approvedCount = current.joins?.filter((join: { status: string }) => join.status === "approved").length ?? 0;
+      const currentPlayers = approvedCount + 1;
 
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !isValidSlotStart(slot)) {
         redirect(`/post/${id}/edit?error=invalid`);
@@ -111,6 +116,9 @@ export default async function EditPostPage({
 
       if (courtNo !== null && (!Number.isInteger(courtNo) || courtNo < 1 || courtNo > 6)) {
         redirect(`/post/${id}/edit?error=invalid`);
+      }
+      if (needed < currentPlayers) {
+        redirect(`/post/${id}/edit?error=needed_too_small`);
       }
 
       const { data: duplicated } = await supabase
@@ -161,7 +169,11 @@ export default async function EditPostPage({
 
       {searchParams?.error ? (
         <p className="notice">
-          {copy.failed} {searchParams.message ? decodeURIComponent(searchParams.message) : searchParams.error}
+          {searchParams.error === "locked"
+            ? copy.locked
+            : searchParams.error === "needed_too_small"
+              ? copy.neededTooSmall
+              : `${copy.failed} ${searchParams.message ? decodeURIComponent(searchParams.message) : searchParams.error}`}
         </p>
       ) : null}
 

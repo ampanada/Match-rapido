@@ -77,7 +77,8 @@ export default async function MyMatchesPage() {
           loser: "패",
           completedLabel: "완료",
           recorded: "기록됨",
-          hostManualClose: "매치 임의 마감"
+          hostManualClose: "매치 임의 마감",
+          editPost: "포스트 수정"
         }
       : {
           title: "Mis partidos",
@@ -101,7 +102,8 @@ export default async function MyMatchesPage() {
           loser: "L",
           completedLabel: "Completado",
           recorded: "registrado",
-          hostManualClose: "Cierre manual sin rival"
+          hostManualClose: "Cierre manual sin rival",
+          editPost: "Editar post"
         };
 
   const supabase = await createClient();
@@ -360,6 +362,11 @@ export default async function MyMatchesPage() {
                   ))}
                 </div>
                 {item.hostManualClose ? <p className="notice">{copy.hostManualClose}</p> : null}
+                {item.host_id === user.id && item.startMs > now ? (
+                  <Link className="link-btn" href={`/post/${item.id}/edit`}>
+                    {copy.editPost}
+                  </Link>
+                ) : null}
                 {item.isSingleReady && !item.hasConfirmedResult && item.startMs <= now && !item.hostManualClose ? (
                   <Link className="link-btn" href={`/post/${item.id}?record=1`}>
                     {copy.record}
@@ -456,6 +463,11 @@ export default async function MyMatchesPage() {
                   ))}
                 </div>
                 {item.hostManualClose ? <p className="notice">{copy.hostManualClose}</p> : null}
+                {item.host_id === user.id ? (
+                  <Link className="link-btn" href={`/post/${item.id}/edit`}>
+                    {copy.editPost}
+                  </Link>
+                ) : null}
               </article>
             );
           })}
