@@ -46,7 +46,7 @@ export default function PostCard({ post, lang }: PostCardProps) {
           participantItem: "참여자",
           hostTag: "호스트",
           emptyNote: "메모 없음",
-          editForGuest: "수정하기",
+          editForGuest: "게스트 추가",
           detail: "상세 보기"
         }
       : {
@@ -58,7 +58,7 @@ export default function PostCard({ post, lang }: PostCardProps) {
           participantItem: "Jugador",
           hostTag: "Host",
           emptyNote: "Sin nota",
-          editForGuest: "Editar",
+          editForGuest: "Agregar invitado",
           detail: "Ver detalle"
         };
   const currentPlayers = post.joinsCount + 1;

@@ -103,13 +103,13 @@ export default function BottomNav() {
       ? [
           { href: "/", label: "홈" },
           { href: "/my-matches", label: "내 매칭" },
-          { href: "/results", label: "결과" },
+          { href: "/results", label: "실시간 경기 결과" },
           { href: "/u", label: "프로필" }
         ]
       : [
           { href: "/", label: "Inicio" },
           { href: "/my-matches", label: "Mis partidos" },
-          { href: "/results", label: "Resultados" },
+          { href: "/results", label: "Resultados en vivo" },
           { href: "/u", label: "Perfil" }
         ]
     : lang === "ko"

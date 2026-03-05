@@ -470,14 +470,11 @@ export default async function PostDetailPage({
       redirect(`/post/${id}`);
     }
 
-    const approvedCount = latestPost.joins?.filter((join: any) => join.status === "approved").length ?? 0;
-    const players = approvedCount + 1;
-    const expired = latestPost.start_at ? new Date(latestPost.start_at).getTime() + 30 * 60 * 1000 < Date.now() : true;
-    const isClosed = latestPost.status === "closed" || expired || players >= latestPost.needed;
-
-    if (isClosed) {
+    if (latestPost.start_at && new Date(latestPost.start_at).getTime() <= Date.now()) {
       redirect(`/post/${id}`);
     }
+    const approvedCount = latestPost.joins?.filter((join: any) => join.status === "approved").length ?? 0;
+    const players = approvedCount + 1;
 
     let guestProfileId: string | null = null;
 
@@ -539,6 +536,17 @@ export default async function PostDetailPage({
 
     if (error) {
       redirect(`/post/${id}?guestError=insert`);
+    }
+
+    if (players >= latestPost.needed || latestPost.status === "closed") {
+      await supabase
+        .from("posts")
+        .update({
+          needed: Math.max(latestPost.needed, players + 1),
+          status: "open"
+        })
+        .eq("id", id)
+        .eq("host_id", user.id);
     }
 
     redirect(`/post/${id}?guestAdded=1`);
@@ -643,7 +651,7 @@ export default async function PostDetailPage({
           </form>
         ) : null}
 
-        {isHost && !isCompleted ? (
+        {isHost && !hasStarted ? (
           <article className="card" id="guest-add">
             <strong>{copy.addGuestTitle}</strong>
             <form className="section" action={addGuestJoin}>
