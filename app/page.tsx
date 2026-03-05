@@ -76,6 +76,9 @@ export default async function Home({
         };
 
   const supabase = await createClient();
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
 
   const now = new Date();
   const expiryCutoffIso = new Date(now.getTime() - 30 * 60 * 1000).toISOString();
@@ -142,6 +145,7 @@ export default async function Home({
       return {
         id: post.id,
         hostId: post.host_id,
+        isMine: user?.id === post.host_id,
         start_at: post.start_at,
         format: post.format,
         level: post.level,

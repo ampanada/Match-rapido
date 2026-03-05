@@ -644,7 +644,7 @@ export default async function PostDetailPage({
         ) : null}
 
         {isHost && !isCompleted ? (
-          <article className="card">
+          <article className="card" id="guest-add">
             <strong>{copy.addGuestTitle}</strong>
             <form className="section" action={addGuestJoin}>
               <input className="input" name="guest_name" placeholder={copy.addGuestName} required />
