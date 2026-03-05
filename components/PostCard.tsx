@@ -4,6 +4,7 @@ import { formatLabel } from "@/lib/constants/filters";
 import { formatCordobaDate, formatSlotRange, getCordobaDateString, getCordobaHHMM, getCordobaWeekday } from "@/lib/constants/slots";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import MotionProfileLink from "@/components/MotionProfileLink";
+import ShareMini from "@/components/ShareMini";
 import { useRouter } from "next/navigation";
 
 interface PostCardProps {
@@ -64,6 +65,7 @@ export default function PostCard({ post, lang }: PostCardProps) {
   const dayKey = getCordobaDateString(new Date(post.start_at));
   const weekday = getCordobaWeekday(dayKey, dateLocale);
   const detailHref = `/post/${post.id}`;
+  const shareTimeLabel = `${formatCordobaDate(post.start_at, "es-AR")} ${formatSlotRange(startHHMM)}`;
 
   function moveToDetail() {
     router.push(detailHref);
@@ -113,6 +115,13 @@ export default function PostCard({ post, lang }: PostCardProps) {
         ))}
       </div>
       <p className="note">{post.note || copy.emptyNote}</p>
+      <ShareMini
+        postId={post.id}
+        startAtLabel={shareTimeLabel}
+        courtNo={post.court_no}
+        formatLabel={formatLabel(post.format, "es")}
+        lang={lang}
+      />
       <button className="link-btn" type="button" onClick={moveToDetail}>
         {copy.detail}
       </button>
