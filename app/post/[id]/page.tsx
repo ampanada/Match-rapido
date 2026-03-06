@@ -4,10 +4,14 @@ import { formatLabel } from "@/lib/constants/filters";
 import { getServerLang } from "@/lib/i18n-server";
 import { formatCordobaDate, formatSlotRange, getCordobaHHMM } from "@/lib/constants/slots";
 import { createClient } from "@/lib/supabase/server";
+import { unstable_noStore as noStore } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import ShareButtons from "./_components/ShareButtons";
 import LoginSuccessToast from "../../_components/LoginSuccessToast";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 function waLink(phone: string, text: string) {
   return `https://wa.me/${phone.replace(/[^\d]/g, "")}?text=${encodeURIComponent(text)}`;
@@ -35,6 +39,7 @@ export default async function PostDetailPage({
   params: Promise<{ id: string }>;
   searchParams?: Promise<{ createdAt?: string; record?: string; loggedIn?: string; guestAdded?: string; guestError?: string }>;
 }) {
+  noStore();
   const { id } = await params;
   const qs = (await searchParams) ?? {};
   const shouldFocusRecord = qs.record === "1";
