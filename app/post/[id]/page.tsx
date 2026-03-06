@@ -89,6 +89,7 @@ export default async function PostDetailPage({
           addGuestSavedTitle: "기존 게스트에서 선택",
           addGuestSavedEmpty: "저장된 게스트가 없습니다.",
           addGuestSavedUse: "선택해서 추가",
+          addGuestLocked: "경기 시작 후에는 게스트를 추가할 수 없습니다.",
           addGuestName: "이름",
           addGuestWhatsapp: "WhatsApp 번호(선택)",
           addGuestHint: "비회원도 먼저 등록 가능하며, 이후 같은 번호로 가입하면 자동 연결됩니다.",
@@ -142,6 +143,7 @@ export default async function PostDetailPage({
           addGuestSavedTitle: "Seleccionar invitado guardado",
           addGuestSavedEmpty: "No hay invitados guardados.",
           addGuestSavedUse: "Agregar este invitado",
+          addGuestLocked: "No se pueden agregar invitados despues del inicio del partido.",
           addGuestName: "Nombre",
           addGuestWhatsapp: "WhatsApp (opcional)",
           addGuestHint: "Puedes registrar invitados sin cuenta. Al registrarse con el mismo numero, se vinculan automaticamente.",
@@ -265,28 +267,22 @@ export default async function PostDetailPage({
 
   let guestDirectory: Array<{ key: string; guest_name: string; guest_whatsapp: string | null }> = [];
   if (isHost) {
-    const { data: hostPosts } = await supabase.from("posts").select("id").eq("host_id", post.host_id).limit(400);
-    const hostPostIds = (hostPosts ?? []).map((item) => item.id);
     let directoryRows: any[] = [];
-    if (hostPostIds.length > 0) {
-      const guestDirectoryResponse = await supabase
-        .from("joins")
-        .select("guest_name,guest_whatsapp,user_id,created_at,profiles!joins_user_id_fkey(display_name,whatsapp,is_guest,email)")
-        .in("post_id", hostPostIds)
-        .order("created_at", { ascending: false })
-        .limit(600);
+    const guestDirectoryResponse = await supabase
+      .from("joins")
+      .select("guest_name,guest_whatsapp,user_id,created_at,profiles!joins_user_id_fkey(display_name,whatsapp,is_guest,email)")
+      .order("created_at", { ascending: false })
+      .limit(800);
 
-      if (guestDirectoryResponse.data) {
-        directoryRows = guestDirectoryResponse.data as any[];
-      } else {
-        const guestDirectoryFallback = await supabase
-          .from("joins")
-          .select("guest_name,guest_whatsapp,user_id,created_at,profiles!joins_user_id_fkey(display_name,whatsapp,email)")
-          .in("post_id", hostPostIds)
-          .order("created_at", { ascending: false })
-          .limit(600);
-        directoryRows = (guestDirectoryFallback.data ?? []) as any[];
-      }
+    if (guestDirectoryResponse.data) {
+      directoryRows = guestDirectoryResponse.data as any[];
+    } else {
+      const guestDirectoryFallback = await supabase
+        .from("joins")
+        .select("guest_name,guest_whatsapp,user_id,created_at,profiles!joins_user_id_fkey(display_name,whatsapp,email)")
+        .order("created_at", { ascending: false })
+        .limit(800);
+      directoryRows = (guestDirectoryFallback.data ?? []) as any[];
     }
 
     const uniqueGuests = new Map<string, { key: string; guest_name: string; guest_whatsapp: string | null }>();
@@ -732,7 +728,7 @@ export default async function PostDetailPage({
           </form>
         ) : null}
 
-        {isHost && !hasStarted ? (
+        {isHost ? (
           <article className="card" id="guest-add">
             <strong>{copy.addGuestTitle}</strong>
 
@@ -745,7 +741,7 @@ export default async function PostDetailPage({
                     <form key={guest.key} action={addGuestJoin}>
                       <input type="hidden" name="guest_name" value={guest.guest_name} />
                       <input type="hidden" name="guest_whatsapp" value={guest.guest_whatsapp ?? ""} />
-                      <button className="guest-directory-btn" type="submit">
+                      <button className="guest-directory-btn" type="submit" disabled={hasStarted}>
                         <span className="guest-directory-name">{guest.guest_name}</span>
                         <span className="guest-directory-phone">{guest.guest_whatsapp || "-"}</span>
                         <span className="guest-directory-cta">{copy.addGuestSavedUse}</span>
@@ -757,10 +753,11 @@ export default async function PostDetailPage({
             </details>
 
             <form className="section" action={addGuestJoin}>
-              <input className="input" name="guest_name" placeholder={copy.addGuestName} required />
-              <input className="input" name="guest_whatsapp" placeholder={copy.addGuestWhatsapp} inputMode="tel" />
-              <SubmitButton idleLabel={copy.addGuestSubmit} pendingLabel={copy.addGuestSubmitting} />
+              <input className="input" name="guest_name" placeholder={copy.addGuestName} required disabled={hasStarted} />
+              <input className="input" name="guest_whatsapp" placeholder={copy.addGuestWhatsapp} inputMode="tel" disabled={hasStarted} />
+              <SubmitButton idleLabel={copy.addGuestSubmit} pendingLabel={copy.addGuestSubmitting} disabled={hasStarted} />
             </form>
+            {hasStarted ? <p className="notice">{copy.addGuestLocked}</p> : null}
             <p className="muted">{copy.addGuestHint}</p>
           </article>
         ) : null}
