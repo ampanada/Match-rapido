@@ -16,8 +16,8 @@ function buildAbsoluteUrl(path: string) {
 }
 
 export default function ShareMini({ postId, startAtLabel, courtNo, formatLabel, lang }: ShareMiniProps) {
-  const [copied, setCopied] = useState(false);
-  const [copying, setCopying] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const [busy, setBusy] = useState(false);
   const path = `/post/${postId}`;
 
   function stop(event: React.MouseEvent<HTMLElement>) {
@@ -25,38 +25,60 @@ export default function ShareMini({ postId, startAtLabel, courtNo, formatLabel, 
     event.stopPropagation();
   }
 
-  function onShareWhatsApp(event: React.MouseEvent<HTMLButtonElement>) {
-    stop(event);
-    const url = buildAbsoluteUrl(path);
-    const message = `Partido 🎾 ${startAtLabel} | Cancha ${courtNo ?? "-"} — ${formatLabel}\n${url}`;
-    const waUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-    window.open(waUrl, "_blank", "noopener,noreferrer");
+  function buildMessage(url: string) {
+    return `Partido 🎾 ${startAtLabel} | Cancha ${courtNo ?? "-"} — ${formatLabel}\n${url}`;
   }
 
-  async function onCopyLink(event: React.MouseEvent<HTMLButtonElement>) {
+  function showFeedback(message: string) {
+    setFeedback(message);
+    window.setTimeout(() => setFeedback(""), 1800);
+  }
+
+  async function onShare(event: React.MouseEvent<HTMLButtonElement>) {
     stop(event);
+    if (busy) {
+      return;
+    }
+
+    setBusy(true);
     const url = buildAbsoluteUrl(path);
-    setCopying(true);
+    const message = buildMessage(url);
+
     try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "Match Rapido",
+          text: message,
+          url
+        });
+        showFeedback(lang === "ko" ? "공유됨 ✅" : "Compartido ✅");
+        return;
+      }
+
       await navigator.clipboard.writeText(url);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
+      showFeedback(lang === "ko" ? "링크 복사 완료 ✅" : "Link copiado ✅");
     } catch {
       window.prompt("Copiar link:", url);
     } finally {
-      setCopying(false);
+      setBusy(false);
     }
   }
 
   return (
     <div className="post-share-mini" onClick={stop}>
-      <button className="mini-share-btn" type="button" onClick={onShareWhatsApp}>
-        WhatsApp
+      <button
+        className="mini-share-icon-btn"
+        type="button"
+        onClick={(event) => void onShare(event)}
+        disabled={busy}
+        aria-label={lang === "ko" ? "공유" : "Compartir"}
+        title={lang === "ko" ? "공유" : "Compartir"}
+      >
+        <span className="mini-share-icon" aria-hidden="true">
+          ↗
+        </span>
       </button>
-      <button className="mini-share-btn" type="button" onClick={(event) => void onCopyLink(event)} disabled={copying}>
-        {copying ? (lang === "ko" ? "복사중..." : "Copiando...") : "Copiar"}
-      </button>
-      {copied ? <span className="mini-share-feedback">Copiado ✅</span> : null}
+      {feedback ? <span className="mini-share-feedback">{feedback}</span> : null}
     </div>
   );
 }

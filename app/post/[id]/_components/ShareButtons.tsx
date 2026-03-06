@@ -49,17 +49,22 @@ export default function ShareButtons({ url, dateTimeLabel, courtNo, format, leve
     window.setTimeout(() => setFeedback(""), 2200);
   }
 
-  function shareWhatsApp() {
-    const absoluteUrl = normalizeAbsoluteUrl(url);
-    const text = buildMessage(absoluteUrl);
-    const waUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
-    window.open(waUrl, "_blank", "noopener,noreferrer");
-  }
-
-  async function copyLink() {
+  async function sharePost() {
     const absoluteUrl = normalizeAbsoluteUrl(url);
     setBusy(true);
     try {
+      const text = buildMessage(absoluteUrl);
+
+      if (navigator.share) {
+        await navigator.share({
+          title: "Match Rapido",
+          text,
+          url: absoluteUrl
+        });
+        showFeedback("Compartido ✅");
+        return;
+      }
+
       await navigator.clipboard.writeText(absoluteUrl);
       showFeedback("Link copiado ✅");
     } catch {
@@ -70,13 +75,13 @@ export default function ShareButtons({ url, dateTimeLabel, courtNo, format, leve
   }
 
   return (
-    <div className="section">
-      <div className="actions share-actions">
-        <button className="button button-outline" type="button" onClick={shareWhatsApp}>
-          Compartir por WhatsApp
-        </button>
-        <button className="button" type="button" onClick={() => void copyLink()} disabled={busy}>
-          {busy ? "Copiando..." : "Copiar link"}
+    <div className="section share-icon-wrap">
+      <div className="actions share-actions share-actions-icon">
+        <button className="share-icon-btn" type="button" onClick={() => void sharePost()} disabled={busy} aria-label="Compartir">
+          <span className="share-icon-glyph" aria-hidden="true">
+            ↗
+          </span>
+          <span>{busy ? "Compartiendo..." : "Compartir"}</span>
         </button>
       </div>
       {feedback ? <p className="notice success share-feedback">{feedback}</p> : null}

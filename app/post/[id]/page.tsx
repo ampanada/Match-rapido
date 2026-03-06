@@ -89,6 +89,9 @@ export default async function PostDetailPage({
           h2hNoData: "아직 두 선수의 확정 전적이 없습니다.",
           closing: "마감 중...",
           addGuestTitle: "게스트 추가",
+          addGuestSavedTitle: "기존 게스트에서 선택",
+          addGuestSavedEmpty: "저장된 게스트가 없습니다.",
+          addGuestSavedUse: "선택해서 추가",
           addGuestName: "이름",
           addGuestWhatsapp: "WhatsApp 번호(선택)",
           addGuestHint: "비회원도 먼저 등록 가능하며, 이후 같은 번호로 가입하면 자동 연결됩니다.",
@@ -140,6 +143,9 @@ export default async function PostDetailPage({
           h2hNoData: "Aun no hay historial confirmado entre ambos.",
           closing: "Cerrando...",
           addGuestTitle: "Agregar invitado",
+          addGuestSavedTitle: "Seleccionar invitado guardado",
+          addGuestSavedEmpty: "No hay invitados guardados.",
+          addGuestSavedUse: "Agregar este invitado",
           addGuestName: "Nombre",
           addGuestWhatsapp: "WhatsApp (opcional)",
           addGuestHint: "Puedes registrar invitados sin cuenta. Al registrarse con el mismo numero, se vinculan automaticamente.",
@@ -260,6 +266,47 @@ export default async function PostDetailPage({
   const isCompleted = postStatus === "closed" || currentPlayers >= post.needed || isExpired;
   const startHHMM = getCordobaHHMM(post.start_at);
   const slotRange = formatSlotRange(startHHMM);
+
+  let guestDirectory: Array<{ key: string; guest_name: string; guest_whatsapp: string | null }> = [];
+  if (isHost) {
+    const guestDirectoryResponse = await supabase
+      .from("joins")
+      .select("guest_name,guest_whatsapp,created_at")
+      .is("user_id", null)
+      .not("guest_name", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(300);
+
+    const directoryRows =
+      guestDirectoryResponse.data ??
+      (
+        await supabase
+          .from("joins")
+          .select("guest_name,guest_whatsapp")
+          .is("user_id", null)
+          .not("guest_name", "is", null)
+          .limit(300)
+      ).data ??
+      [];
+
+    const uniqueGuests = new Map<string, { key: string; guest_name: string; guest_whatsapp: string | null }>();
+    (directoryRows as any[]).forEach((row) => {
+      const guestName = String(row.guest_name ?? "").trim();
+      if (!guestName) {
+        return;
+      }
+      const guestWhatsapp = row.guest_whatsapp ? normalizeWhatsapp(String(row.guest_whatsapp)) : null;
+      const key = `${guestName.toLowerCase()}::${guestWhatsapp ?? ""}`;
+      if (!uniqueGuests.has(key)) {
+        uniqueGuests.set(key, {
+          key,
+          guest_name: guestName,
+          guest_whatsapp: guestWhatsapp
+        });
+      }
+    });
+    guestDirectory = Array.from(uniqueGuests.values()).slice(0, 40);
+  }
 
   const singleApprovedRegisteredJoin = approvedJoins.find((join: any) => !!join.user_id) ?? null;
   const singleOpponentId = singleApprovedRegisteredJoin?.user_id ?? null;
@@ -712,6 +759,27 @@ export default async function PostDetailPage({
         {isHost && !hasStarted ? (
           <article className="card" id="guest-add">
             <strong>{copy.addGuestTitle}</strong>
+
+            <details className="guest-directory-box" open={guestDirectory.length > 0}>
+              <summary className="guest-directory-summary">{copy.addGuestSavedTitle}</summary>
+              {guestDirectory.length === 0 ? <p className="muted">{copy.addGuestSavedEmpty}</p> : null}
+              {guestDirectory.length > 0 ? (
+                <div className="guest-directory-list">
+                  {guestDirectory.map((guest) => (
+                    <form key={guest.key} action={addGuestJoin}>
+                      <input type="hidden" name="guest_name" value={guest.guest_name} />
+                      <input type="hidden" name="guest_whatsapp" value={guest.guest_whatsapp ?? ""} />
+                      <button className="guest-directory-btn" type="submit">
+                        <span className="guest-directory-name">{guest.guest_name}</span>
+                        <span className="guest-directory-phone">{guest.guest_whatsapp || "-"}</span>
+                        <span className="guest-directory-cta">{copy.addGuestSavedUse}</span>
+                      </button>
+                    </form>
+                  ))}
+                </div>
+              ) : null}
+            </details>
+
             <form className="section" action={addGuestJoin}>
               <input className="input" name="guest_name" placeholder={copy.addGuestName} required />
               <input className="input" name="guest_whatsapp" placeholder={copy.addGuestWhatsapp} inputMode="tel" />
