@@ -6,6 +6,7 @@ import LoginSuccessToast from "./_components/LoginSuccessToast";
 import { getCordobaDateString, getCordobaHHMM, getCordobaWeekday } from "@/lib/constants/slots";
 import { getServerLang } from "@/lib/i18n-server";
 import { createClient } from "@/lib/supabase/server";
+import { unstable_noStore as noStore } from "next/cache";
 import Link from "next/link";
 
 function relativeTimeLabel(value: string, lang: "es" | "ko") {
@@ -51,6 +52,7 @@ export default async function Home({
     loggedIn?: string;
   }>;
 }) {
+  noStore();
   const params = (await searchParams) ?? {};
   const showLoggedInToast = params.loggedIn === "1";
   const lang = await getServerLang();
@@ -88,8 +90,6 @@ export default async function Home({
     .select(
       "id,host_id,start_at,format,level,needed,court_no,note,status,profiles!posts_host_id_fkey(id,display_name,avatar_url),joins(id,user_id,status,guest_name,guest_whatsapp,profiles!joins_user_id_fkey(id,display_name,avatar_url))"
     )
-    .eq("status", "open")
-    .gte("start_at", expiryCutoffIso)
     .order("start_at", { ascending: true });
 
   if (params.format) {
@@ -100,6 +100,42 @@ export default async function Home({
     query,
     supabase.from("activity_feed").select("id,type,user_id,related_post_id,message,created_at").order("created_at", { ascending: false }).limit(10)
   ]);
+
+  let postsData = data ?? [];
+  let postsError = error;
+
+  if (postsError) {
+    const fallback = await supabase
+      .from("posts")
+      .select(
+        "id,host_id,start_at,format,needed,status,profiles!posts_host_id_fkey(id,display_name,avatar_url),joins(id,user_id,profiles!joins_user_id_fkey(id,display_name,avatar_url))"
+      )
+      .order("start_at", { ascending: true })
+      .limit(200);
+
+    if (!fallback.error && fallback.data) {
+      postsData = fallback.data as any[];
+      postsError = null;
+    } else {
+      const legacy = await supabase
+        .from("posts")
+        .select("id,host_id,date_time,format,needed,status")
+        .order("date_time", { ascending: true })
+        .limit(200);
+      if (!legacy.error && legacy.data) {
+        postsData = legacy.data.map((row: any) => ({
+          ...row,
+          start_at: row.date_time,
+          level: null,
+          court_no: null,
+          note: null,
+          profiles: null,
+          joins: []
+        }));
+        postsError = null;
+      }
+    }
+  }
   const activityUserIds = Array.from(new Set((activityData ?? []).map((item) => item.user_id).filter(Boolean)));
   const { data: activityProfiles } =
     activityUserIds.length > 0
@@ -108,11 +144,16 @@ export default async function Home({
   const activityProfileMap = new Map((activityProfiles ?? []).map((profile) => [profile.id, profile]));
 
   const items =
-    data?.map((post) => {
+    postsData
+      .map((post: any) => {
+      const startAt = post.start_at ?? post.date_time;
+      if (!startAt) {
+        return null;
+      }
       const profile = Array.isArray(post.profiles) ? post.profiles[0] : post.profiles;
       const hostName = profile?.display_name || (lang === "ko" ? "호스트" : "Host");
       const hostAvatarUrl = profile?.avatar_url ?? null;
-      const approvedJoins = post.joins?.filter((join) => join.status === "approved") ?? [];
+      const approvedJoins = (post.joins ?? []).filter((join: any) => (join.status ?? "approved") === "approved");
       const participantMap = new Map<
         string,
         {
@@ -130,7 +171,7 @@ export default async function Home({
         isHost: true
       });
 
-      approvedJoins.forEach((join) => {
+      approvedJoins.forEach((join: any) => {
         const joinProfile = Array.isArray(join.profiles) ? join.profiles[0] : join.profiles;
         const joinName = joinProfile?.display_name || join.guest_name || (lang === "ko" ? "참여자" : "Jugador");
         const participantId = join.user_id ? join.user_id : `guest:${join.id}`;
@@ -146,20 +187,40 @@ export default async function Home({
         id: post.id,
         hostId: post.host_id,
         isMine: user?.id === post.host_id,
-        start_at: post.start_at,
+        start_at: startAt,
         format: post.format,
-        level: post.level,
+        level: post.level ?? null,
         needed: post.needed,
-        court_no: post.court_no,
-        note: post.note,
-        status: post.status,
+        court_no: post.court_no ?? null,
+        note: post.note ?? null,
+        status: post.status ?? "open",
         joinsCount: approvedJoins.length,
         hostName,
         hostAvatarUrl,
         participants: Array.from(participantMap.values()),
-        isExpired: new Date(post.start_at).getTime() + 30 * 60 * 1000 < Date.now()
+        isExpired: new Date(startAt).getTime() + 30 * 60 * 1000 < Date.now()
       };
-    }) ?? [];
+    })
+      .filter(Boolean)
+      .filter((item: any) => item.status === "open")
+      .filter((item: any) => new Date(item.start_at).getTime() >= new Date(expiryCutoffIso).getTime())
+      .sort((a: any, b: any) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime()) as Array<{
+        id: string;
+        hostId: string;
+        isMine: boolean;
+        start_at: string;
+        format: string;
+        level: string | null;
+        needed: number;
+        court_no: number | null;
+        note: string | null;
+        status: string;
+        joinsCount: number;
+        hostName: string;
+        hostAvatarUrl: string | null;
+        participants: Array<{ id: string; name: string; avatarUrl: string | null; isHost: boolean }>;
+        isExpired: boolean;
+      }>;
 
   const groupedByDate = items.reduce<Record<string, typeof items>>((acc, item) => {
     const key = getCordobaDateString(new Date(item.start_at));
@@ -215,8 +276,8 @@ export default async function Home({
       <FiltersBar selectedFormat={params.format} lang={lang} />
 
       <section className="section">
-        {error ? <p className="notice">{copy.loadError}</p> : null}
-        {!error && items.length === 0 ? <p className="notice">{copy.empty}</p> : null}
+        {postsError ? <p className="notice">{copy.loadError}</p> : null}
+        {!postsError && items.length === 0 ? <p className="notice">{copy.empty}</p> : null}
         {groupedEntries.map(([dateKey, posts]) => {
           const firstTime = getCordobaHHMM(posts[0].start_at);
           const lastTime = getCordobaHHMM(posts[posts.length - 1].start_at);
