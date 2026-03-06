@@ -6,6 +6,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import MotionProfileLink from "@/components/MotionProfileLink";
+import { unstable_noStore as noStore } from "next/cache";
 
 function safeTime(value: unknown) {
   const ms = new Date(String(value ?? "")).getTime();
@@ -21,18 +22,18 @@ type MatchItem = {
   court_no: number | null;
   status: string;
   profiles:
-    | { id: string; display_name: string | null; avatar_url: string | null; wins: number; losses: number; total_matches: number }
-    | Array<{ id: string; display_name: string | null; avatar_url: string | null; wins: number; losses: number; total_matches: number }>
+    | { id: string; display_name: string | null; avatar_url: string | null }
+    | Array<{ id: string; display_name: string | null; avatar_url: string | null }>
     | null;
   joins: Array<{
     id: string;
-    status: string;
+    status?: string | null;
     user_id: string | null;
-    guest_name: string | null;
-    guest_whatsapp: string | null;
+    guest_name?: string | null;
+    guest_whatsapp?: string | null;
     profiles:
-      | { id: string; display_name: string | null; avatar_url: string | null; wins: number; losses: number; total_matches: number }
-      | Array<{ id: string; display_name: string | null; avatar_url: string | null; wins: number; losses: number; total_matches: number }>
+      | { id: string; display_name: string | null; avatar_url: string | null }
+      | Array<{ id: string; display_name: string | null; avatar_url: string | null }>
       | null;
   }>;
 };
@@ -42,16 +43,10 @@ type Participant = {
   profile_id: string | null;
   display_name: string;
   avatar_url: string | null;
-  wins: number;
-  losses: number;
-  total_matches: number;
 };
 
-function pairKey(a: string, b: string) {
-  return a < b ? `${a}::${b}` : `${b}::${a}`;
-}
-
 export default async function MyMatchesPage() {
+  noStore();
   const lang = await getServerLang();
   const copy =
     lang === "ko"
@@ -71,8 +66,6 @@ export default async function MyMatchesPage() {
           participants: "참여자",
           participantItem: "참여자",
           hostTag: "호스트",
-          singleRate: "1 Set Slam 승률",
-          h2hRate: "H2H",
           winner: "승",
           loser: "패",
           completedLabel: "완료",
@@ -96,8 +89,6 @@ export default async function MyMatchesPage() {
           participants: "Participantes",
           participantItem: "Jugador",
           hostTag: "Host",
-          singleRate: "Winrate 1 Set Slam",
-          h2hRate: "H2H",
           winner: "W",
           loser: "L",
           completedLabel: "Completado",
@@ -134,10 +125,35 @@ export default async function MyMatchesPage() {
       .limit(80)
   ]);
 
-  const hostPosts = (hostResponse.data ?? []) as MatchItem[];
-  const joinedPosts = (joinResponse.data ?? [])
+  let hostPosts = (hostResponse.data ?? []) as MatchItem[];
+  if (hostResponse.error) {
+    const hostFallback = await supabase
+      .from("posts")
+      .select(
+        "id,host_id,start_at,format,needed,court_no,status,profiles!posts_host_id_fkey(id,display_name,avatar_url),joins(id,user_id,profiles!joins_user_id_fkey(id,display_name,avatar_url))"
+      )
+      .eq("host_id", user.id)
+      .order("start_at", { ascending: false })
+      .limit(80);
+    hostPosts = (hostFallback.data ?? []) as MatchItem[];
+  }
+
+  let joinedPosts = (joinResponse.data ?? [])
     .map((row: any) => (Array.isArray(row.posts) ? row.posts[0] : row.posts))
     .filter(Boolean) as MatchItem[];
+  if (joinResponse.error) {
+    const joinFallback = await supabase
+      .from("joins")
+      .select(
+        "post_id,posts!joins_post_id_fkey(id,host_id,start_at,format,needed,court_no,status,profiles!posts_host_id_fkey(id,display_name,avatar_url),joins(id,user_id,profiles!joins_user_id_fkey(id,display_name,avatar_url)))"
+      )
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(80);
+    joinedPosts = (joinFallback.data ?? [])
+      .map((row: any) => (Array.isArray(row.posts) ? row.posts[0] : row.posts))
+      .filter(Boolean) as MatchItem[];
+  }
 
   const postMap = new Map<string, MatchItem>();
   for (const post of [...hostPosts, ...joinedPosts]) {
@@ -156,45 +172,6 @@ export default async function MyMatchesPage() {
 
   const resultMap = new Map((results ?? []).map((result) => [result.post_id, result]));
 
-  const participantIds = Array.from(
-    new Set(
-      mergedPosts.flatMap((post) => {
-        const ids = [post.host_id];
-        const joins = Array.isArray(post.joins) ? post.joins : [];
-        joins
-          .filter((join) => join.status === "approved")
-          .forEach((join) => {
-            if (join.user_id) {
-              ids.push(join.user_id);
-            }
-          });
-        return ids;
-      })
-    )
-  );
-
-  const { data: h2hRows } =
-    participantIds.length > 1
-      ? await supabase
-          .from("match_results")
-          .select("player_a,player_b,winner_id")
-          .eq("status", "confirmed")
-          .in("player_a", participantIds)
-          .in("player_b", participantIds)
-          .limit(800)
-      : { data: [] as { player_a: string; player_b: string; winner_id: string | null }[] };
-
-  const h2hMap = new Map<string, { total: number; winsById: Map<string, number> }>();
-  (h2hRows ?? []).forEach((row) => {
-    const key = pairKey(row.player_a, row.player_b);
-    const existing = h2hMap.get(key) ?? { total: 0, winsById: new Map<string, number>() };
-    existing.total += 1;
-    if (row.winner_id) {
-      existing.winsById.set(row.winner_id, (existing.winsById.get(row.winner_id) ?? 0) + 1);
-    }
-    h2hMap.set(key, existing);
-  });
-
   const now = Date.now();
   const durationMs = SLOT_MINUTES * 60 * 1000;
 
@@ -211,13 +188,10 @@ export default async function MyMatchesPage() {
         id: hostProfileRaw?.id ?? post.host_id,
         profile_id: hostProfileRaw?.id ?? post.host_id,
         display_name: hostProfileRaw?.display_name || (lang === "ko" ? "호스트" : "Host"),
-        avatar_url: hostProfileRaw?.avatar_url ?? null,
-        wins: hostProfileRaw?.wins ?? 0,
-        losses: hostProfileRaw?.losses ?? 0,
-        total_matches: hostProfileRaw?.total_matches ?? 0
+        avatar_url: hostProfileRaw?.avatar_url ?? null
       };
-      const approvedCount = joins.filter((join) => join.status === "approved").length;
-      const approvedRegisteredCount = joins.filter((join) => join.status === "approved" && !!join.user_id).length;
+      const approvedCount = joins.filter((join) => (join.status ?? "approved") === "approved").length;
+      const approvedRegisteredCount = joins.filter((join) => (join.status ?? "approved") === "approved" && !!join.user_id).length;
       const currentPlayers = approvedCount + 1;
       const isSingleReady = post.format === "single" && approvedRegisteredCount === 1;
       const hostManualClose = approvedCount === 0 && post.status === "closed";
@@ -233,7 +207,7 @@ export default async function MyMatchesPage() {
       participantMap.set(hostProfile.id, hostProfile);
 
       joins
-        .filter((join) => join.status === "approved")
+        .filter((join) => (join.status ?? "approved") === "approved")
         .forEach((join) => {
           const raw = Array.isArray(join.profiles) ? join.profiles[0] : join.profiles;
           if (raw?.id) {
@@ -241,10 +215,7 @@ export default async function MyMatchesPage() {
               id: raw.id,
               profile_id: raw.id,
               display_name: raw.display_name || (lang === "ko" ? "참여자" : "Jugador"),
-              avatar_url: raw.avatar_url ?? null,
-              wins: raw.wins ?? 0,
-              losses: raw.losses ?? 0,
-              total_matches: raw.total_matches ?? 0
+              avatar_url: raw.avatar_url ?? null
             });
             return;
           }
@@ -255,10 +226,7 @@ export default async function MyMatchesPage() {
               id: guestId,
               profile_id: null,
               display_name: join.guest_name,
-              avatar_url: null,
-              wins: 0,
-              losses: 0,
-              total_matches: 0
+              avatar_url: null
             });
           }
         });
