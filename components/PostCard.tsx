@@ -46,7 +46,6 @@ export default function PostCard({ post, lang }: PostCardProps) {
           participantItem: "참여자",
           hostTag: "호스트",
           emptyNote: "메모 없음",
-          editForGuest: "게스트 추가",
           detail: "상세 보기"
         }
       : {
@@ -58,7 +57,6 @@ export default function PostCard({ post, lang }: PostCardProps) {
           participantItem: "Jugador",
           hostTag: "Host",
           emptyNote: "Sin nota",
-          editForGuest: "Agregar invitado",
           detail: "Ver detalle"
         };
   const currentPlayers = post.joinsCount + 1;
@@ -68,7 +66,6 @@ export default function PostCard({ post, lang }: PostCardProps) {
   const dayKey = getCordobaDateString(new Date(post.start_at));
   const weekday = getCordobaWeekday(dayKey, dateLocale);
   const detailHref = `/post/${post.id}`;
-  const guestAddHref = `/post/${post.id}#guest-add`;
   const shareTimeLabel = `${formatCordobaDate(post.start_at, "es-AR")} ${formatSlotRange(startHHMM)}`;
 
   function moveToDetail() {
@@ -76,15 +73,6 @@ export default function PostCard({ post, lang }: PostCardProps) {
     window.setTimeout(() => {
       if (window.location.pathname !== detailHref) {
         window.location.href = detailHref;
-      }
-    }, 250);
-  }
-
-  function moveToGuestAdd() {
-    router.push(guestAddHref);
-    window.setTimeout(() => {
-      if (window.location.pathname !== detailHref || window.location.hash !== "#guest-add") {
-        window.location.href = guestAddHref;
       }
     }, 250);
   }
@@ -145,11 +133,6 @@ export default function PostCard({ post, lang }: PostCardProps) {
         formatLabel={formatLabel(post.format, "es")}
         lang={lang}
       />
-      {post.isMine ? (
-        <button className="button button-outline" type="button" onClick={moveToGuestAdd}>
-          {copy.editForGuest}
-        </button>
-      ) : null}
       <button className="link-btn" type="button" onClick={moveToDetail}>
         {copy.detail}
       </button>

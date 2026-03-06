@@ -1167,6 +1167,37 @@ a {
   gap: 8px;
 }
 
+.host-detail-tools {
+  margin: 0 0 10px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.host-detail-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(122, 162, 236, 0.56);
+  background: rgba(30, 44, 72, 0.72);
+  color: #d6e7ff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1px;
+  transition: transform 0.16s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.host-detail-edit-btn:hover {
+  border-color: rgba(153, 188, 250, 0.82);
+  background: rgba(47, 63, 96, 0.78);
+}
+
+.host-detail-edit-btn:active {
+  transform: translateY(1px) scale(0.99);
+}
+
 .share-actions {
   grid-template-columns: 1fr;
 }
@@ -1410,6 +1441,10 @@ a {
   margin-top: 8px;
   display: grid;
   gap: 7px;
+}
+
+.my-match-guest-card {
+  margin-top: 8px;
 }
 
 .input.input-compact {
