@@ -1,8 +1,8 @@
 import BottomNav from "@/components/BottomNav";
 import FiltersBar from "@/components/FiltersBar";
-import LoginSuccessToast from "@/components/LoginSuccessToast";
 import PostCard from "@/components/PostCard";
 import ProfileAvatar from "@/components/ProfileAvatar";
+import LoginSuccessToast from "./_components/LoginSuccessToast";
 import { getCordobaDateString, getCordobaHHMM, getCordobaWeekday } from "@/lib/constants/slots";
 import { getServerLang } from "@/lib/i18n-server";
 import { createClient } from "@/lib/supabase/server";

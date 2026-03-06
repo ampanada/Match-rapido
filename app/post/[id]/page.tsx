@@ -1,6 +1,4 @@
 import BottomNav from "@/components/BottomNav";
-import LoginSuccessToast from "@/components/LoginSuccessToast";
-import ShareButtons from "@/components/ShareButtons";
 import SubmitButton from "@/components/SubmitButton";
 import { formatLabel } from "@/lib/constants/filters";
 import { getServerLang } from "@/lib/i18n-server";
@@ -8,6 +6,8 @@ import { formatCordobaDate, formatSlotRange, getCordobaHHMM } from "@/lib/consta
 import { createClient } from "@/lib/supabase/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import ShareButtons from "./_components/ShareButtons";
+import LoginSuccessToast from "../../_components/LoginSuccessToast";
 
 function waLink(phone: string, text: string) {
   return `https://wa.me/${phone.replace(/[^\d]/g, "")}?text=${encodeURIComponent(text)}`;
