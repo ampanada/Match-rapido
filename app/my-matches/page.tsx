@@ -592,8 +592,10 @@ export default async function MyMatchesPage({
                   <input type="hidden" name="guest_name" value={guest.guest_name} />
                   <input type="hidden" name="guest_whatsapp" value={guest.guest_whatsapp ?? ""} />
                   <button className="guest-directory-btn" type="submit" disabled={isGuestExpired}>
-                    <span className="guest-directory-name">{guest.guest_name}</span>
-                    <span className="guest-directory-phone">{guest.guest_whatsapp || "-"}</span>
+                    <span className="guest-directory-mainline">
+                      <ProfileAvatar name={guest.guest_name} avatarUrl={null} size="sm" />
+                      <span className="guest-directory-name">{guest.guest_name}</span>
+                    </span>
                     <span className="guest-directory-cta">{copy.addGuestSavedUse}</span>
                   </button>
                 </form>
