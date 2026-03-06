@@ -1079,12 +1079,45 @@ a {
 }
 
 .guest-feedback {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 9px;
   background:
     radial-gradient(120% 100% at 0% -20%, rgba(122, 255, 182, 0.16), transparent 60%),
     linear-gradient(160deg, #163626, #122b20);
   border-color: #2d8b57;
-  box-shadow: 0 10px 24px rgba(10, 33, 24, 0.25);
-  animation: guest-pop 0.36s cubic-bezier(0.2, 0.86, 0.25, 1) both;
+  box-shadow: 0 10px 24px rgba(10, 33, 24, 0.25), inset 0 0 0 1px rgba(152, 255, 199, 0.08);
+  overflow: hidden;
+  animation:
+    guest-pop 0.42s cubic-bezier(0.2, 0.86, 0.25, 1) both,
+    guest-glow 1.3s ease-out both;
+}
+
+.guest-feedback::after {
+  content: "";
+  position: absolute;
+  top: -120%;
+  left: -30%;
+  width: 50%;
+  height: 300%;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(198, 255, 224, 0.32), rgba(255, 255, 255, 0));
+  transform: rotate(18deg);
+  animation: guest-shimmer 0.95s ease-out both;
+  pointer-events: none;
+}
+
+.guest-feedback-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(150deg, rgba(126, 255, 185, 0.35), rgba(88, 217, 145, 0.2));
+  border: 1px solid rgba(148, 255, 202, 0.45);
+  box-shadow: 0 0 0 0 rgba(140, 255, 196, 0.35);
+  animation: guest-pulse 0.95s ease-out;
 }
 
 .login-success-panel {
@@ -1264,30 +1297,47 @@ a {
   color: #89e6b2;
 }
 
-.guest-directory-box {
-  border: 1px solid rgba(95, 125, 182, 0.44);
-  border-radius: 12px;
-  background: rgba(22, 32, 49, 0.65);
-  padding: 8px;
+.guest-card {
+  background:
+    radial-gradient(130% 90% at 0% 0%, rgba(124, 172, 255, 0.16), rgba(124, 172, 255, 0)),
+    linear-gradient(165deg, rgba(23, 32, 48, 0.98), rgba(15, 23, 36, 0.98));
+  border-color: rgba(96, 125, 179, 0.45);
 }
 
-.guest-directory-summary {
-  cursor: pointer;
+.guest-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.guest-count-badge {
+  background: rgba(48, 62, 90, 0.82);
+  border-color: rgba(127, 162, 226, 0.44);
+  font-size: 10px;
+}
+
+.guest-directory-main {
+  margin-top: 8px;
+  border: 1px solid rgba(108, 140, 198, 0.4);
+  border-radius: 14px;
+  background:
+    radial-gradient(120% 80% at 0% -10%, rgba(140, 189, 255, 0.12), transparent 58%),
+    linear-gradient(160deg, rgba(29, 42, 67, 0.8), rgba(20, 30, 48, 0.86));
+  padding: 10px;
+}
+
+.guest-directory-title {
+  margin: 0 0 8px;
   font-size: 12px;
   font-weight: 800;
-  color: #d4e4ff;
-  list-style: none;
-}
-
-.guest-directory-summary::-webkit-details-marker {
-  display: none;
+  color: #e0ecff;
 }
 
 .guest-directory-list {
-  margin-top: 8px;
   display: grid;
   gap: 6px;
-  max-height: 220px;
+  max-height: 210px;
   overflow: auto;
   padding-right: 2px;
 }
@@ -1308,6 +1358,8 @@ a {
 
 .guest-directory-btn:hover {
   border-color: rgba(146, 180, 241, 0.7);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(18, 30, 52, 0.28);
 }
 
 .guest-directory-name {
@@ -1324,6 +1376,46 @@ a {
   grid-column: 1 / -1;
   font-size: 10px;
   color: #9ab5e6;
+}
+
+.guest-mini-create {
+  margin-top: 10px;
+  border: 1px solid rgba(93, 120, 170, 0.36);
+  border-radius: 12px;
+  background: rgba(19, 27, 41, 0.62);
+  padding: 6px 8px;
+}
+
+.guest-mini-summary {
+  cursor: pointer;
+  list-style: none;
+  display: grid;
+  gap: 2px;
+  color: #d8e8ff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.guest-mini-summary small {
+  color: #9db4dd;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.guest-mini-summary::-webkit-details-marker {
+  display: none;
+}
+
+.guest-mini-form {
+  margin-top: 8px;
+  display: grid;
+  gap: 7px;
+}
+
+.input.input-compact {
+  padding: 9px 10px;
+  border-radius: 11px;
+  font-size: 13px;
 }
 
 .bottom-nav {
@@ -1429,6 +1521,38 @@ a {
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes guest-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(140, 255, 196, 0.45);
+  }
+  100% {
+    box-shadow: 0 0 0 14px rgba(140, 255, 196, 0);
+  }
+}
+
+@keyframes guest-shimmer {
+  0% {
+    transform: translateX(-10%) rotate(18deg);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(245%) rotate(18deg);
+    opacity: 0;
+  }
+}
+
+@keyframes guest-glow {
+  0% {
+    box-shadow: 0 0 0 rgba(15, 48, 33, 0.2);
+  }
+  100% {
+    box-shadow: 0 10px 24px rgba(10, 33, 24, 0.25), inset 0 0 0 1px rgba(152, 255, 199, 0.08);
   }
 }
 

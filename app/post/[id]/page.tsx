@@ -97,6 +97,9 @@ export default async function PostDetailPage({
           addGuestSavedTitle: "기존 게스트에서 선택",
           addGuestSavedEmpty: "저장된 게스트가 없습니다.",
           addGuestSavedUse: "선택해서 추가",
+          addGuestSavedCount: "저장 게스트",
+          addGuestManualToggle: "새 게스트 직접 입력",
+          addGuestManualHint: "눌러서 입력창 열기",
           addGuestLocked: "매치 만료 후에는 게스트를 추가할 수 없습니다.",
           addGuestName: "이름",
           addGuestWhatsapp: "WhatsApp 번호(선택)",
@@ -152,6 +155,9 @@ export default async function PostDetailPage({
           addGuestSavedTitle: "Seleccionar invitado guardado",
           addGuestSavedEmpty: "No hay invitados guardados.",
           addGuestSavedUse: "Agregar este invitado",
+          addGuestSavedCount: "Invitados guardados",
+          addGuestManualToggle: "Ingresar invitado nuevo",
+          addGuestManualHint: "Pulsa para abrir el formulario",
           addGuestLocked: "No se pueden agregar invitados en partidos vencidos.",
           addGuestName: "Nombre",
           addGuestWhatsapp: "WhatsApp (opcional)",
@@ -735,14 +741,24 @@ export default async function PostDetailPage({
       ) : null}
       {qs.guestAdded === "1" ? (
         <p className="notice success guest-feedback">
-          {copy.guestAddedDone}
-          {guestNameFromQs ? ` · ${guestNameFromQs}` : ""}
+          <span className="guest-feedback-icon" aria-hidden>
+            ✅
+          </span>
+          <span>
+            {copy.guestAddedDone}
+            {guestNameFromQs ? ` · ${guestNameFromQs}` : ""}
+          </span>
         </p>
       ) : null}
       {qs.guestAdded === "exists" ? (
         <p className="notice success guest-feedback">
-          {copy.guestAddedExists}
-          {guestNameFromQs ? ` · ${guestNameFromQs}` : ""}
+          <span className="guest-feedback-icon" aria-hidden>
+            ✅
+          </span>
+          <span>
+            {copy.guestAddedExists}
+            {guestNameFromQs ? ` · ${guestNameFromQs}` : ""}
+          </span>
         </p>
       ) : null}
       {qs.guestError ? (
@@ -823,11 +839,16 @@ export default async function PostDetailPage({
         ) : null}
 
         {isHost ? (
-          <article className="card" id="guest-add">
-            <strong>{copy.addGuestTitle}</strong>
+          <article className="card guest-card" id="guest-add">
+            <div className="guest-card-head">
+              <strong>{copy.addGuestTitle}</strong>
+              <span className="badge guest-count-badge">
+                {copy.addGuestSavedCount} {guestDirectory.length}
+              </span>
+            </div>
 
-            <details className="guest-directory-box" open={guestDirectory.length > 0}>
-              <summary className="guest-directory-summary">{copy.addGuestSavedTitle}</summary>
+            <div className="guest-directory-main">
+              <p className="guest-directory-title">{copy.addGuestSavedTitle}</p>
               {guestDirectory.length === 0 ? <p className="muted">{copy.addGuestSavedEmpty}</p> : null}
               {guestDirectory.length > 0 ? (
                 <div className="guest-directory-list">
@@ -844,13 +865,25 @@ export default async function PostDetailPage({
                   ))}
                 </div>
               ) : null}
-            </details>
+            </div>
 
-            <form className="section" action={addGuestJoin}>
-              <input className="input" name="guest_name" placeholder={copy.addGuestName} required disabled={isExpired} />
-              <input className="input" name="guest_whatsapp" placeholder={copy.addGuestWhatsapp} inputMode="tel" disabled={isExpired} />
-              <SubmitButton idleLabel={copy.addGuestSubmit} pendingLabel={copy.addGuestSubmitting} disabled={isExpired} />
-            </form>
+            <details className="guest-mini-create">
+              <summary className="guest-mini-summary">
+                <span>{copy.addGuestManualToggle}</span>
+                <small>{copy.addGuestManualHint}</small>
+              </summary>
+              <form className="guest-mini-form" action={addGuestJoin}>
+                <input className="input input-compact" name="guest_name" placeholder={copy.addGuestName} required disabled={isExpired} />
+                <input
+                  className="input input-compact"
+                  name="guest_whatsapp"
+                  placeholder={copy.addGuestWhatsapp}
+                  inputMode="tel"
+                  disabled={isExpired}
+                />
+                <SubmitButton idleLabel={copy.addGuestSubmit} pendingLabel={copy.addGuestSubmitting} disabled={isExpired} />
+              </form>
+            </details>
             {isExpired ? <p className="notice">{copy.addGuestLocked}</p> : null}
             <p className="muted">{copy.addGuestHint}</p>
           </article>
