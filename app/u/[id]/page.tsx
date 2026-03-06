@@ -17,6 +17,10 @@ type RivalStat = {
   streakCount: number;
 };
 
+function isDrawScore(score: string | null | undefined) {
+  return score === "6-6";
+}
+
 export default async function PublicProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const lang = await getServerLang();
@@ -35,6 +39,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           noRecent: "확정된 경기 결과가 없습니다.",
           win: "승",
           loss: "패",
+          draw: "무",
           court: "코트",
           unknownCourt: "코트 미지정",
           score: "결과",
@@ -57,6 +62,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           noRecent: "No hay resultados confirmados.",
           win: "Victoria",
           loss: "Derrota",
+          draw: "Empate",
           court: "Cancha",
           unknownCourt: "Cancha sin definir",
           score: "Resultado",
@@ -100,7 +106,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
       .limit(10),
     supabase
       .from("match_results")
-      .select("player_a,player_b,winner_id,confirmed_at")
+      .select("player_a,player_b,winner_id,confirmed_at,score")
       .eq("status", "confirmed")
       .or(`player_a.eq.${id},player_b.eq.${id}`)
       .order("confirmed_at", { ascending: false })
@@ -109,17 +115,20 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
       .from("match_results")
       .select("id", { count: "exact", head: true })
       .eq("status", "confirmed")
+      .neq("score", "6-6")
       .or(`player_a.eq.${id},player_b.eq.${id}`),
     supabase
       .from("match_results")
       .select("id", { count: "exact", head: true })
       .eq("status", "confirmed")
+      .neq("score", "6-6")
       .eq("winner_id", id)
       .or(`player_a.eq.${id},player_b.eq.${id}`),
     supabase
       .from("match_results")
       .select("winner_id,confirmed_at,created_at")
       .eq("status", "confirmed")
+      .neq("score", "6-6")
       .or(`player_a.eq.${id},player_b.eq.${id}`)
       .order("confirmed_at", { ascending: false })
       .order("created_at", { ascending: false })
@@ -129,6 +138,9 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
   const rivalStats = new Map<string, { wins: number; losses: number; total: number; winners: string[] }>();
 
   for (const row of rivalRows ?? []) {
+    if (isDrawScore((row as any).score)) {
+      continue;
+    }
     const opponentId = row.player_a === id ? row.player_b : row.player_a;
     const entry = rivalStats.get(opponentId) ?? { wins: 0, losses: 0, total: 0, winners: [] };
     entry.total += 1;
@@ -329,7 +341,8 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           const playerA = Array.isArray(result.player_a_profile) ? result.player_a_profile[0] : result.player_a_profile;
           const playerB = Array.isArray(result.player_b_profile) ? result.player_b_profile[0] : result.player_b_profile;
           const post = Array.isArray(result.posts) ? result.posts[0] : result.posts;
-          const isWin = result.winner_id === id;
+          const draw = isDrawScore(result.score);
+          const isWin = !draw && result.winner_id === id;
           const opponent = result.player_a === id ? playerB : playerA;
           const opponentName = opponent?.display_name || (lang === "ko" ? "상대" : "Rival");
           const opponentAvatar = opponent?.avatar_url ?? null;
@@ -343,7 +356,10 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
                 <span>{post?.court_no ? `${copy.court} ${post.court_no}` : copy.unknownCourt}</span>
               </div>
               <p className="result-players">
-                <span className={isWin ? "result-tag-win" : "result-tag-loss"}>{isWin ? copy.win : copy.loss}</span> ·{" "}
+                <span className={draw ? "result-tag-draw" : isWin ? "result-tag-win" : "result-tag-loss"}>
+                  {draw ? copy.draw : isWin ? copy.win : copy.loss}
+                </span>{" "}
+                ·{" "}
                 <MotionProfileLink className={`link-inline${opponentId ? "" : " disabled-link"}`} href={opponentId ? `/u/${opponentId}` : "#"}>
                   <span className="result-player-line">
                     <ProfileAvatar name={opponentName} avatarUrl={opponentAvatar} size="sm" />

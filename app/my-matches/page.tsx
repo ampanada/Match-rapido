@@ -25,6 +25,10 @@ function normalizeWhatsapp(raw: string) {
   return `+${compact.replace(/[^\d]/g, "")}`;
 }
 
+function isDrawScore(score: string | null | undefined) {
+  return score === "6-6";
+}
+
 type MatchItem = {
   id: string;
   host_id: string;
@@ -91,6 +95,7 @@ export default async function MyMatchesPage({
           hostTag: "호스트",
           winner: "승",
           loser: "패",
+          draw: "무",
           completedLabel: "완료",
           recorded: "기록됨",
           hostManualClose: "매치 임의 마감",
@@ -133,6 +138,7 @@ export default async function MyMatchesPage({
           hostTag: "Host",
           winner: "W",
           loser: "L",
+          draw: "D",
           completedLabel: "Completado",
           recorded: "registrado",
           hostManualClose: "Cierre manual sin rival",
@@ -697,18 +703,19 @@ export default async function MyMatchesPage({
                       <p className="result-players">
                         {(() => {
                           const winnerId = resultMap.get(item.id)?.winner_id ?? null;
+                          const draw = isDrawScore(resultMap.get(item.id)?.score ?? null);
                           const first = item.participants[0];
                           const second = item.participants[1];
-                          const firstWinner = winnerId === first.id;
-                          const secondWinner = winnerId === second.id;
+                          const firstWinner = !draw && winnerId === first.id;
+                          const secondWinner = !draw && winnerId === second.id;
                           return (
                             <>
                               <MotionProfileLink className="link-inline" href={`/u/${first.profile_id ?? first.id}`}>
                                 <span className="result-player-line">
                                   <ProfileAvatar name={first.display_name} avatarUrl={first.avatar_url} size="sm" />
                                   <span className="result-player-name">{first.display_name}</span>
-                                  <span className={firstWinner ? "result-tag-win" : "result-tag-loss"}>
-                                    {firstWinner ? copy.winner : copy.loser}
+                                  <span className={draw ? "result-tag-draw" : firstWinner ? "result-tag-win" : "result-tag-loss"}>
+                                    {draw ? copy.draw : firstWinner ? copy.winner : copy.loser}
                                   </span>
                                 </span>
                               </MotionProfileLink>
@@ -717,8 +724,8 @@ export default async function MyMatchesPage({
                                 <span className="result-player-line">
                                   <ProfileAvatar name={second.display_name} avatarUrl={second.avatar_url} size="sm" />
                                   <span className="result-player-name">{second.display_name}</span>
-                                  <span className={secondWinner ? "result-tag-win" : "result-tag-loss"}>
-                                    {secondWinner ? copy.winner : copy.loser}
+                                  <span className={draw ? "result-tag-draw" : secondWinner ? "result-tag-win" : "result-tag-loss"}>
+                                    {draw ? copy.draw : secondWinner ? copy.winner : copy.loser}
                                   </span>
                                 </span>
                               </MotionProfileLink>
@@ -844,18 +851,19 @@ export default async function MyMatchesPage({
                         <p className="result-players">
                           {(() => {
                             const winnerId = resultMap.get(item.id)?.winner_id ?? null;
+                            const draw = isDrawScore(resultMap.get(item.id)?.score ?? null);
                             const first = item.participants[0];
                             const second = item.participants[1];
-                            const firstWinner = winnerId === first.id;
-                            const secondWinner = winnerId === second.id;
+                            const firstWinner = !draw && winnerId === first.id;
+                            const secondWinner = !draw && winnerId === second.id;
                             return (
                               <>
                                 <MotionProfileLink className="link-inline" href={`/u/${first.profile_id ?? first.id}`}>
                                   <span className="result-player-line">
                                     <ProfileAvatar name={first.display_name} avatarUrl={first.avatar_url} size="sm" />
                                     <span className="result-player-name">{first.display_name}</span>
-                                    <span className={firstWinner ? "result-tag-win" : "result-tag-loss"}>
-                                      {firstWinner ? copy.winner : copy.loser}
+                                    <span className={draw ? "result-tag-draw" : firstWinner ? "result-tag-win" : "result-tag-loss"}>
+                                      {draw ? copy.draw : firstWinner ? copy.winner : copy.loser}
                                     </span>
                                   </span>
                                 </MotionProfileLink>
@@ -864,8 +872,8 @@ export default async function MyMatchesPage({
                                   <span className="result-player-line">
                                     <ProfileAvatar name={second.display_name} avatarUrl={second.avatar_url} size="sm" />
                                     <span className="result-player-name">{second.display_name}</span>
-                                    <span className={secondWinner ? "result-tag-win" : "result-tag-loss"}>
-                                      {secondWinner ? copy.winner : copy.loser}
+                                    <span className={draw ? "result-tag-draw" : secondWinner ? "result-tag-win" : "result-tag-loss"}>
+                                      {draw ? copy.draw : secondWinner ? copy.winner : copy.loser}
                                     </span>
                                   </span>
                                 </MotionProfileLink>

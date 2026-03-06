@@ -17,7 +17,11 @@ function waLink(phone: string, text: string) {
 }
 
 function isValidResultScore(score: string) {
-  return /^(6-[0-4]|7-[5-6])$/.test(score);
+  return /^(6-[0-4]|7-[5-6]|6-6)$/.test(score);
+}
+
+function isDrawScore(score: string | null | undefined) {
+  return score === "6-6";
 }
 
 export default async function PostDetailPage({
@@ -71,8 +75,9 @@ export default async function PostDetailPage({
           cancelResult: "결과 취소",
           cancellingResult: "취소 중...",
           confirmedResult: "확정 결과",
+          drawResult: "무승부",
           winner: "승자",
-          scorePlaceholder: "예: 6-2, 7-5, 7-6",
+          scorePlaceholder: "예: 6-2, 7-5, 7-6, 6-6",
           resultNotStarted: "경기 시작 전에는 결과를 등록할 수 없습니다.",
           h2hTitle: "상대전적 (Head to Head)",
           h2hTotal: "총 전적",
@@ -114,8 +119,9 @@ export default async function PostDetailPage({
           cancelResult: "Cancelar resultado",
           cancellingResult: "Cancelando...",
           confirmedResult: "Resultado confirmado",
+          drawResult: "Empate",
           winner: "Ganador",
-          scorePlaceholder: "Ej: 6-2, 7-5, 7-6",
+          scorePlaceholder: "Ej: 6-2, 7-5, 7-6, 6-6",
           resultNotStarted: "No se puede registrar resultado antes del inicio del partido.",
           h2hTitle: "Head to Head",
           h2hTotal: "Historial total",
@@ -244,11 +250,11 @@ export default async function PostDetailPage({
   const playerB = singleOpponentId;
   const canViewH2H = !!user && post.format === "single" && !!playerB;
 
-  let h2hRecords: { winner_id: string | null }[] = [];
+  let h2hRecords: { winner_id: string | null; score: string }[] = [];
   if (canViewH2H) {
     const { data } = await supabase
       .from("match_results")
-      .select("winner_id")
+      .select("winner_id,score")
       .eq("status", "confirmed")
       .or(`and(player_a.eq.${post.host_id},player_b.eq.${playerB}),and(player_a.eq.${playerB},player_b.eq.${post.host_id})`)
       .order("confirmed_at", { ascending: false })
@@ -257,15 +263,16 @@ export default async function PostDetailPage({
     h2hRecords = data ?? [];
   }
 
-  const h2hTotal = h2hRecords.length;
-  const hostWins = h2hRecords.filter((item) => item.winner_id === post.host_id).length;
+  const h2hDecisive = h2hRecords.filter((item) => !isDrawScore(item.score));
+  const h2hTotal = h2hDecisive.length;
+  const hostWins = h2hDecisive.filter((item) => item.winner_id === post.host_id).length;
   const opponentWins = h2hTotal - hostWins;
   const hostWinRate = h2hTotal > 0 ? Math.round((hostWins / h2hTotal) * 100) : 0;
   const opponentWinRate = h2hTotal > 0 ? Math.round((opponentWins / h2hTotal) * 100) : 0;
-  const latestWinner = h2hRecords[0]?.winner_id ?? null;
+  const latestWinner = h2hDecisive[0]?.winner_id ?? null;
   let h2hStreak = 0;
   if (latestWinner) {
-    for (const row of h2hRecords) {
+    for (const row of h2hDecisive) {
       if (row.winner_id === latestWinner) {
         h2hStreak += 1;
       } else {
@@ -346,8 +353,9 @@ export default async function PostDetailPage({
 
     const winnerId = String(formData.get("winner_id") || "");
     const score = String(formData.get("score") || "").trim();
+    const draw = isDrawScore(score);
 
-    if (!winnerId || !isValidResultScore(score)) {
+    if (!isValidResultScore(score) || (!draw && !winnerId)) {
       redirect(`/post/${id}`);
     }
 
@@ -381,7 +389,7 @@ export default async function PostDetailPage({
 
     const bId = approved[0].user_id as string;
     const participants = [latestPost.host_id, bId];
-    if (!participants.includes(user.id) || !participants.includes(winnerId)) {
+    if (!participants.includes(user.id) || (!draw && !participants.includes(winnerId))) {
       redirect(`/post/${id}`);
     }
 
@@ -394,7 +402,7 @@ export default async function PostDetailPage({
       post_id: id,
       player_a: latestPost.host_id,
       player_b: bId,
-      winner_id: winnerId,
+      winner_id: draw ? null : winnerId,
       score,
       status: "pending",
       submitted_by: user.id
@@ -472,10 +480,13 @@ export default async function PostDetailPage({
   const isResultSubmitter = !!matchResult && !!user && user.id === matchResult.submitted_by;
   const canCancelResult =
     !!matchResult && matchResult.status === "pending" && !!user && (user.id === matchResult.player_a || user.id === matchResult.player_b);
+  const matchIsDraw = isDrawScore(matchResult?.score);
   const winnerDisplayName = matchResult
-    ? matchResult.winner_id === post.host_id
-      ? hostName
-      : singleJoinName
+    ? matchIsDraw
+      ? copy.drawResult
+      : matchResult.winner_id === post.host_id
+        ? hostName
+        : singleJoinName
     : "";
 
   return (
@@ -601,7 +612,7 @@ export default async function PostDetailPage({
             <strong>{copy.resultTitle}</strong>
             {!matchResult ? (
               <form className="section" action={createResult}>
-                <select className="select" name="winner_id" required>
+                <select className="select" name="winner_id">
                   <option value={post.host_id}>{hostName}</option>
                   <option value={playerB}>{singleJoinName}</option>
                 </select>
@@ -616,7 +627,7 @@ export default async function PostDetailPage({
                   {matchResult.score} · {isResultSubmitter ? copy.resultWaiting : copy.confirmResult}
                 </p>
                 <p className="result-summary">
-                  {copy.winner}: <strong>{winnerDisplayName}</strong> · {formatCordobaDate(post.start_at, dateLocale)} · {slotRange}
+                  {matchIsDraw ? copy.drawResult : copy.winner}: <strong>{winnerDisplayName}</strong> · {formatCordobaDate(post.start_at, dateLocale)} · {slotRange}
                   {post.court_no ? ` · ${lang === "ko" ? `${post.court_no}번코트` : `Cancha ${post.court_no}`}` : ""}
                 </p>
 
@@ -636,7 +647,7 @@ export default async function PostDetailPage({
 
             {matchResult?.status === "confirmed" ? (
               <p className="notice success">
-                {copy.confirmedResult}: {matchResult.score} · {copy.winner} {winnerDisplayName}
+                {copy.confirmedResult}: {matchResult.score} · {matchIsDraw ? copy.drawResult : `${copy.winner} ${winnerDisplayName}`}
               </p>
             ) : null}
           </article>

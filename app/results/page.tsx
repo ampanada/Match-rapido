@@ -6,6 +6,10 @@ import { formatCordobaDate, formatSlotRange, getCordobaDateString, getCordobaHHM
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 
+function isDrawScore(score: string | null | undefined) {
+  return score === "6-6";
+}
+
 export default async function ResultsPage({
   searchParams
 }: {
@@ -35,6 +39,7 @@ export default async function ResultsPage({
           winner: "승자",
           winTag: "승",
           lossTag: "패",
+          drawTag: "무",
           todayBadge: "오늘",
           completedLabel: "완료",
           participants: "참여자",
@@ -64,6 +69,7 @@ export default async function ResultsPage({
           winner: "Ganador",
           winTag: "W",
           lossTag: "L",
+          drawTag: "D",
           todayBadge: "Hoy",
           completedLabel: "Completado",
           participants: "Participantes",
@@ -177,8 +183,9 @@ export default async function ResultsPage({
           const weekday = getCordobaWeekday(whenDate, dateLocale);
           const isToday = whenDate === todayKey;
           const slotLabel = post?.start_at ? formatSlotRange(getCordobaHHMM(post.start_at)) : "";
-          const isAWinner = result.winner_id === playerA?.id;
-          const isBWinner = result.winner_id === playerB?.id;
+          const draw = isDrawScore(result.score);
+          const isAWinner = !draw && result.winner_id === playerA?.id;
+          const isBWinner = !draw && result.winner_id === playerB?.id;
           const playerAId = playerA?.id ?? result.player_a ?? null;
           const playerBId = playerB?.id ?? result.player_b ?? null;
           const playerAName =
@@ -235,8 +242,8 @@ export default async function ResultsPage({
                   <span className="result-player-line">
                     <ProfileAvatar name={playerAName} avatarUrl={playerAAvatar} size="sm" />
                     <span className="result-player-name">{playerAName}</span>
-                    <span className={isAWinner ? "result-tag-win" : "result-tag-loss"}>
-                      {isAWinner ? copy.winTag : copy.lossTag}
+                    <span className={draw ? "result-tag-draw" : isAWinner ? "result-tag-win" : "result-tag-loss"}>
+                      {draw ? copy.drawTag : isAWinner ? copy.winTag : copy.lossTag}
                     </span>
                   </span>
                 </MotionProfileLink>{" "}
@@ -245,8 +252,8 @@ export default async function ResultsPage({
                   <span className="result-player-line">
                     <ProfileAvatar name={playerBName} avatarUrl={playerBAvatar} size="sm" />
                     <span className="result-player-name">{playerBName}</span>
-                    <span className={isBWinner ? "result-tag-win" : "result-tag-loss"}>
-                      {isBWinner ? copy.winTag : copy.lossTag}
+                    <span className={draw ? "result-tag-draw" : isBWinner ? "result-tag-win" : "result-tag-loss"}>
+                      {draw ? copy.drawTag : isBWinner ? copy.winTag : copy.lossTag}
                     </span>
                   </span>
                 </MotionProfileLink>

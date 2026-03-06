@@ -45,15 +45,18 @@ create table if not exists public.match_results (
   post_id uuid not null references public.posts(id) on delete cascade,
   player_a uuid not null references public.profiles(id),
   player_b uuid not null references public.profiles(id),
-  winner_id uuid not null references public.profiles(id),
+  winner_id uuid references public.profiles(id),
   score text not null,
   status text not null default 'pending' check (status in ('pending', 'confirmed', 'cancelled')),
   submitted_by uuid not null references public.profiles(id),
   created_at timestamptz not null default now(),
   confirmed_at timestamptz,
   unique (post_id),
-  check (winner_id = player_a or winner_id = player_b),
-  check (score ~ '^(6-[0-4]|7-[5-6])$')
+  check (
+    (score = '6-6' and winner_id is null)
+    or (score <> '6-6' and (winner_id = player_a or winner_id = player_b))
+  ),
+  check (score ~ '^(6-[0-4]|7-[5-6]|6-6)$')
 );
 
 create table if not exists public.activity_feed (
@@ -116,10 +119,16 @@ alter table public.profiles add column if not exists created_by uuid references 
 alter table public.match_results add column if not exists submitted_by uuid references public.profiles(id);
 update public.match_results set submitted_by = player_a where submitted_by is null;
 alter table public.match_results alter column submitted_by set not null;
+alter table public.match_results alter column winner_id drop not null;
 alter table public.match_results drop constraint if exists match_results_score_check;
-alter table public.match_results add constraint match_results_score_check check (score ~ '^(6-[0-4]|7-[5-6])$');
+alter table public.match_results add constraint match_results_score_check check (score ~ '^(6-[0-4]|7-[5-6]|6-6)$');
 alter table public.match_results drop constraint if exists match_results_winner_check;
-alter table public.match_results add constraint match_results_winner_check check (winner_id = player_a or winner_id = player_b);
+alter table public.match_results
+  add constraint match_results_winner_check
+  check (
+    (score = '6-6' and winner_id is null)
+    or (score <> '6-6' and (winner_id = player_a or winner_id = player_b))
+  );
 
 create or replace function public.is_valid_slot_start(ts timestamptz)
 returns boolean
@@ -446,6 +455,12 @@ begin
     raise exception 'submitted_by must be one of players';
   end if;
 
+  if new.score = '6-6' then
+    new.winner_id := null;
+  elsif new.winner_id is null or new.winner_id not in (new.player_a, new.player_b) then
+    raise exception 'winner_id must be one of players unless score is 6-6';
+  end if;
+
   if tg_op = 'UPDATE' and old.status <> 'pending' then
     raise exception 'result can only transition from pending';
   end if;
@@ -477,6 +492,10 @@ declare
   loser_id uuid;
 begin
   if old.status = 'confirmed' or new.status <> 'confirmed' then
+    return new;
+  end if;
+
+  if new.score = '6-6' then
     return new;
   end if;
 
@@ -588,12 +607,30 @@ set search_path = public
 as $$
 declare
   winner_name text;
+  actor_name text;
 begin
   if old.status = 'confirmed' or new.status <> 'confirmed' then
     return new;
   end if;
 
   begin
+    if new.score = '6-6' then
+      select coalesce(p.display_name, 'Jugador')
+        into actor_name
+      from public.profiles p
+      where p.id = new.submitted_by;
+
+      insert into public.activity_feed(type, user_id, related_post_id, related_match_id, message)
+      values (
+        'match_result',
+        new.submitted_by,
+        new.post_id,
+        new.id,
+        actor_name || ' empato ' || new.score
+      );
+      return new;
+    end if;
+
     select coalesce(p.display_name, 'Jugador')
       into winner_name
     from public.profiles p
