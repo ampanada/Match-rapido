@@ -305,6 +305,40 @@ export default async function PostDetailPage({
         });
       }
     });
+
+    const guestProfilesResponse = await supabase
+      .from("profiles")
+      .select("display_name,whatsapp,is_guest,email")
+      .or("is_guest.eq.true,email.like.%@guest.local")
+      .limit(400);
+
+    const guestProfilesRows =
+      guestProfilesResponse.data ??
+      (
+        await supabase
+          .from("profiles")
+          .select("display_name,whatsapp,email")
+          .like("email", "%@guest.local")
+          .limit(400)
+      ).data ??
+      [];
+
+    (guestProfilesRows as any[]).forEach((row) => {
+      const guestName = String(row.display_name ?? "").trim();
+      if (!guestName) {
+        return;
+      }
+      const guestWhatsapp = row.whatsapp ? normalizeWhatsapp(String(row.whatsapp)) : null;
+      const key = `${guestName.toLowerCase()}::${guestWhatsapp ?? ""}`;
+      if (!uniqueGuests.has(key)) {
+        uniqueGuests.set(key, {
+          key,
+          guest_name: guestName,
+          guest_whatsapp: guestWhatsapp
+        });
+      }
+    });
+
     guestDirectory = Array.from(uniqueGuests.values()).slice(0, 40);
   }
 
