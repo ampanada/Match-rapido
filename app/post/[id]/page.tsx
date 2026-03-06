@@ -554,67 +554,46 @@ export default async function PostDetailPage({
     }
     const approvedCount = latestPost.joins?.filter((join: any) => join.status === "approved").length ?? 0;
     const players = approvedCount + 1;
-
-    let guestProfileId: string | null = null;
+    let existingGuestJoinQuery = supabase
+      .from("joins")
+      .select("id,status")
+      .eq("post_id", id)
+      .is("user_id", null)
+      .eq("guest_name", guestName)
+      .limit(1);
 
     if (guestWhatsapp) {
-      const { data: existingGuest } = await supabase
-        .from("profiles")
-        .select("id,display_name")
-        .eq("is_guest", true)
-        .eq("whatsapp", guestWhatsapp)
-        .maybeSingle();
+      existingGuestJoinQuery = existingGuestJoinQuery.eq("guest_whatsapp", guestWhatsapp);
+    } else {
+      existingGuestJoinQuery = existingGuestJoinQuery.is("guest_whatsapp", null);
+    }
 
-      if (existingGuest?.id) {
-        guestProfileId = existingGuest.id;
-        if (existingGuest.display_name !== guestName) {
-          await supabase.from("profiles").update({ display_name: guestName }).eq("id", existingGuest.id).eq("is_guest", true);
+    const { data: existingGuestJoin } = await existingGuestJoinQuery.maybeSingle();
+
+    if (existingGuestJoin?.id) {
+      if (existingGuestJoin.status !== "approved") {
+        const { error: approveExistingError } = await supabase
+          .from("joins")
+          .update({ status: "approved" })
+          .eq("id", existingGuestJoin.id)
+          .eq("post_id", id);
+        if (approveExistingError) {
+          redirect(`/post/${id}?guestError=insert`);
         }
       }
-    }
-
-    if (!guestProfileId) {
-      const newGuestId = crypto.randomUUID();
-      const guestEmail = `guest+${newGuestId}@guest.local`;
-      const { error: createGuestError } = await supabase.from("profiles").insert({
-        id: newGuestId,
-        email: guestEmail,
-        display_name: guestName,
-        whatsapp: guestWhatsapp || null,
-        is_guest: true,
-        created_by: user.id
+    } else {
+      const { error: insertError } = await supabase.from("joins").insert({
+        post_id: id,
+        user_id: null,
+        status: "approved",
+        guest_name: guestName,
+        guest_whatsapp: guestWhatsapp || null,
+        claimed_at: null
       });
 
-      if (createGuestError && guestWhatsapp) {
-        const { data: fallbackGuest } = await supabase
-          .from("profiles")
-          .select("id")
-          .eq("is_guest", true)
-          .eq("whatsapp", guestWhatsapp)
-          .maybeSingle();
-        guestProfileId = fallbackGuest?.id ?? null;
-      } else if (!createGuestError) {
-        guestProfileId = newGuestId;
+      if (insertError) {
+        redirect(`/post/${id}?guestError=insert`);
       }
-    }
-
-    if (!guestProfileId) {
-      redirect(`/post/${id}?guestError=insert`);
-    }
-
-    const { error } = await supabase.from("joins").upsert(
-      {
-        post_id: id,
-        user_id: guestProfileId,
-        status: "approved",
-        guest_name: null,
-        guest_whatsapp: null
-      },
-      { onConflict: "post_id,user_id" }
-    );
-
-    if (error) {
-      redirect(`/post/${id}?guestError=insert`);
     }
 
     if (players >= latestPost.needed || latestPost.status === "closed") {
