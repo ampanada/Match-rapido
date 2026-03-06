@@ -146,17 +146,69 @@ export default async function PostDetailPage({
 
   const supabase = await createClient();
 
-  const { data: post } = await supabase
+  const primaryPostQuery = await supabase
     .from("posts")
-    .select("id,host_id,start_at,format,level,needed,court_no,note,status")
+    .select("id,host_id,start_at,format,needed,level,court_no,note,status")
     .eq("id", id)
     .maybeSingle();
+
+  let post: {
+    id: string;
+    host_id: string;
+    start_at: string;
+    format: string;
+    needed: number;
+    level: string | null;
+    court_no: number | null;
+    note: string | null;
+    status: string;
+  } | null = primaryPostQuery.data as any;
+
+  if (!post && primaryPostQuery.error) {
+    const fallbackPostQuery = await supabase
+      .from("posts")
+      .select("id,host_id,start_at,format,needed")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (fallbackPostQuery.data) {
+      post = {
+        ...fallbackPostQuery.data,
+        level: null,
+        court_no: null,
+        note: null,
+        status: "open"
+      } as any;
+    }
+
+    if (!post) {
+      const legacyPostQuery = await supabase
+        .from("posts")
+        .select("id,host_id,date_time,format,needed")
+        .eq("id", id)
+        .maybeSingle();
+
+      if (legacyPostQuery.data?.date_time) {
+        post = {
+          id: legacyPostQuery.data.id,
+          host_id: legacyPostQuery.data.host_id,
+          start_at: legacyPostQuery.data.date_time,
+          format: legacyPostQuery.data.format,
+          needed: legacyPostQuery.data.needed,
+          level: null,
+          court_no: null,
+          note: null,
+          status: "open"
+        };
+      }
+    }
+  }
 
   if (!post) {
     redirect(`/post?error=not_found&id=${encodeURIComponent(id)}`);
   }
 
-  const [{ data: hostProfile }, { data: joins }] = await Promise.all([
+  const [hostProfileResponse, joinsResponse] = await Promise.all([
     supabase.from("profiles").select("display_name,whatsapp").eq("id", post.host_id).maybeSingle(),
     supabase
       .from("joins")
@@ -164,12 +216,32 @@ export default async function PostDetailPage({
       .eq("post_id", post.id)
   ]);
 
+  let hostProfile = hostProfileResponse.data;
+  if (hostProfileResponse.error) {
+    const hostFallback = await supabase.from("profiles").select("display_name").eq("id", post.host_id).maybeSingle();
+    hostProfile = hostFallback.data ? { display_name: hostFallback.data.display_name, whatsapp: null } : null;
+  }
+
+  let joins = joinsResponse.data ?? [];
+  if (joinsResponse.error) {
+    const joinsFallback = await supabase
+      .from("joins")
+      .select("id,user_id,profiles!joins_user_id_fkey(id,display_name)")
+      .eq("post_id", post.id);
+    joins = (joinsFallback.data ?? []).map((join: any) => ({
+      ...join,
+      status: "approved",
+      guest_name: null,
+      guest_whatsapp: null
+    }));
+  }
+
   const {
     data: { user }
   } = await supabase.auth.getUser();
 
-  const approvedJoins = joins?.filter((join: any) => join.status === "approved") ?? [];
-  const pendingJoins = joins?.filter((join: any) => join.status === "pending") ?? [];
+  const approvedJoins = joins?.filter((join: any) => (join.status ?? "approved") === "approved") ?? [];
+  const pendingJoins = joins?.filter((join: any) => (join.status ?? "approved") === "pending") ?? [];
   const currentPlayers = approvedJoins.length + 1;
   const recruitCount = Math.max(post.needed - 1, 0);
   const isHost = user?.id === post.host_id;
@@ -178,7 +250,8 @@ export default async function PostDetailPage({
   const isPending = myJoin?.status === "pending";
   const isExpired = new Date(post.start_at).getTime() + 30 * 60 * 1000 < Date.now();
   const hasStarted = new Date(post.start_at).getTime() <= Date.now();
-  const isCompleted = post.status === "closed" || currentPlayers >= post.needed || isExpired;
+  const postStatus = post.status ?? "open";
+  const isCompleted = postStatus === "closed" || currentPlayers >= post.needed || isExpired;
   const startHHMM = getCordobaHHMM(post.start_at);
   const slotRange = formatSlotRange(startHHMM);
 
@@ -611,7 +684,7 @@ export default async function PostDetailPage({
             </button>
           )}
 
-          {isJoined && !isHost && post.status === "open" && !isExpired ? (
+          {isJoined && !isHost && postStatus === "open" && !isExpired ? (
             <form method="post" action="/join/cancel">
               <input type="hidden" name="post_id" value={post.id} />
               <input type="hidden" name="redirect_to" value={`/post/${post.id}`} />
