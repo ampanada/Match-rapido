@@ -1078,6 +1078,15 @@ a {
   color: #89e6b2;
 }
 
+.guest-feedback {
+  background:
+    radial-gradient(120% 100% at 0% -20%, rgba(122, 255, 182, 0.16), transparent 60%),
+    linear-gradient(160deg, #163626, #122b20);
+  border-color: #2d8b57;
+  box-shadow: 0 10px 24px rgba(10, 33, 24, 0.25);
+  animation: guest-pop 0.36s cubic-bezier(0.2, 0.86, 0.25, 1) both;
+}
+
 .login-success-panel {
   border: 1px solid #2a6f45;
   border-radius: 12px;
@@ -1409,6 +1418,17 @@ a {
   }
   to {
     opacity: 1;
+  }
+}
+
+@keyframes guest-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 

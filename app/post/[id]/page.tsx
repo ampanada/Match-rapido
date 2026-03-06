@@ -35,7 +35,15 @@ export default async function PostDetailPage({
   searchParams
 }: {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ createdAt?: string; record?: string; loggedIn?: string; guestAdded?: string; guestError?: string }>;
+  searchParams?: Promise<{
+    createdAt?: string;
+    record?: string;
+    loggedIn?: string;
+    guestAdded?: string;
+    guestError?: string;
+    guestName?: string;
+    reason?: string;
+  }>;
 }) {
   noStore();
   const { id } = await params;
@@ -89,13 +97,14 @@ export default async function PostDetailPage({
           addGuestSavedTitle: "기존 게스트에서 선택",
           addGuestSavedEmpty: "저장된 게스트가 없습니다.",
           addGuestSavedUse: "선택해서 추가",
-          addGuestLocked: "경기 시작 후에는 게스트를 추가할 수 없습니다.",
+          addGuestLocked: "매치 만료 후에는 게스트를 추가할 수 없습니다.",
           addGuestName: "이름",
           addGuestWhatsapp: "WhatsApp 번호(선택)",
           addGuestHint: "비회원도 먼저 등록 가능하며, 이후 같은 번호로 가입하면 자동 연결됩니다.",
           addGuestSubmit: "게스트 등록",
           addGuestSubmitting: "등록 중...",
           guestAddedDone: "게스트가 추가되었습니다.",
+          guestAddedExists: "이미 이 매치에 등록된 게스트입니다.",
           guestInvalid: "게스트 이름 또는 WhatsApp 번호 형식이 올바르지 않습니다."
         }
       : {
@@ -143,13 +152,14 @@ export default async function PostDetailPage({
           addGuestSavedTitle: "Seleccionar invitado guardado",
           addGuestSavedEmpty: "No hay invitados guardados.",
           addGuestSavedUse: "Agregar este invitado",
-          addGuestLocked: "No se pueden agregar invitados despues del inicio del partido.",
+          addGuestLocked: "No se pueden agregar invitados en partidos vencidos.",
           addGuestName: "Nombre",
           addGuestWhatsapp: "WhatsApp (opcional)",
           addGuestHint: "Puedes registrar invitados sin cuenta. Al registrarse con el mismo numero, se vinculan automaticamente.",
           addGuestSubmit: "Registrar invitado",
           addGuestSubmitting: "Registrando...",
           guestAddedDone: "Invitado agregado correctamente.",
+          guestAddedExists: "Ese invitado ya estaba agregado a este partido.",
           guestInvalid: "Nombre o formato de WhatsApp invalido."
         };
 
@@ -586,12 +596,22 @@ export default async function PostDetailPage({
   async function addGuestJoin(formData: FormData) {
     "use server";
 
+    function guestErrorUrl(code: string, reason?: string) {
+      const reasonPart = reason ? `&reason=${encodeURIComponent(reason)}` : "";
+      return `/post/${id}?guestError=${encodeURIComponent(code)}${reasonPart}`;
+    }
+
+    function guestAddedUrl(type: "1" | "exists", guestName?: string) {
+      const namePart = guestName ? `&guestName=${encodeURIComponent(guestName)}` : "";
+      return `/post/${id}?guestAdded=${type}${namePart}`;
+    }
+
     const guestName = String(formData.get("guest_name") || "").trim();
     const guestWhatsappRaw = String(formData.get("guest_whatsapp") || "").trim();
     const guestWhatsapp = normalizeWhatsapp(guestWhatsappRaw);
 
     if (!guestName || (guestWhatsapp && !/^\+\d{8,15}$/.test(guestWhatsapp))) {
-      redirect(`/post/${id}?guestError=invalid`);
+      redirect(guestErrorUrl("invalid"));
     }
 
     const supabase = await createClient();
@@ -603,19 +623,25 @@ export default async function PostDetailPage({
       redirect(`/login?redirect_to=${encodeURIComponent(`/post/${id}`)}`);
     }
 
-    const { data: latestPost } = await supabase
+    const { data: latestPost, error: latestPostError } = await supabase
       .from("posts")
       .select("id,host_id,status,needed,start_at,joins(id,status)")
       .eq("id", id)
       .maybeSingle();
 
-    if (!latestPost || latestPost.host_id !== user.id) {
-      redirect(`/post/${id}`);
+    if (latestPostError) {
+      redirect(guestErrorUrl("load_failed", latestPostError.message));
     }
 
-    if (latestPost.start_at && new Date(latestPost.start_at).getTime() <= Date.now()) {
-      redirect(`/post/${id}`);
+    if (!latestPost || latestPost.host_id !== user.id) {
+      redirect(guestErrorUrl("forbidden"));
     }
+
+    const startMs = latestPost.start_at ? new Date(latestPost.start_at).getTime() : null;
+    if (startMs && Number.isFinite(startMs) && startMs + 30 * 60 * 1000 < Date.now()) {
+      redirect(guestErrorUrl("expired"));
+    }
+
     const approvedCount = latestPost.joins?.filter((join: any) => join.status === "approved").length ?? 0;
     const players = approvedCount + 1;
     let existingGuestJoinQuery = supabase
@@ -632,7 +658,10 @@ export default async function PostDetailPage({
       existingGuestJoinQuery = existingGuestJoinQuery.is("guest_whatsapp", null);
     }
 
-    const { data: existingGuestJoin } = await existingGuestJoinQuery.maybeSingle();
+    const { data: existingGuestJoin, error: existingGuestJoinError } = await existingGuestJoinQuery.maybeSingle();
+    if (existingGuestJoinError) {
+      redirect(guestErrorUrl("lookup_failed", existingGuestJoinError.message));
+    }
 
     if (existingGuestJoin?.id) {
       if (existingGuestJoin.status !== "approved") {
@@ -642,9 +671,11 @@ export default async function PostDetailPage({
           .eq("id", existingGuestJoin.id)
           .eq("post_id", id);
         if (approveExistingError) {
-          redirect(`/post/${id}?guestError=insert`);
+          redirect(guestErrorUrl("insert_failed", approveExistingError.message));
         }
+        redirect(guestAddedUrl("1", guestName));
       }
+      redirect(guestAddedUrl("exists", guestName));
     } else {
       const { error: insertError } = await supabase.from("joins").insert({
         post_id: id,
@@ -656,7 +687,7 @@ export default async function PostDetailPage({
       });
 
       if (insertError) {
-        redirect(`/post/${id}?guestError=insert`);
+        redirect(guestErrorUrl("insert_failed", insertError.message));
       }
     }
 
@@ -671,8 +702,25 @@ export default async function PostDetailPage({
         .eq("host_id", user.id);
     }
 
-    redirect(`/post/${id}?guestAdded=1`);
+    redirect(guestAddedUrl("1", guestName));
   }
+
+  const guestNameFromQs = qs.guestName ? decodeURIComponent(qs.guestName) : "";
+  const guestReason = qs.reason ? decodeURIComponent(qs.reason) : "";
+  const guestErrorMessage =
+    qs.guestError === "invalid"
+      ? copy.guestInvalid
+      : qs.guestError === "expired"
+        ? lang === "ko"
+          ? "매치 만료 후에는 게스트를 추가할 수 없습니다."
+          : "No se pueden agregar invitados en partidos vencidos."
+        : qs.guestError === "forbidden"
+          ? lang === "ko"
+            ? "호스트만 게스트를 추가할 수 있습니다."
+            : "Solo el host puede agregar invitados."
+          : lang === "ko"
+            ? "게스트 등록 중 오류가 발생했습니다."
+            : "Hubo un error al agregar el invitado.";
 
   return (
     <main className="shell">
@@ -689,8 +737,24 @@ export default async function PostDetailPage({
           {copy.created} {new Date(qs.createdAt).toLocaleString(dateLocale)}
         </p>
       ) : null}
-      {qs.guestAdded === "1" ? <p className="notice success">{copy.guestAddedDone}</p> : null}
-      {qs.guestError ? <p className="notice">{copy.guestInvalid}</p> : null}
+      {qs.guestAdded === "1" ? (
+        <p className="notice success guest-feedback">
+          {copy.guestAddedDone}
+          {guestNameFromQs ? ` · ${guestNameFromQs}` : ""}
+        </p>
+      ) : null}
+      {qs.guestAdded === "exists" ? (
+        <p className="notice success guest-feedback">
+          {copy.guestAddedExists}
+          {guestNameFromQs ? ` · ${guestNameFromQs}` : ""}
+        </p>
+      ) : null}
+      {qs.guestError ? (
+        <p className="notice">
+          {guestErrorMessage}
+          {guestReason ? ` (${guestReason})` : ""}
+        </p>
+      ) : null}
 
       <section className="card">
         <div className="row">
@@ -775,7 +839,7 @@ export default async function PostDetailPage({
                     <form key={guest.key} action={addGuestJoin}>
                       <input type="hidden" name="guest_name" value={guest.guest_name} />
                       <input type="hidden" name="guest_whatsapp" value={guest.guest_whatsapp ?? ""} />
-                      <button className="guest-directory-btn" type="submit" disabled={hasStarted}>
+                      <button className="guest-directory-btn" type="submit" disabled={isExpired}>
                         <span className="guest-directory-name">{guest.guest_name}</span>
                         <span className="guest-directory-phone">{guest.guest_whatsapp || "-"}</span>
                         <span className="guest-directory-cta">{copy.addGuestSavedUse}</span>
@@ -787,11 +851,11 @@ export default async function PostDetailPage({
             </details>
 
             <form className="section" action={addGuestJoin}>
-              <input className="input" name="guest_name" placeholder={copy.addGuestName} required disabled={hasStarted} />
-              <input className="input" name="guest_whatsapp" placeholder={copy.addGuestWhatsapp} inputMode="tel" disabled={hasStarted} />
-              <SubmitButton idleLabel={copy.addGuestSubmit} pendingLabel={copy.addGuestSubmitting} disabled={hasStarted} />
+              <input className="input" name="guest_name" placeholder={copy.addGuestName} required disabled={isExpired} />
+              <input className="input" name="guest_whatsapp" placeholder={copy.addGuestWhatsapp} inputMode="tel" disabled={isExpired} />
+              <SubmitButton idleLabel={copy.addGuestSubmit} pendingLabel={copy.addGuestSubmitting} disabled={isExpired} />
             </form>
-            {hasStarted ? <p className="notice">{copy.addGuestLocked}</p> : null}
+            {isExpired ? <p className="notice">{copy.addGuestLocked}</p> : null}
             <p className="muted">{copy.addGuestHint}</p>
           </article>
         ) : null}
