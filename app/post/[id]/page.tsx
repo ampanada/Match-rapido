@@ -608,9 +608,11 @@ export default async function PostDetailPage({
 
     const guestName = String(formData.get("guest_name") || "").trim();
     const guestWhatsappRaw = String(formData.get("guest_whatsapp") || "").trim();
-    const guestWhatsapp = normalizeWhatsapp(guestWhatsappRaw);
+    const normalizedWhatsapp = normalizeWhatsapp(guestWhatsappRaw);
+    const guestWhatsapp = normalizedWhatsapp && /^\+\d{8,15}$/.test(normalizedWhatsapp) ? normalizedWhatsapp : null;
 
-    if (!guestName || (guestWhatsapp && !/^\+\d{8,15}$/.test(guestWhatsapp))) {
+    // Name is required. WhatsApp is optional; invalid input is ignored instead of blocking registration.
+    if (!guestName) {
       redirect(guestErrorUrl("invalid"));
     }
 
@@ -644,19 +646,13 @@ export default async function PostDetailPage({
 
     const approvedCount = latestPost.joins?.filter((join: any) => join.status === "approved").length ?? 0;
     const players = approvedCount + 1;
-    let existingGuestJoinQuery = supabase
+    const existingGuestJoinQuery = supabase
       .from("joins")
       .select("id,status")
       .eq("post_id", id)
       .is("user_id", null)
       .eq("guest_name", guestName)
       .limit(1);
-
-    if (guestWhatsapp) {
-      existingGuestJoinQuery = existingGuestJoinQuery.eq("guest_whatsapp", guestWhatsapp);
-    } else {
-      existingGuestJoinQuery = existingGuestJoinQuery.is("guest_whatsapp", null);
-    }
 
     const { data: existingGuestJoin, error: existingGuestJoinError } = await existingGuestJoinQuery.maybeSingle();
     if (existingGuestJoinError) {
