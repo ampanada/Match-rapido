@@ -19,6 +19,7 @@ export default function ShareMini({ postId, startAtLabel, courtNo, formatLabel, 
   const [feedback, setFeedback] = useState("");
   const [busy, setBusy] = useState(false);
   const path = `/post/${postId}`;
+  const shareLabel = lang === "ko" ? "공유" : "Compartir";
 
   function stop(event: React.MouseEvent<HTMLElement>) {
     event.preventDefault();
@@ -67,16 +68,17 @@ export default function ShareMini({ postId, startAtLabel, courtNo, formatLabel, 
   return (
     <div className="post-share-mini" onClick={stop}>
       <button
-        className="mini-share-icon-btn"
+        className="mini-share-pill-btn"
         type="button"
         onClick={(event) => void onShare(event)}
         disabled={busy}
-        aria-label={lang === "ko" ? "공유" : "Compartir"}
-        title={lang === "ko" ? "공유" : "Compartir"}
+        aria-label={shareLabel}
+        title={shareLabel}
       >
-        <span className="mini-share-icon" aria-hidden="true">
+        <span className="mini-share-pill-icon" aria-hidden="true">
           ↗
         </span>
+        <span className="mini-share-pill-label">{busy ? (lang === "ko" ? "공유중..." : "Compartiendo...") : shareLabel}</span>
       </button>
       {feedback ? <span className="mini-share-feedback">{feedback}</span> : null}
     </div>

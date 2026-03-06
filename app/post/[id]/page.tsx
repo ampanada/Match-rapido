@@ -5,9 +5,7 @@ import { getServerLang } from "@/lib/i18n-server";
 import { formatCordobaDate, formatSlotRange, getCordobaHHMM } from "@/lib/constants/slots";
 import { createClient } from "@/lib/supabase/server";
 import { unstable_noStore as noStore } from "next/cache";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import ShareButtons from "./_components/ShareButtons";
 import LoginSuccessToast from "../../_components/LoginSuccessToast";
 
 export const dynamic = "force-dynamic";
@@ -62,7 +60,6 @@ export default async function PostDetailPage({
           ask: "WhatsApp 문의",
           loginToAsk: "로그인하고 연락하기",
           noWhatsapp: "WhatsApp 없음",
-          shareTitle: "공유",
           close: "모집 마감",
           created: "작성 완료:",
           pendingRequests: "참여 요청",
@@ -116,7 +113,6 @@ export default async function PostDetailPage({
           ask: "Contactar por WhatsApp",
           loginToAsk: "Inicia sesión para contactar",
           noWhatsapp: "Sin WhatsApp",
-          shareTitle: "Compartir",
           close: "Cerrar convocatoria",
           created: "Publicado:",
           pendingRequests: "Solicitudes pendientes",
@@ -269,33 +265,41 @@ export default async function PostDetailPage({
 
   let guestDirectory: Array<{ key: string; guest_name: string; guest_whatsapp: string | null }> = [];
   if (isHost) {
-    const guestDirectoryResponse = await supabase
-      .from("joins")
-      .select("guest_name,guest_whatsapp,created_at")
-      .is("user_id", null)
-      .not("guest_name", "is", null)
-      .order("created_at", { ascending: false })
-      .limit(300);
+    const { data: hostPosts } = await supabase.from("posts").select("id").eq("host_id", post.host_id).limit(400);
+    const hostPostIds = (hostPosts ?? []).map((item) => item.id);
+    let directoryRows: any[] = [];
+    if (hostPostIds.length > 0) {
+      const guestDirectoryResponse = await supabase
+        .from("joins")
+        .select("guest_name,guest_whatsapp,user_id,created_at,profiles!joins_user_id_fkey(display_name,whatsapp,is_guest,email)")
+        .in("post_id", hostPostIds)
+        .order("created_at", { ascending: false })
+        .limit(600);
 
-    const directoryRows =
-      guestDirectoryResponse.data ??
-      (
-        await supabase
+      if (guestDirectoryResponse.data) {
+        directoryRows = guestDirectoryResponse.data as any[];
+      } else {
+        const guestDirectoryFallback = await supabase
           .from("joins")
-          .select("guest_name,guest_whatsapp")
-          .is("user_id", null)
-          .not("guest_name", "is", null)
-          .limit(300)
-      ).data ??
-      [];
+          .select("guest_name,guest_whatsapp,user_id,created_at,profiles!joins_user_id_fkey(display_name,whatsapp,email)")
+          .in("post_id", hostPostIds)
+          .order("created_at", { ascending: false })
+          .limit(600);
+        directoryRows = (guestDirectoryFallback.data ?? []) as any[];
+      }
+    }
 
     const uniqueGuests = new Map<string, { key: string; guest_name: string; guest_whatsapp: string | null }>();
     (directoryRows as any[]).forEach((row) => {
-      const guestName = String(row.guest_name ?? "").trim();
+      const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+      const isLegacyGuestProfile = profile?.is_guest === true || String(profile?.email ?? "").endsWith("@guest.local");
+      const legacyGuestName = isLegacyGuestProfile ? String(profile?.display_name ?? "").trim() : "";
+      const legacyGuestWhatsapp = isLegacyGuestProfile && profile?.whatsapp ? normalizeWhatsapp(String(profile.whatsapp)) : null;
+      const guestName = String(row.guest_name ?? "").trim() || legacyGuestName;
       if (!guestName) {
         return;
       }
-      const guestWhatsapp = row.guest_whatsapp ? normalizeWhatsapp(String(row.guest_whatsapp)) : null;
+      const guestWhatsapp = row.guest_whatsapp ? normalizeWhatsapp(String(row.guest_whatsapp)) : legacyGuestWhatsapp;
       const key = `${guestName.toLowerCase()}::${guestWhatsapp ?? ""}`;
       if (!uniqueGuests.has(key)) {
         uniqueGuests.set(key, {
@@ -527,23 +531,6 @@ export default async function PostDetailPage({
   const chatLink = hostWhatsapp
     ? waLink(hostWhatsapp, `Hola ${hostName}, consulta por el partido ${formatCordobaDate(post.start_at, "es-AR")} ${slotRange}.`)
     : "";
-  const sharePath = `/post/${post.id}`;
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
-  let shareUrl = sharePath;
-
-  if (siteUrl) {
-    shareUrl = `${siteUrl}${sharePath}`;
-  } else {
-    const requestHeaders = await headers();
-    const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
-    const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
-    if (host) {
-      shareUrl = `${proto}://${host}${sharePath}`;
-    }
-  }
-
-  const shareDateTimeLabel = `${formatCordobaDate(post.start_at, "es-AR")} · ${slotRange}`;
-
   const singleJoinProfile = singleApprovedRegisteredJoin
     ? Array.isArray(singleApprovedRegisteredJoin.profiles)
       ? singleApprovedRegisteredJoin.profiles[0]
@@ -738,17 +725,6 @@ export default async function PostDetailPage({
             </button>
           )}
         </div>
-
-        <article className="card">
-          <strong>{copy.shareTitle}</strong>
-          <ShareButtons
-            url={shareUrl}
-            dateTimeLabel={shareDateTimeLabel}
-            courtNo={post.court_no}
-            format={post.format}
-            level={post.level}
-          />
-        </article>
 
         {isHost && !isCompleted ? (
           <form action={closePost}>
