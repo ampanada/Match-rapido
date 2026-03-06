@@ -19,17 +19,18 @@ function isNextRedirectError(error: unknown) {
 export default async function PostPage({
   searchParams
 }: {
-  searchParams?: Promise<{ error?: string; at?: string; start?: string; message?: string }>;
+  searchParams?: Promise<{ error?: string; at?: string; start?: string; message?: string; id?: string; reason?: string }>;
 }) {
   const params = (await searchParams) ?? {};
   const lang = await getServerLang();
   const copy =
     lang === "ko"
-        ? {
+      ? {
           title: "매치 글쓰기",
           subtitle: "오늘/지금 가능한 멤버 모집",
           duplicate: "중복 매칭 글이 있어 등록하지 않았습니다.",
           invalid: "유효하지 않은 날짜/슬롯입니다. 다시 선택해 주세요.",
+          notFound: "해당 매치를 열지 못했습니다.",
           past: "지난 시간 슬롯은 등록할 수 없습니다.",
           failed: "글 생성 실패:",
           autoClose: "자동 종료: 시작 후 90분 (예: 09:00-10:30)",
@@ -44,6 +45,7 @@ export default async function PostPage({
           subtitle: "Crear una convocatoria rapida",
           duplicate: "Ya existe una convocatoria duplicada para ese horario.",
           invalid: "Fecha o franja invalida. Vuelve a seleccionar.",
+          notFound: "No se pudo abrir ese partido.",
           past: "No puedes publicar una franja que ya paso.",
           failed: "Error al publicar:",
           autoClose: "Cierre automatico: 90 minutos desde el inicio",
@@ -163,10 +165,12 @@ export default async function PostPage({
   const duplicateErrorTime = params.at ? new Date(params.at) : null;
   const isDuplicateError = params.error === "duplicate";
   const isInvalidSlotError = params.error === "invalid_slot";
+  const isNotFoundError = params.error === "not_found";
   const pastStart = params.start ? new Date(params.start) : null;
   const isPastError = params.error === "past";
   const isCreateFailed = params.error === "create_failed";
   const createFailedMessage = params.message ? decodeURIComponent(params.message) : "";
+  const notFoundReason = params.reason ? decodeURIComponent(params.reason) : "";
   const defaultDate = getCordobaDateString();
   const dateLocale = lang === "ko" ? "ko-KR" : "es-AR";
 
@@ -181,6 +185,13 @@ export default async function PostPage({
         <p className="notice">
           {copy.duplicate}
           {duplicateErrorTime ? ` (${duplicateErrorTime.toLocaleString(dateLocale)})` : ""}
+        </p>
+      ) : null}
+      {isNotFoundError ? (
+        <p className="notice">
+          {lang === "ko" ? "해당 매치를 열지 못했습니다." : copy.notFound}
+          {params.id ? ` (${params.id})` : ""}
+          {notFoundReason ? ` - ${notFoundReason}` : ""}
         </p>
       ) : null}
       {isInvalidSlotError ? <p className="notice">{copy.invalid}</p> : null}

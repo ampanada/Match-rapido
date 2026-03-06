@@ -205,7 +205,8 @@ export default async function PostDetailPage({
   }
 
   if (!post) {
-    redirect(`/post?error=not_found&id=${encodeURIComponent(id)}`);
+    const reason = primaryPostQuery.error?.message ? `&reason=${encodeURIComponent(primaryPostQuery.error.message)}` : "";
+    redirect(`/post?error=not_found&id=${encodeURIComponent(id)}${reason}`);
   }
 
   const [hostProfileResponse, joinsResponse] = await Promise.all([
