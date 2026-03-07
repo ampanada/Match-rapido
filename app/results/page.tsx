@@ -480,29 +480,24 @@ export default async function ResultsPage({
           ];
 
           return (
-            <article className="card match-card match-card-completed result-card" key={result.id}>
+            <article className="card match-card match-card-completed my-match-card result-card" key={result.id}>
               <div className="row">
                 {isToday ? <span className="badge">{copy.todayBadge}</span> : <span className="badge">{copy.completedLabel}</span>}
                 <span className="muted">{copy.completedLabel}</span>
               </div>
-              <div className="result-date-hero">
-                <span className="result-weekday">{weekday}</span>
-                <span className="result-date-text">{formatCordobaDate(when, dateLocale)}</span>
-                {slotLabel ? <span className="result-time-pill">{slotLabel}</span> : null}
-              </div>
+              <p className="match-date-line result-date-line">
+                <strong>
+                  {weekday} · {formatCordobaDate(when, dateLocale)}{slotLabel ? ` · ${slotLabel}` : ""}
+                </strong>
+              </p>
               <p className="result-main-headline">
                 <strong>{result.score}</strong>
                 <span>{mainResultSummary}</span>
               </p>
-              <div className="result-info-grid">
-                <article className="result-info-card">
-                  <span className="result-info-label">{copy.court}</span>
-                  <strong className="result-info-value">{courtLabel}</strong>
-                </article>
-                <article className="result-info-card">
-                  <span className="result-info-label">{copy.h2hLabel}</span>
-                  <strong className="result-info-value">{h2hDisplay}</strong>
-                </article>
+              <div className="my-match-meta-row result-meta-row">
+                <span className="my-match-meta-pill result-meta-pill">{courtLabel}</span>
+                <span className="my-match-meta-pill result-meta-pill">{copy.h2hLabel} {h2hDisplay}</span>
+                <span className="my-match-meta-pill result-meta-pill">{copy.set}</span>
               </div>
               <div className="result-participants-card">
                 <p className="result-participants-title">{copy.participants}</p>
