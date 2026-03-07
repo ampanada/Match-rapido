@@ -108,7 +108,9 @@ export default async function ResultsPage({
           streakUnit: "연승",
           bestStreak: "최고",
           wdlLabel: "승/무/패",
-          winRateLabel: "승률"
+          winRateLabel: "승률",
+          formatLabel: "형식",
+          singleLabel: "단식"
         }
       : {
           title: "Resultados en vivo",
@@ -140,7 +142,9 @@ export default async function ResultsPage({
           streakUnit: "seguidas",
           bestStreak: "mejor",
           wdlLabel: "G/E/P",
-          winRateLabel: "Win %"
+          winRateLabel: "Win %",
+          formatLabel: "Formato",
+          singleLabel: "Individual"
         };
 
   const supabase = await createClient();
@@ -404,8 +408,13 @@ export default async function ResultsPage({
             playerB?.avatar_url ??
             (playerBId ? fallbackProfileMap.get(playerBId)?.avatar_url : null) ??
             null;
-          const participantCount = [playerAName, playerBName].filter(Boolean).length;
           const courtLabel = post?.court_no ? `${copy.court} ${post.court_no}` : copy.unknownCourt;
+          const winnerName = isAWinner ? playerAName : playerBName;
+          const mainResultSummary = draw ? (lang === "ko" ? "무승부" : "empate") : lang === "ko" ? `${winnerName} 승리` : `gano ${winnerName}`;
+          const participants = [
+            { id: playerAId, name: playerAName, avatar: playerAAvatar, isWinner: isAWinner },
+            { id: playerBId, name: playerBName, avatar: playerBAvatar, isWinner: isBWinner }
+          ];
 
           return (
             <article className="card match-card match-card-completed result-card" key={result.id}>
@@ -418,66 +427,55 @@ export default async function ResultsPage({
                 <span className="result-date-text">{formatCordobaDate(when, dateLocale)}</span>
                 {slotLabel ? <span className="result-time-pill">{slotLabel}</span> : null}
               </div>
+              <p className="result-main-headline">
+                <strong>{result.score}</strong>
+                <span>{mainResultSummary}</span>
+              </p>
               <div className="result-info-grid">
                 <article className="result-info-card">
                   <span className="result-info-label">{copy.court}</span>
                   <strong className="result-info-value">{courtLabel}</strong>
                 </article>
                 <article className="result-info-card">
-                  <span className="result-info-label">{copy.participants}</span>
-                  <strong className="result-info-value">
-                    {lang === "ko" ? `${participantCount}명` : `${participantCount} jugadores`}
-                  </strong>
+                  <span className="result-info-label">{copy.formatLabel}</span>
+                  <strong className="result-info-value">{copy.singleLabel}</strong>
                 </article>
               </div>
               <div className="result-participants-card">
                 <p className="result-participants-title">{copy.participants}</p>
-                <div className="participant-list">
-                  {[{ id: playerAId, name: playerAName, avatar: playerAAvatar }, { id: playerBId, name: playerBName, avatar: playerBAvatar }].map(
-                    (player, idx) => (
-                      <MotionProfileLink
-                        key={`${result.id}-participant-${player.id ?? idx}`}
-                        className={`participant-chip${player.id ? "" : " disabled-link"}`}
-                        href={player.id ? `/u/${player.id}` : "#"}
-                      >
-                        <span className="participant-row">
-                          <span className="participant-index">{copy.participantItem} {idx + 1}</span>
-                          <ProfileAvatar name={player.name} avatarUrl={player.avatar} size="sm" />
-                          <strong className="participant-name">{player.name}</strong>
-                          {player.id && post?.host_id && player.id === post.host_id ? <span className="participant-role">{copy.hostTag}</span> : null}
-                        </span>
-                      </MotionProfileLink>
-                    )
-                  )}
+                <div className="result-participants-stack">
+                  {participants.map((player, idx) => {
+                    const marker = draw ? "D" : player.isWinner ? "W" : "L";
+                    const markerClass = draw ? "draw" : player.isWinner ? "win" : "loss";
+                    const row = (
+                      <span className="participant-row">
+                        <span className="participant-index">{copy.participantItem} {idx + 1}</span>
+                        <span className={`result-outcome-marker ${markerClass}`}>{marker}</span>
+                        <ProfileAvatar name={player.name} avatarUrl={player.avatar} size="sm" />
+                        <strong className="participant-name">{player.name}</strong>
+                        {player.id && post?.host_id && player.id === post.host_id ? <span className="participant-role">{copy.hostTag}</span> : null}
+                      </span>
+                    );
+
+                    return (
+                      <div key={`${result.id}-participant-${player.id ?? idx}`}>
+                        {player.id ? (
+                          <MotionProfileLink className="participant-chip" href={`/u/${player.id}`}>
+                            {row}
+                          </MotionProfileLink>
+                        ) : (
+                          <div className="participant-chip disabled-link">{row}</div>
+                        )}
+                        {idx === 0 ? (
+                          <div className="result-vs-divider">
+                            <span>vs</span>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-
-              <p className="result-players">
-                <MotionProfileLink className={`link-inline${playerAId ? "" : " disabled-link"}`} href={playerAId ? `/u/${playerAId}` : "#"}>
-                  <span className="result-player-line">
-                    <ProfileAvatar name={playerAName} avatarUrl={playerAAvatar} size="sm" />
-                    <span className="result-player-name">{playerAName}</span>
-                    <span className={draw ? "result-tag-draw" : isAWinner ? "result-tag-win" : "result-tag-loss"}>
-                      {draw ? copy.drawTag : isAWinner ? copy.winTag : copy.lossTag}
-                    </span>
-                  </span>
-                </MotionProfileLink>{" "}
-                vs{" "}
-                <MotionProfileLink className={`link-inline${playerBId ? "" : " disabled-link"}`} href={playerBId ? `/u/${playerBId}` : "#"}>
-                  <span className="result-player-line">
-                    <ProfileAvatar name={playerBName} avatarUrl={playerBAvatar} size="sm" />
-                    <span className="result-player-name">{playerBName}</span>
-                    <span className={draw ? "result-tag-draw" : isBWinner ? "result-tag-win" : "result-tag-loss"}>
-                      {draw ? copy.drawTag : isBWinner ? copy.winTag : copy.lossTag}
-                    </span>
-                  </span>
-                </MotionProfileLink>
-              </p>
-
-              <p className="result-scoreline">
-                <span className="muted">{copy.recorded}</span>
-                <strong>{result.score}</strong>
-              </p>
             </article>
           );
         })}

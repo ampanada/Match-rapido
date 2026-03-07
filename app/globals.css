@@ -936,6 +936,34 @@ a {
   gap: 5px;
 }
 
+.result-main-headline {
+  margin: 0;
+  border: 1px solid rgba(126, 163, 229, 0.4);
+  border-radius: 10px;
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(109, 176, 255, 0.2), transparent 58%),
+    linear-gradient(155deg, rgba(39, 57, 90, 0.96), rgba(29, 43, 71, 0.9));
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 8px;
+}
+
+.result-main-headline strong {
+  font-size: 20px;
+  line-height: 1;
+  color: #ffffff;
+  letter-spacing: 0.4px;
+}
+
+.result-main-headline span {
+  font-size: 11px;
+  font-weight: 700;
+  color: #d9e8ff;
+  text-align: right;
+}
+
 .result-info-card {
   border: 1px solid rgba(133, 166, 226, 0.38);
   border-radius: 10px;
@@ -982,6 +1010,34 @@ a {
   color: #c3d4f1;
 }
 
+.result-participants-stack {
+  display: grid;
+  gap: 2px;
+}
+
+.result-vs-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 1px 0;
+}
+
+.result-vs-divider span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(132, 160, 212, 0.34);
+  background: rgba(36, 51, 80, 0.66);
+  color: #b8c9e6;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  text-transform: lowercase;
+}
+
 .result-card .participant-list {
   gap: 2px;
 }
@@ -998,6 +1054,26 @@ a {
 .result-card .participant-index {
   min-width: 42px;
   font-size: 8px;
+}
+
+.result-outcome-marker {
+  min-width: 12px;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+}
+
+.result-outcome-marker.win {
+  color: #47da96;
+}
+
+.result-outcome-marker.loss {
+  color: #ff6e78;
+}
+
+.result-outcome-marker.draw {
+  color: #c8d2e2;
 }
 
 .result-card .participant-name {
