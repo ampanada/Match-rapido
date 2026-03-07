@@ -116,7 +116,8 @@ export default async function ResultsPage({
           bestStreak: "최고",
           wdlLabel: "승/무/패",
           winRateLabel: "승률",
-          h2hLabel: "상대전적"
+          h2hLabel: "상대전적",
+          h2hRateEmpty: "데이터 없음"
         }
       : {
           title: "Resultados en vivo",
@@ -149,7 +150,8 @@ export default async function ResultsPage({
           bestStreak: "mejor",
           wdlLabel: "G/E/P",
           winRateLabel: "Win %",
-          h2hLabel: "H2H"
+          h2hLabel: "H2H",
+          h2hRateEmpty: "Sin datos"
         };
 
   const supabase = await createClient();
@@ -468,9 +470,10 @@ export default async function ResultsPage({
           const h2hStats = h2hKey ? h2hByPair.get(h2hKey) : null;
           const playerAWins = playerAId ? h2hStats?.winsByPlayer.get(playerAId) ?? 0 : 0;
           const playerBWins = playerBId ? h2hStats?.winsByPlayer.get(playerBId) ?? 0 : 0;
-          const drawSuffix =
-            (h2hStats?.draws ?? 0) > 0 ? ` · ${copy.drawTag} ${h2hStats?.draws ?? 0}` : "";
-          const h2hDisplay = `${playerAWins}-${playerBWins}${drawSuffix}`;
+          const h2hDecisiveTotal = playerAWins + playerBWins;
+          const playerARate = h2hDecisiveTotal > 0 ? Math.round((playerAWins / h2hDecisiveTotal) * 100) : 0;
+          const playerBRate = h2hDecisiveTotal > 0 ? Math.round((playerBWins / h2hDecisiveTotal) * 100) : 0;
+          const h2hDisplay = h2hDecisiveTotal > 0 ? `${playerARate}% - ${playerBRate}%` : copy.h2hRateEmpty;
           const participants = [
             { id: playerAId, name: playerAName, avatar: playerAAvatar, isWinner: isAWinner },
             { id: playerBId, name: playerBName, avatar: playerBAvatar, isWinner: isBWinner }
