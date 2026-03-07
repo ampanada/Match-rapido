@@ -177,13 +177,14 @@ export default async function Home({
     avatar_url: string | null;
     is_guest?: boolean | null;
     email?: string | null;
+    total_matches?: number | null;
   }> = [];
 
   for (let i = 0; i < guestNames.length; i += 100) {
     const chunk = guestNames.slice(i, i + 100);
     const { data: chunkProfiles } = await supabase
       .from("profiles")
-      .select("id,display_name,whatsapp,avatar_url,is_guest,email")
+      .select("id,display_name,whatsapp,avatar_url,is_guest,email,total_matches")
       .in("display_name", chunk)
       .limit(400);
     if (chunkProfiles?.length) {
@@ -191,14 +192,34 @@ export default async function Home({
     }
   }
 
-  const guestProfileMapByNamePhone = new Map<string, { id: string; display_name: string | null; avatar_url: string | null }>();
-  const guestProfilesByName = new Map<string, Array<{ id: string; display_name: string | null; avatar_url: string | null }>>();
+  type SlimGuestProfile = {
+    id: string;
+    display_name: string | null;
+    avatar_url: string | null;
+    score: number;
+  };
+
+  function profileScore(profile: {
+    is_guest?: boolean | null;
+    email?: string | null;
+    total_matches?: number | null;
+  }) {
+    const email = String(profile.email ?? "").toLowerCase();
+    const isGuest = profile.is_guest === true || email.endsWith("@guest.local");
+    let score = 0;
+    if (!isGuest) {
+      score += 4;
+    }
+    if ((profile.total_matches ?? 0) > 0) {
+      score += 2;
+    }
+    return score;
+  }
+
+  const guestProfileMapByNamePhone = new Map<string, SlimGuestProfile>();
+  const guestProfilesByName = new Map<string, Array<SlimGuestProfile>>();
 
   for (const profile of guestProfileCandidates) {
-    const isGuestProfile = profile.is_guest === true || String(profile.email ?? "").endsWith("@guest.local");
-    if (!isGuestProfile) {
-      continue;
-    }
     const name = String(profile.display_name ?? "").trim();
     if (!name) {
       continue;
@@ -206,8 +227,14 @@ export default async function Home({
     const nameKey = name.toLowerCase();
     const phoneKey = normalizeWhatsapp(profile.whatsapp);
     const compositeKey = `${nameKey}::${phoneKey}`;
-    const slim = { id: profile.id, display_name: profile.display_name, avatar_url: profile.avatar_url };
-    if (!guestProfileMapByNamePhone.has(compositeKey)) {
+    const slim: SlimGuestProfile = {
+      id: profile.id,
+      display_name: profile.display_name,
+      avatar_url: profile.avatar_url,
+      score: profileScore(profile)
+    };
+    const existingByPhone = guestProfileMapByNamePhone.get(compositeKey);
+    if (!existingByPhone || slim.score > existingByPhone.score) {
       guestProfileMapByNamePhone.set(compositeKey, slim);
     }
     const current = guestProfilesByName.get(nameKey) ?? [];
@@ -235,8 +262,8 @@ export default async function Home({
       return blankPhone;
     }
 
-    const byName = guestProfilesByName.get(nameKey) ?? [];
-    if (byName.length === 1) {
+    const byName = (guestProfilesByName.get(nameKey) ?? []).sort((a, b) => b.score - a.score);
+    if (byName.length > 0) {
       return byName[0];
     }
     return null;
