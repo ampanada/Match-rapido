@@ -582,6 +582,18 @@ a {
   word-break: keep-all;
 }
 
+.activity-actor-accent {
+  font-size: 1.08em;
+  font-weight: 900;
+  letter-spacing: 0.12px;
+  background: linear-gradient(135deg, #ffd58f 0%, #ffb066 45%, #ff8a4f 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  filter: drop-shadow(0 1px 1px rgba(34, 17, 8, 0.26));
+}
+
 .activity-time {
   margin: 0;
   font-size: 10.5px;

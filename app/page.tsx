@@ -55,6 +55,35 @@ function getActivityHref(item: { type: string; related_post_id: string | null; r
   return "/activity";
 }
 
+function renderActivityMessage(messageRaw: string, actorNameRaw: string) {
+  const message = String(messageRaw ?? "").trim();
+  const actorName = String(actorNameRaw ?? "").trim();
+  if (!message || !actorName) {
+    return message;
+  }
+
+  const messageLower = message.toLowerCase();
+  const actorLower = actorName.toLowerCase();
+  const startIndex = messageLower.indexOf(actorLower);
+
+  if (startIndex < 0) {
+    return message;
+  }
+
+  const actorEnd = startIndex + actorName.length;
+  const prefix = message.slice(0, startIndex);
+  const actor = message.slice(startIndex, actorEnd);
+  const suffix = message.slice(actorEnd);
+
+  return (
+    <>
+      {prefix}
+      <span className="activity-actor-accent">{actor}</span>
+      {suffix}
+    </>
+  );
+}
+
 export default async function Home({
   searchParams
 }: {
@@ -390,7 +419,7 @@ export default async function Home({
                 <div className="activity-item-main">
                   <ProfileAvatar name={actorName} avatarUrl={actor?.avatar_url ?? null} size="sm" />
                   <div className="activity-copy">
-                    <p className="activity-message">{item.message}</p>
+                    <p className="activity-message">{renderActivityMessage(item.message, actorName)}</p>
                     <p className="activity-time">{relativeTimeLabel(item.created_at, lang)}</p>
                   </div>
                 </div>
