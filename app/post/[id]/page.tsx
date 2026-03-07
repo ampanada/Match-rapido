@@ -33,6 +33,7 @@ export default async function PostDetailPage({
     createdAt?: string;
     record?: string;
     loggedIn?: string;
+    updated?: string;
   }>;
 }) {
   noStore();
@@ -60,6 +61,7 @@ export default async function PostDetailPage({
           noWhatsapp: "WhatsApp 없음",
           close: "모집 마감",
           created: "작성 완료:",
+          updated: "수정 저장 완료",
           pendingRequests: "참여 요청",
           approve: "승인",
           approving: "승인 중...",
@@ -104,6 +106,7 @@ export default async function PostDetailPage({
           noWhatsapp: "Sin WhatsApp",
           close: "Cerrar convocatoria",
           created: "Publicado:",
+          updated: "Cambios guardados",
           pendingRequests: "Solicitudes pendientes",
           approve: "Aprobar",
           approving: "Aprobando...",
@@ -544,6 +547,7 @@ export default async function PostDetailPage({
           {copy.created} {new Date(qs.createdAt).toLocaleString(dateLocale)}
         </p>
       ) : null}
+      {qs.updated === "1" ? <p className="notice success">{copy.updated}</p> : null}
 
       {isHost ? (
         <div className="host-detail-tools">

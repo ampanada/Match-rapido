@@ -6,6 +6,16 @@ import { createClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/SubmitButton";
 import { redirect } from "next/navigation";
 
+function isNextRedirectError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "digest" in error &&
+    typeof (error as { digest?: string }).digest === "string" &&
+    (error as { digest: string }).digest.startsWith("NEXT_REDIRECT")
+  );
+}
+
 export default async function EditPostPage({
   params,
   searchParams
@@ -149,8 +159,11 @@ export default async function EditPostPage({
         redirect(`/post/${id}/edit?error=failed&message=${encodeURIComponent(error.message)}`);
       }
 
-      redirect(`/post/${id}`);
+      redirect(`/post/${id}?updated=1`);
     } catch (e) {
+      if (isNextRedirectError(e)) {
+        throw e;
+      }
       const msg = e instanceof Error ? e.message : "unknown";
       redirect(`/post/${id}/edit?error=failed&message=${encodeURIComponent(msg)}`);
     }
