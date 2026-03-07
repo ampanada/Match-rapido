@@ -49,7 +49,8 @@ export default async function ResultsPage({
           unknownCourt: "코트 미지정",
           streakUnit: "연승",
           bestStreak: "최고",
-          wlLabel: "전적"
+          wlLabel: "전적",
+          winRateLabel: "승률"
         }
       : {
           title: "Resultados en vivo",
@@ -80,7 +81,8 @@ export default async function ResultsPage({
           unknownCourt: "Cancha sin definir",
           streakUnit: "seguidas",
           bestStreak: "mejor",
-          wlLabel: "W/L"
+          wlLabel: "W/L",
+          winRateLabel: "Win %"
         };
 
   const supabase = await createClient();
@@ -97,11 +99,12 @@ export default async function ResultsPage({
       .limit(50),
     supabase
       .from("profiles")
-      .select("id,display_name,avatar_url,current_streak,best_streak,wins,losses")
+      .select("id,display_name,avatar_url,current_streak,best_streak,wins,losses,total_matches")
+      .gt("total_matches", 0)
       .order("current_streak", { ascending: false })
-      .order("best_streak", { ascending: false })
-      .order("wins", { ascending: false })
       .order("total_matches", { ascending: false })
+      .order("wins", { ascending: false })
+      .order("best_streak", { ascending: false })
       .limit(5)
   ]);
 
@@ -154,14 +157,26 @@ export default async function ResultsPage({
                   {player.display_name || (lang === "ko" ? "플레이어" : "Jugador")}
                 </p>
               </div>
-              <div className="streak-top-metrics">
-                <p className="streak-metric-line">
-                  <strong>{player.current_streak}</strong> <span>{copy.streakUnit}</span>
-                </p>
-                <p className="streak-metric-line">
-                  <span>{copy.wlLabel}</span> <strong>{player.wins}/{player.losses}</strong>
-                </p>
-              </div>
+              {(() => {
+                const wins = Number(player.wins ?? 0);
+                const losses = Number(player.losses ?? 0);
+                const totalMatches = Number(player.total_matches ?? wins + losses);
+                const winRate = totalMatches > 0 ? Math.round((wins / totalMatches) * 100) : 0;
+
+                return (
+                  <div className="streak-top-metrics">
+                    <span className="streak-pill streak-pill-primary">
+                      <strong>{player.current_streak}</strong> {copy.streakUnit}
+                    </span>
+                    <span className="streak-pill">
+                      {copy.wlLabel} <strong>{wins}/{losses}</strong>
+                    </span>
+                    <span className="streak-pill streak-pill-accent">
+                      {copy.winRateLabel} <strong>{winRate}%</strong>
+                    </span>
+                  </div>
+                );
+              })()}
             </article>
           </MotionProfileLink>
         ))}

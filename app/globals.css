@@ -597,42 +597,55 @@ a {
 }
 
 .streak-top-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  display: grid;
+  gap: 7px;
   padding: 8px 2px;
 }
 
 .streak-top-main {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
-  flex: 1 1 auto;
 }
 
 .streak-top-metrics {
-  display: grid;
-  gap: 2px;
-  min-width: 98px;
-  justify-items: end;
-  text-align: right;
-  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
 }
 
-.streak-metric-line {
-  margin: 0;
+.streak-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  border: 1px solid rgba(133, 162, 220, 0.45);
+  background: rgba(50, 69, 111, 0.45);
+  padding: 4px 8px;
   font-size: 10.5px;
-  color: #afbdd4;
+  color: #d4e4ff;
   white-space: nowrap;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
-.streak-metric-line strong {
-  color: #edf3ff;
-  font-size: 11.5px;
+.streak-pill strong {
+  color: #f3f8ff;
+  font-size: 10.8px;
   font-weight: 800;
+}
+
+.streak-pill-primary {
+  border-color: rgba(253, 197, 104, 0.58);
+  background: linear-gradient(135deg, rgba(152, 114, 54, 0.45), rgba(90, 69, 38, 0.45));
+  color: #ffe7b8;
+}
+
+.streak-pill-accent {
+  border-color: rgba(124, 214, 173, 0.52);
+  background: linear-gradient(135deg, rgba(38, 100, 78, 0.45), rgba(30, 73, 59, 0.45));
+  color: #c6f7df;
 }
 
 .streak-rank {
