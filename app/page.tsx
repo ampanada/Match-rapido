@@ -84,6 +84,7 @@ export default async function Home({
 
   const now = new Date();
   const expiryCutoffIso = new Date(now.getTime() - 30 * 60 * 1000).toISOString();
+  const activityCutoffIso = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString();
 
   let query = supabase
     .from("posts")
@@ -98,7 +99,12 @@ export default async function Home({
 
   const [{ data, error }, { data: activityData }] = await Promise.all([
     query,
-    supabase.from("activity_feed").select("id,type,user_id,related_post_id,message,created_at").order("created_at", { ascending: false }).limit(10)
+    supabase
+      .from("activity_feed")
+      .select("id,type,user_id,related_post_id,message,created_at")
+      .gte("created_at", activityCutoffIso)
+      .order("created_at", { ascending: false })
+      .limit(10)
   ]);
 
   let postsData = data ?? [];
