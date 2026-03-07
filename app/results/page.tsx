@@ -362,6 +362,8 @@ export default async function ResultsPage({
             playerB?.avatar_url ??
             (playerBId ? fallbackProfileMap.get(playerBId)?.avatar_url : null) ??
             null;
+          const participantCount = [playerAName, playerBName].filter(Boolean).length;
+          const courtLabel = post?.court_no ? `${copy.court} ${post.court_no}` : copy.unknownCourt;
 
           return (
             <article className="card match-card match-card-completed result-card" key={result.id}>
@@ -374,25 +376,38 @@ export default async function ResultsPage({
                 <span className="result-date-text">{formatCordobaDate(when, dateLocale)}</span>
                 {slotLabel ? <span className="result-time-pill">{slotLabel}</span> : null}
               </div>
-              <p className="muted">{post?.court_no ? `${copy.court} ${post.court_no}` : copy.unknownCourt}</p>
-              <p className="muted">{copy.participants}</p>
-              <div className="participant-list">
-                {[{ id: playerAId, name: playerAName, avatar: playerAAvatar }, { id: playerBId, name: playerBName, avatar: playerBAvatar }].map(
-                  (player, idx) => (
-                    <MotionProfileLink
-                      key={`${result.id}-participant-${player.id ?? idx}`}
-                      className={`participant-chip${player.id ? "" : " disabled-link"}`}
-                      href={player.id ? `/u/${player.id}` : "#"}
-                    >
-                      <span className="participant-row">
-                        <span className="participant-index">{copy.participantItem} {idx + 1}</span>
-                        <ProfileAvatar name={player.name} avatarUrl={player.avatar} size="sm" />
-                        <strong className="participant-name">{player.name}</strong>
-                        {player.id && post?.host_id && player.id === post.host_id ? <span className="participant-role">{copy.hostTag}</span> : null}
-                      </span>
-                    </MotionProfileLink>
-                  )
-                )}
+              <div className="result-info-grid">
+                <article className="result-info-card">
+                  <span className="result-info-label">{copy.court}</span>
+                  <strong className="result-info-value">{courtLabel}</strong>
+                </article>
+                <article className="result-info-card">
+                  <span className="result-info-label">{copy.participants}</span>
+                  <strong className="result-info-value">
+                    {lang === "ko" ? `${participantCount}명` : `${participantCount} jugadores`}
+                  </strong>
+                </article>
+              </div>
+              <div className="result-participants-card">
+                <p className="result-participants-title">{copy.participants}</p>
+                <div className="participant-list">
+                  {[{ id: playerAId, name: playerAName, avatar: playerAAvatar }, { id: playerBId, name: playerBName, avatar: playerBAvatar }].map(
+                    (player, idx) => (
+                      <MotionProfileLink
+                        key={`${result.id}-participant-${player.id ?? idx}`}
+                        className={`participant-chip${player.id ? "" : " disabled-link"}`}
+                        href={player.id ? `/u/${player.id}` : "#"}
+                      >
+                        <span className="participant-row">
+                          <span className="participant-index">{copy.participantItem} {idx + 1}</span>
+                          <ProfileAvatar name={player.name} avatarUrl={player.avatar} size="sm" />
+                          <strong className="participant-name">{player.name}</strong>
+                          {player.id && post?.host_id && player.id === post.host_id ? <span className="participant-role">{copy.hostTag}</span> : null}
+                        </span>
+                      </MotionProfileLink>
+                    )
+                  )}
+                </div>
               </div>
 
               <p className="result-players">

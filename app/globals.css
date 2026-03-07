@@ -930,6 +930,58 @@ a {
   font-size: 10px;
 }
 
+.result-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.result-info-card {
+  border: 1px solid rgba(133, 166, 226, 0.38);
+  border-radius: 10px;
+  background:
+    radial-gradient(140% 120% at 0% 0%, rgba(113, 176, 255, 0.18), transparent 58%),
+    linear-gradient(155deg, rgba(36, 53, 84, 0.92), rgba(29, 43, 69, 0.88));
+  padding: 4px 6px;
+  display: grid;
+  gap: 1px;
+}
+
+.result-info-label {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.25px;
+  text-transform: uppercase;
+  color: #a9bddf;
+}
+
+.result-info-value {
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.15;
+  color: #eef5ff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.result-participants-card {
+  border: 1px solid rgba(123, 158, 222, 0.35);
+  border-radius: 10px;
+  background:
+    radial-gradient(120% 100% at 100% 0%, rgba(255, 154, 206, 0.11), transparent 60%),
+    linear-gradient(155deg, rgba(30, 45, 73, 0.9), rgba(22, 33, 53, 0.9));
+  padding: 5px;
+}
+
+.result-participants-title {
+  margin: 0 0 4px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.22px;
+  color: #c3d4f1;
+}
+
 .result-card .participant-list {
   gap: 2px;
 }
