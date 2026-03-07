@@ -102,7 +102,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
   ] = await Promise.all([
     supabase
       .from("profiles")
-      .select("id,display_name,avatar_url,wins,losses,total_matches,current_streak,best_streak")
+      .select("id,display_name,avatar_url,wins,losses,total_matches,current_streak,best_streak,is_guest")
       .eq("id", id)
       .maybeSingle(),
     supabase
@@ -149,16 +149,106 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
       .limit(5000)
   ]);
 
+  let aggregateIds = [id];
+  if (profile?.is_guest && profile.display_name) {
+    const { data: sameNameGuestProfiles } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("is_guest", true)
+      .eq("display_name", profile.display_name)
+      .limit(200);
+
+    const mergedIds = Array.from(
+      new Set([id, ...(sameNameGuestProfiles ?? []).map((row) => row.id).filter(Boolean)])
+    );
+    if (mergedIds.length > 0) {
+      aggregateIds = mergedIds;
+    }
+  }
+
+  const aggregateIdSet = new Set(aggregateIds);
+  let effectiveRecentResults = recentResults ?? [];
+  let effectiveRivalRows = rivalRows ?? [];
+  let effectiveTotalConfirmedCount = totalConfirmedCount ?? 0;
+  let effectiveWinsCount = winsCount ?? 0;
+  let effectiveDrawsCount = drawsCount ?? 0;
+  let effectiveStreakRows = streakRows ?? [];
+
+  if (aggregateIds.length > 1) {
+    const idFilter = `player_a.in.(${aggregateIds.join(",")}),player_b.in.(${aggregateIds.join(",")})`;
+    const [
+      { data: aggregatedRecentResults },
+      { data: aggregatedRivalRows },
+      { count: aggregatedTotalConfirmedCount },
+      { count: aggregatedWinsCount },
+      { count: aggregatedDrawsCount },
+      { data: aggregatedStreakRows }
+    ] = await Promise.all([
+      supabase
+        .from("match_results")
+        .select(
+          "id,player_a,player_b,winner_id,score,confirmed_at,posts!match_results_post_id_fkey(start_at,court_no),player_a_profile:profiles!match_results_player_a_fkey(id,display_name,avatar_url),player_b_profile:profiles!match_results_player_b_fkey(id,display_name,avatar_url)"
+        )
+        .eq("status", "confirmed")
+        .or(idFilter)
+        .order("confirmed_at", { ascending: false })
+        .limit(10),
+      supabase
+        .from("match_results")
+        .select("player_a,player_b,winner_id,confirmed_at,score")
+        .eq("status", "confirmed")
+        .or(idFilter)
+        .order("confirmed_at", { ascending: false })
+        .limit(500),
+      supabase
+        .from("match_results")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "confirmed")
+        .or(idFilter),
+      supabase
+        .from("match_results")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "confirmed")
+        .in("winner_id", aggregateIds)
+        .or(idFilter),
+      supabase
+        .from("match_results")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "confirmed")
+        .eq("score", "6-6")
+        .or(idFilter),
+      supabase
+        .from("match_results")
+        .select("winner_id,confirmed_at,created_at")
+        .eq("status", "confirmed")
+        .neq("score", "6-6")
+        .or(idFilter)
+        .order("confirmed_at", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(5000)
+    ]);
+
+    effectiveRecentResults = aggregatedRecentResults ?? [];
+    effectiveRivalRows = aggregatedRivalRows ?? [];
+    effectiveTotalConfirmedCount = aggregatedTotalConfirmedCount ?? 0;
+    effectiveWinsCount = aggregatedWinsCount ?? 0;
+    effectiveDrawsCount = aggregatedDrawsCount ?? 0;
+    effectiveStreakRows = aggregatedStreakRows ?? [];
+  }
+
   const rivalStats = new Map<string, { wins: number; losses: number; total: number; winners: string[] }>();
 
-  for (const row of rivalRows ?? []) {
+  for (const row of effectiveRivalRows) {
     if (isDrawScore((row as any).score)) {
       continue;
     }
-    const opponentId = row.player_a === id ? row.player_b : row.player_a;
+    const opponentId = aggregateIdSet.has(row.player_a) ? row.player_b : row.player_a;
+    if (!opponentId) {
+      continue;
+    }
     const entry = rivalStats.get(opponentId) ?? { wins: 0, losses: 0, total: 0, winners: [] };
     entry.total += 1;
-    if (row.winner_id === id) {
+    if (row.winner_id && aggregateIdSet.has(row.winner_id)) {
       entry.wins += 1;
     } else {
       entry.losses += 1;
@@ -222,17 +312,17 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
     best_streak: profile?.best_streak ?? 0
   };
 
-  const computedTotal = totalConfirmedCount ?? 0;
-  const computedWins = winsCount ?? 0;
-  const computedDraws = drawsCount ?? 0;
+  const computedTotal = effectiveTotalConfirmedCount;
+  const computedWins = effectiveWinsCount;
+  const computedDraws = effectiveDrawsCount;
   const computedLosses = Math.max(0, computedTotal - computedWins - computedDraws);
   const winRate = computedTotal > 0 ? Math.round((computedWins / computedTotal) * 100) : 0;
 
-  const winnerSequence = (streakRows ?? []).map((row) => row.winner_id);
+  const winnerSequence = effectiveStreakRows.map((row) => row.winner_id);
   const computedCurrentStreak = (() => {
     let streak = 0;
     for (const winnerId of winnerSequence) {
-      if (winnerId === id) {
+      if (winnerId && aggregateIdSet.has(winnerId)) {
         streak += 1;
       } else {
         break;
@@ -244,7 +334,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
     let best = 0;
     let run = 0;
     for (const winnerId of winnerSequence) {
-      if (winnerId === id) {
+      if (winnerId && aggregateIdSet.has(winnerId)) {
         run += 1;
         if (run > best) {
           best = run;
@@ -330,7 +420,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
             </p>
             {item.total >= 2 && item.streakCount > 1 ? (
               <p className="muted">
-                {item.streakWinnerId === id ? (
+                {(item.streakWinnerId ? aggregateIdSet.has(item.streakWinnerId) : false) ? (
                   (lang === "ko" ? "나" : "Yo") + (lang === "ko" ? ` ${item.streakCount}연승 🔥` : ` lleva ${item.streakCount} seguidas 🔥`)
                 ) : (
                   <span className="result-player-line">
@@ -353,15 +443,15 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
 
       <section className="section">
         <h2 className="subhead">{copy.recent}</h2>
-        {(recentResults ?? []).length === 0 ? <p className="notice">{copy.noRecent}</p> : null}
+        {effectiveRecentResults.length === 0 ? <p className="notice">{copy.noRecent}</p> : null}
 
-        {(recentResults ?? []).map((result) => {
+        {effectiveRecentResults.map((result) => {
           const playerA = Array.isArray(result.player_a_profile) ? result.player_a_profile[0] : result.player_a_profile;
           const playerB = Array.isArray(result.player_b_profile) ? result.player_b_profile[0] : result.player_b_profile;
           const post = Array.isArray(result.posts) ? result.posts[0] : result.posts;
           const draw = isDrawScore(result.score);
-          const isWin = !draw && result.winner_id === id;
-          const opponent = result.player_a === id ? playerB : playerA;
+          const isWin = !draw && !!result.winner_id && aggregateIdSet.has(result.winner_id);
+          const opponent = aggregateIdSet.has(result.player_a) ? playerB : playerA;
           const opponentName = opponent?.display_name || (lang === "ko" ? "상대" : "Rival");
           const opponentAvatar = opponent?.avatar_url ?? null;
           const opponentId = opponent?.id ?? null;
