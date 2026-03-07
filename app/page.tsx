@@ -9,6 +9,17 @@ import { createClient } from "@/lib/supabase/server";
 import { unstable_noStore as noStore } from "next/cache";
 import Link from "next/link";
 
+function normalizeWhatsapp(raw: string | null | undefined) {
+  const compact = String(raw ?? "").replace(/\s+/g, "").replace(/-/g, "");
+  if (!compact) {
+    return "";
+  }
+  if (compact.startsWith("+")) {
+    return `+${compact.slice(1).replace(/[^\d]/g, "")}`;
+  }
+  return `+${compact.replace(/[^\d]/g, "")}`;
+}
+
 function relativeTimeLabel(value: string, lang: "es" | "ko") {
   const now = Date.now();
   const then = new Date(value).getTime();
@@ -31,14 +42,14 @@ function relativeTimeLabel(value: string, lang: "es" | "ko") {
   return lang === "ko" ? `${diffDays}일 전` : `hace ${diffDays}d`;
 }
 
-function getActivityHref(item: { type: string; related_post_id: string | null; user_id: string }) {
-  if ((item.type === "new_post" || item.type === "cancel_join") && item.related_post_id) {
+function getActivityHref(item: { type: string; related_post_id: string | null; related_match_id: string | null; user_id: string | null }) {
+  if (item.related_post_id) {
     return `/post/${item.related_post_id}`;
   }
-  if (item.type === "match_result") {
+  if (item.related_match_id || item.type === "match_result") {
     return "/results";
   }
-  if (item.type === "streak") {
+  if (item.user_id) {
     return `/u/${item.user_id}`;
   }
   return "/activity";
@@ -101,7 +112,7 @@ export default async function Home({
     query,
     supabase
       .from("activity_feed")
-      .select("id,type,user_id,related_post_id,message,created_at")
+      .select("id,type,user_id,related_post_id,related_match_id,message,created_at")
       .gte("created_at", activityCutoffIso)
       .order("created_at", { ascending: false })
       .limit(10)
@@ -149,6 +160,88 @@ export default async function Home({
       : { data: [] as { id: string; display_name: string | null; avatar_url: string | null }[] };
   const activityProfileMap = new Map((activityProfiles ?? []).map((profile) => [profile.id, profile]));
 
+  const guestNames = Array.from(
+    new Set(
+      (postsData ?? []).flatMap((post: any) =>
+        (post.joins ?? [])
+          .filter((join: any) => !join?.user_id && !!join?.guest_name)
+          .map((join: any) => String(join.guest_name).trim())
+          .filter(Boolean)
+      )
+    )
+  );
+  const guestProfileCandidates: Array<{
+    id: string;
+    display_name: string | null;
+    whatsapp: string | null;
+    avatar_url: string | null;
+    is_guest?: boolean | null;
+    email?: string | null;
+  }> = [];
+
+  for (let i = 0; i < guestNames.length; i += 100) {
+    const chunk = guestNames.slice(i, i + 100);
+    const { data: chunkProfiles } = await supabase
+      .from("profiles")
+      .select("id,display_name,whatsapp,avatar_url,is_guest,email")
+      .in("display_name", chunk)
+      .limit(400);
+    if (chunkProfiles?.length) {
+      guestProfileCandidates.push(...chunkProfiles);
+    }
+  }
+
+  const guestProfileMapByNamePhone = new Map<string, { id: string; display_name: string | null; avatar_url: string | null }>();
+  const guestProfilesByName = new Map<string, Array<{ id: string; display_name: string | null; avatar_url: string | null }>>();
+
+  for (const profile of guestProfileCandidates) {
+    const isGuestProfile = profile.is_guest === true || String(profile.email ?? "").endsWith("@guest.local");
+    if (!isGuestProfile) {
+      continue;
+    }
+    const name = String(profile.display_name ?? "").trim();
+    if (!name) {
+      continue;
+    }
+    const nameKey = name.toLowerCase();
+    const phoneKey = normalizeWhatsapp(profile.whatsapp);
+    const compositeKey = `${nameKey}::${phoneKey}`;
+    const slim = { id: profile.id, display_name: profile.display_name, avatar_url: profile.avatar_url };
+    if (!guestProfileMapByNamePhone.has(compositeKey)) {
+      guestProfileMapByNamePhone.set(compositeKey, slim);
+    }
+    const current = guestProfilesByName.get(nameKey) ?? [];
+    current.push(slim);
+    guestProfilesByName.set(nameKey, current);
+  }
+
+  function resolveGuestProfile(guestNameRaw: string | null | undefined, guestWhatsappRaw: string | null | undefined) {
+    const guestName = String(guestNameRaw ?? "").trim();
+    if (!guestName) {
+      return null;
+    }
+    const nameKey = guestName.toLowerCase();
+    const phoneKey = normalizeWhatsapp(guestWhatsappRaw);
+
+    if (phoneKey) {
+      const exact = guestProfileMapByNamePhone.get(`${nameKey}::${phoneKey}`);
+      if (exact) {
+        return exact;
+      }
+    }
+
+    const blankPhone = guestProfileMapByNamePhone.get(`${nameKey}::`);
+    if (blankPhone) {
+      return blankPhone;
+    }
+
+    const byName = guestProfilesByName.get(nameKey) ?? [];
+    if (byName.length === 1) {
+      return byName[0];
+    }
+    return null;
+  }
+
   const items =
     postsData
       .map((post: any) => {
@@ -179,12 +272,13 @@ export default async function Home({
 
       approvedJoins.forEach((join: any) => {
         const joinProfile = Array.isArray(join.profiles) ? join.profiles[0] : join.profiles;
+        const guestProfile = !join.user_id ? resolveGuestProfile(join.guest_name, join.guest_whatsapp) : null;
         const joinName = joinProfile?.display_name || join.guest_name || (lang === "ko" ? "참여자" : "Jugador");
-        const participantId = join.user_id ? join.user_id : `guest:${join.id}`;
+        const participantId = join.user_id || guestProfile?.id || `guest:${join.id}`;
         participantMap.set(participantId, {
           id: participantId,
-          name: joinName,
-          avatarUrl: joinProfile?.avatar_url ?? null,
+          name: guestProfile?.display_name || joinName,
+          avatarUrl: guestProfile?.avatar_url ?? joinProfile?.avatar_url ?? null,
           isHost: false
         });
       });

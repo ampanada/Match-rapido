@@ -25,14 +25,14 @@ function relativeTimeLabel(value: string, lang: "es" | "ko") {
   return lang === "ko" ? `${diffDays}일 전` : `hace ${diffDays}d`;
 }
 
-function getActivityHref(item: { type: string; related_post_id: string | null; user_id: string }) {
-  if ((item.type === "new_post" || item.type === "cancel_join") && item.related_post_id) {
+function getActivityHref(item: { type: string; related_post_id: string | null; related_match_id: string | null; user_id: string | null }) {
+  if (item.related_post_id) {
     return `/post/${item.related_post_id}`;
   }
-  if (item.type === "match_result") {
+  if (item.related_match_id || item.type === "match_result") {
     return "/results";
   }
-  if (item.type === "streak") {
+  if (item.user_id) {
     return `/u/${item.user_id}`;
   }
   return "/activity";
@@ -56,7 +56,7 @@ export default async function ActivityPage() {
   const supabase = await createClient();
   const { data: activityData } = await supabase
     .from("activity_feed")
-    .select("id,type,user_id,related_post_id,message,created_at")
+    .select("id,type,user_id,related_post_id,related_match_id,message,created_at")
     .order("created_at", { ascending: false })
     .limit(100);
 
