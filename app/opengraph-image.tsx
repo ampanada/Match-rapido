@@ -85,7 +85,8 @@ export default function OpengraphImage() {
                   fontSize: "17px",
                   fontWeight: 900,
                   letterSpacing: "-0.2px",
-                  color: "#0f2343",
+                  color: "#f2ffc4",
+                  textShadow: "0 1px 0 rgba(15,35,67,0.45), 0 0 8px rgba(15,35,67,0.35)",
                   zIndex: 2
                 }}
               >
