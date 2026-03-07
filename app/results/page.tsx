@@ -480,13 +480,11 @@ export default async function ResultsPage({
 
           return (
             <article className="card match-card match-card-completed my-match-card result-card" key={result.id}>
-              <div className="result-date-card">
-                <span className="result-weekday-pill">{weekday}</span>
-                <p className="result-date-meta">
-                  <strong>{formatCordobaDate(when, dateLocale)}</strong>
-                  {slotLabel ? <span className="result-date-time">{slotLabel}</span> : null}
-                </p>
-              </div>
+              <p className="match-date-line result-date-line">
+                <strong>
+                  {weekday} · {formatCordobaDate(when, dateLocale)}{slotLabel ? ` · ${slotLabel}` : ""}
+                </strong>
+              </p>
               <p className="result-main-headline">
                 <strong>{result.score}</strong>
                 <span className="result-main-summary">

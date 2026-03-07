@@ -913,8 +913,8 @@ a {
 }
 
 .result-card {
-  gap: 6px;
-  padding: 9px;
+  gap: 5px;
+  padding: 7px;
   border-radius: 14px;
   border-color: #5f79a9;
   background:
@@ -933,60 +933,16 @@ a {
   color: #cbdbf6;
 }
 
-.result-date-card {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  border: 1px solid rgba(147, 183, 238, 0.5);
-  border-radius: 12px;
-  background:
-    radial-gradient(120% 90% at 0% 0%, rgba(126, 197, 255, 0.24), transparent 58%),
-    linear-gradient(155deg, rgba(47, 70, 112, 0.94), rgba(33, 51, 84, 0.92));
-  padding: 7px 9px;
-}
-
-.result-weekday-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 46px;
-  height: 24px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 210, 145, 0.58);
-  background: linear-gradient(135deg, rgba(255, 197, 116, 0.35), rgba(255, 149, 83, 0.32));
-  color: #fff3dd;
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: 0.25px;
-}
-
-.result-date-meta {
+.result-date-line {
   margin: 0;
-  display: grid;
-  gap: 2px;
-  min-width: 0;
+  min-height: 0;
 }
 
-.result-date-meta strong {
-  font-size: 12.5px;
+.result-date-line strong {
+  font-size: 13px;
   line-height: 1.2;
-  letter-spacing: 0.12px;
   color: #edf5ff;
-}
-
-.result-date-time {
-  display: inline-flex;
-  align-items: center;
-  width: fit-content;
-  border-radius: 999px;
-  border: 1px solid rgba(162, 194, 245, 0.45);
-  background: rgba(60, 87, 135, 0.34);
-  color: #d9e8ff;
-  font-size: 9.5px;
-  font-weight: 700;
-  line-height: 1;
-  padding: 2px 7px;
+  letter-spacing: 0.08px;
 }
 
 .result-main-headline {
