@@ -27,32 +27,99 @@ export default function OpengraphImage() {
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "18px"
+            gap: "22px"
           }}
         >
           <div
             style={{
-              width: "58px",
-              height: "58px",
-              borderRadius: "999px",
-              border: "4px solid #f7fbff",
+              width: "92px",
+              height: "92px",
+              borderRadius: "26px",
+              background: "linear-gradient(150deg, #56b7ff 0%, #2f74ff 100%)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: "24px",
-              fontWeight: 800
+              boxShadow: "0 14px 30px rgba(5, 14, 33, 0.42)"
             }}
           >
-            MR
+            <div
+              style={{
+                width: "64px",
+                height: "64px",
+                borderRadius: "999px",
+                background: "#d9ff63",
+                border: "4px solid #0f2343",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                position: "relative",
+                overflow: "hidden"
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  width: "86px",
+                  height: "86px",
+                  borderRadius: "999px",
+                  border: "4px solid #0f2343",
+                  borderLeftColor: "transparent",
+                  borderRightColor: "transparent",
+                  transform: "rotate(32deg)"
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  width: "86px",
+                  height: "86px",
+                  borderRadius: "999px",
+                  border: "4px solid #0f2343",
+                  borderTopColor: "transparent",
+                  borderBottomColor: "transparent",
+                  transform: "rotate(32deg)"
+                }}
+              />
+              <div
+                style={{
+                  fontSize: "17px",
+                  fontWeight: 900,
+                  letterSpacing: "-0.2px",
+                  color: "#0f2343",
+                  zIndex: 2
+                }}
+              >
+                MR
+              </div>
+            </div>
           </div>
           <div
             style={{
-              fontSize: "34px",
-              fontWeight: 800,
-              letterSpacing: "-0.5px"
+              display: "flex",
+              flexDirection: "column",
+              gap: "2px"
             }}
           >
-            Match Rapido
+            <div
+              style={{
+                fontSize: "40px",
+                fontWeight: 900,
+                letterSpacing: "-0.8px",
+                lineHeight: 1
+              }}
+            >
+              MATCH RAPIDO
+            </div>
+            <div
+              style={{
+                fontSize: "17px",
+                fontWeight: 700,
+                letterSpacing: "1.6px",
+                color: "#cfe1ff"
+              }}
+            >
+              CLUB TENNIS MATCHING
+            </div>
           </div>
         </div>
 
@@ -64,7 +131,7 @@ export default function OpengraphImage() {
               lineHeight: 1
             }}
           >
-            Club Tennis
+            1 Set Slam
           </div>
           <div
             style={{
@@ -73,7 +140,7 @@ export default function OpengraphImage() {
               color: "#d8e7ff"
             }}
           >
-            Match en minutos
+            Encontra rival rapido
           </div>
         </div>
 
