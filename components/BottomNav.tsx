@@ -115,10 +115,12 @@ export default function BottomNav() {
     : lang === "ko"
       ? [
           { href: "/", label: "홈" },
+          { href: "/results", label: "실시간 경기 결과" },
           { href: "/login", label: "로그인" }
         ]
       : [
           { href: "/", label: "Inicio" },
+          { href: "/results", label: "Resultados en vivo" },
           { href: "/login", label: "Acceso" }
         ];
 
