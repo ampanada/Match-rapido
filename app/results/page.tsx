@@ -10,6 +10,31 @@ function isDrawScore(score: string | null | undefined) {
   return score === "6-6";
 }
 
+function resolveLeaderName(player: {
+  display_name?: string | null;
+  email?: string | null;
+  whatsapp?: string | null;
+  id: string;
+}, lang: "ko" | "es") {
+  const displayName = String(player.display_name ?? "").trim();
+  if (displayName) {
+    return displayName;
+  }
+
+  const email = String(player.email ?? "").trim();
+  const emailLocal = email.includes("@") ? email.split("@")[0].trim() : "";
+  if (emailLocal && !email.endsWith("@guest.local")) {
+    return emailLocal;
+  }
+
+  const whatsapp = String(player.whatsapp ?? "").trim();
+  if (whatsapp) {
+    return whatsapp;
+  }
+
+  return lang === "ko" ? `유저 ${player.id.slice(0, 4)}` : `Usuario ${player.id.slice(0, 4)}`;
+}
+
 export default async function ResultsPage({
   searchParams
 }: {
@@ -99,12 +124,12 @@ export default async function ResultsPage({
       .limit(50),
     supabase
       .from("profiles")
-      .select("id,display_name,avatar_url,whatsapp,is_guest,current_streak,best_streak,wins,losses,total_matches")
+      .select("id,display_name,email,avatar_url,whatsapp,is_guest,current_streak,best_streak,wins,losses,total_matches")
       .order("current_streak", { ascending: false })
       .order("total_matches", { ascending: false })
       .order("wins", { ascending: false })
       .order("best_streak", { ascending: false })
-      .limit(5)
+      .limit(30)
   ]);
 
   const missingProfileIds = Array.from(
@@ -225,6 +250,12 @@ export default async function ResultsPage({
         (b.best_streak ?? 0) - (a.best_streak ?? 0)
       );
     })
+    .filter((player) => {
+      const stats = streakStatsMap.get(player.id) ?? { wins: 0, draws: 0, losses: 0, total: 0 };
+      const hasDisplayName = String(player.display_name ?? "").trim().length > 0;
+      const hasAnyActivity = (player.current_streak ?? 0) > 0 || (player.total_matches ?? 0) > 0 || stats.total > 0;
+      return hasDisplayName || hasAnyActivity;
+    })
     .slice(0, 5);
 
   const fallbackProfileMap = new Map((fallbackProfiles ?? []).map((profile) => [profile.id, profile]));
@@ -255,12 +286,12 @@ export default async function ResultsPage({
               <div className="streak-top-main">
                 <span className="streak-rank">#{index + 1}</span>
                 <ProfileAvatar
-                  name={player.display_name || (lang === "ko" ? "플레이어" : "Jugador")}
+                  name={resolveLeaderName(player, lang)}
                   avatarUrl={player.avatar_url}
                   size="sm"
                 />
                 <p className="activity-message">
-                  {player.display_name || (lang === "ko" ? "플레이어" : "Jugador")}
+                  {resolveLeaderName(player, lang)}
                 </p>
               </div>
               {(() => {
