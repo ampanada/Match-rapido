@@ -106,13 +106,17 @@ export default function PostCard({ post, lang }: PostCardProps) {
       <div className="participant-list">
         {post.participants.map((participant, idx) => (
           participant.id.startsWith("guest:") ? (
-            <div key={`${post.id}-p-${participant.id}`} className="participant-chip">
+            <MotionProfileLink
+              key={`${post.id}-p-${participant.id}`}
+              className="participant-chip"
+              href={`/u/guest/${encodeURIComponent(participant.name)}`}
+            >
               <span className="participant-row">
                 <span className="participant-index">{copy.participantItem} {idx + 1}</span>
                 <ProfileAvatar name={participant.name} avatarUrl={participant.avatarUrl} size="sm" />
                 <strong className="participant-name">{participant.name}</strong>
               </span>
-            </div>
+            </MotionProfileLink>
           ) : (
             <MotionProfileLink key={`${post.id}-p-${participant.id}`} className="participant-chip" href={`/u/${participant.id}`}>
               <span className="participant-row">
