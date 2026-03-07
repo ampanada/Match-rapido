@@ -120,7 +120,9 @@ export default async function MyMatchesPage({
           guestInvalid: "게스트 이름이 필요합니다.",
           guestForbidden: "호스트만 게스트를 추가할 수 있습니다.",
           guestExpired: "매치 만료 후에는 게스트를 추가할 수 없습니다.",
-          guestFailed: "게스트 등록 중 오류가 발생했습니다."
+          guestFailed: "게스트 등록 중 오류가 발생했습니다.",
+          feedGuestJoined: "게스트 {name} 님이 매치에 참여했습니다.",
+          feedMatchFilled: "매치 인원이 모두 채워졌습니다."
         }
       : {
           title: "Mis partidos",
@@ -164,7 +166,9 @@ export default async function MyMatchesPage({
           guestInvalid: "Debes ingresar nombre del invitado.",
           guestForbidden: "Solo el host puede agregar invitados.",
           guestExpired: "No se pueden agregar invitados en partidos vencidos.",
-          guestFailed: "Hubo un error al agregar el invitado."
+          guestFailed: "Hubo un error al agregar el invitado.",
+          feedGuestJoined: "El invitado {name} se sumo al partido.",
+          feedMatchFilled: "Partido completo: cupo lleno."
         };
 
   const supabase = await createClient();
@@ -350,6 +354,7 @@ export default async function MyMatchesPage({
     if (!user) {
       redirect(`/login?redirect_to=${encodeURIComponent("/my-matches")}`);
     }
+    const userId = user.id;
 
     const { data: latestPost, error: latestPostError } = await supabase
       .from("posts")
@@ -361,7 +366,7 @@ export default async function MyMatchesPage({
       redirect(guestErrorUrl("load_failed", postId, latestPostError.message));
     }
 
-    if (!latestPost || latestPost.host_id !== user.id) {
+    if (!latestPost || latestPost.host_id !== userId) {
       redirect(guestErrorUrl("forbidden", postId));
     }
 
@@ -372,6 +377,22 @@ export default async function MyMatchesPage({
 
     const approvedCount = latestPost.joins?.filter((join: any) => join.status === "approved").length ?? 0;
     const players = approvedCount + 1;
+    const playersAfterGuest = players + 1;
+    const becameFullByGuest = players < latestPost.needed && playersAfterGuest >= latestPost.needed;
+
+    async function logGuestFeed(message: string) {
+      try {
+        await supabase.from("activity_feed").insert({
+          type: "new_post",
+          user_id: userId,
+          related_post_id: postId,
+          message
+        });
+      } catch {
+        // Feed failure should not block main guest-add flow.
+      }
+    }
+
     const existingGuestJoinQuery = supabase
       .from("joins")
       .select("id,status")
@@ -395,6 +416,10 @@ export default async function MyMatchesPage({
         if (approveExistingError) {
           redirect(guestErrorUrl("insert_failed", postId, approveExistingError.message));
         }
+        await logGuestFeed(copy.feedGuestJoined.replace("{name}", guestName));
+        if (becameFullByGuest) {
+          await logGuestFeed(copy.feedMatchFilled);
+        }
         redirect(guestAddedUrl("1", postId, guestName));
       }
       redirect(guestAddedUrl("exists", postId, guestName));
@@ -413,6 +438,11 @@ export default async function MyMatchesPage({
       redirect(guestErrorUrl("insert_failed", postId, insertError.message));
     }
 
+    await logGuestFeed(copy.feedGuestJoined.replace("{name}", guestName));
+    if (becameFullByGuest) {
+      await logGuestFeed(copy.feedMatchFilled);
+    }
+
     if (players >= latestPost.needed || latestPost.status === "closed") {
       await supabase
         .from("posts")
@@ -421,7 +451,7 @@ export default async function MyMatchesPage({
           status: "open"
         })
         .eq("id", postId)
-        .eq("host_id", user.id);
+        .eq("host_id", userId);
     }
 
     redirect(guestAddedUrl("1", postId, guestName));
