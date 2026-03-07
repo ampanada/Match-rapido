@@ -443,9 +443,8 @@ export default async function MyMatchesPage({
         avatar_url: hostProfileRaw?.avatar_url ?? null
       };
       const approvedCount = joins.filter((join) => (join.status ?? "approved") === "approved").length;
-      const approvedRegisteredCount = joins.filter((join) => (join.status ?? "approved") === "approved" && !!join.user_id).length;
       const currentPlayers = approvedCount + 1;
-      const isSingleReady = post.format === "single" && approvedRegisteredCount === 1;
+      const isSingleReady = post.format === "single" && approvedCount === 1;
       const hostManualClose = approvedCount === 0 && post.status === "closed";
       const result = resultMap.get(post.id);
       const hasConfirmedResult = result?.status === "confirmed";

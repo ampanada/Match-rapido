@@ -243,9 +243,13 @@ export default async function PostDetailPage({
   const startHHMM = getCordobaHHMM(post.start_at);
   const slotRange = formatSlotRange(startHHMM);
 
-  const singleApprovedRegisteredJoin = approvedJoins.find((join: any) => !!join.user_id) ?? null;
-  const singleOpponentId = singleApprovedRegisteredJoin?.user_id ?? null;
-  const canUseResultFeature = !!user && post.format === "single" && (isHost || user.id === singleOpponentId) && hasStarted;
+  const singleApprovedJoin = post.format === "single" && approvedJoins.length === 1 ? approvedJoins[0] : null;
+  const singleOpponentId = singleApprovedJoin?.user_id ?? null;
+  const canUseResultFeature =
+    !!user &&
+    post.format === "single" &&
+    hasStarted &&
+    (isHost ? approvedJoins.length === 1 : user.id === singleOpponentId);
   const playerA = post.host_id;
   const playerB = singleOpponentId;
   const canViewH2H = !!user && post.format === "single" && !!playerB;
@@ -353,6 +357,7 @@ export default async function PostDetailPage({
 
     const winnerId = String(formData.get("winner_id") || "");
     const score = String(formData.get("score") || "").trim();
+    const winnerIsOpponent = winnerId === "__opponent__";
     const draw = isDrawScore(score);
 
     if (!isValidResultScore(score) || (!draw && !winnerId)) {
@@ -370,7 +375,7 @@ export default async function PostDetailPage({
 
     const { data: latestPost } = await supabase
       .from("posts")
-      .select("id,host_id,format,status,start_at,joins(user_id,status)")
+      .select("id,host_id,format,status,start_at,joins(id,user_id,status,guest_name,guest_whatsapp)")
       .eq("id", id)
       .maybeSingle();
 
@@ -382,14 +387,49 @@ export default async function PostDetailPage({
       redirect(`/post/${id}`);
     }
 
-    const approved = latestPost.joins?.filter((join: any) => join.status === "approved" && !!join.user_id) ?? [];
+    const approved = latestPost.joins?.filter((join: any) => join.status === "approved") ?? [];
     if (approved.length !== 1) {
       redirect(`/post/${id}`);
     }
 
-    const bId = approved[0].user_id as string;
+    let bId = approved[0].user_id as string | null;
+    if (!bId && approved[0].guest_name) {
+      const guestId = crypto.randomUUID();
+      const guestEmail = `guest-${guestId}@guest.local`;
+      const guestName = String(approved[0].guest_name || "").trim() || (lang === "ko" ? "게스트" : "Invitado");
+      const guestWhatsapp = String(approved[0].guest_whatsapp || "").trim() || null;
+
+      const { error: guestInsertError } = await supabase.from("profiles").insert({
+        id: guestId,
+        email: guestEmail,
+        display_name: guestName,
+        whatsapp: guestWhatsapp,
+        is_guest: true,
+        created_by: user.id
+      });
+      if (guestInsertError) {
+        redirect(`/post/${id}`);
+      }
+
+      const { error: joinUpdateError } = await supabase
+        .from("joins")
+        .update({ user_id: guestId, guest_name: null, guest_whatsapp: null })
+        .eq("id", approved[0].id)
+        .eq("post_id", id);
+      if (joinUpdateError) {
+        redirect(`/post/${id}`);
+      }
+
+      bId = guestId;
+    }
+
+    if (!bId) {
+      redirect(`/post/${id}`);
+    }
+
     const participants = [latestPost.host_id, bId];
-    if (!participants.includes(user.id) || (!draw && !participants.includes(winnerId))) {
+    const resolvedWinnerId = draw ? null : winnerIsOpponent ? bId : winnerId;
+    if (!participants.includes(user.id) || (!draw && (!resolvedWinnerId || !participants.includes(resolvedWinnerId)))) {
       redirect(`/post/${id}`);
     }
 
@@ -402,7 +442,7 @@ export default async function PostDetailPage({
       post_id: id,
       player_a: latestPost.host_id,
       player_b: bId,
-      winner_id: draw ? null : winnerId,
+      winner_id: resolvedWinnerId,
       score,
       status: "pending",
       submitted_by: user.id
@@ -464,12 +504,12 @@ export default async function PostDetailPage({
   const chatLink = hostWhatsapp
     ? waLink(hostWhatsapp, `Hola ${hostName}, consulta por el partido ${formatCordobaDate(post.start_at, "es-AR")} ${slotRange}.`)
     : "";
-  const singleJoinProfile = singleApprovedRegisteredJoin
-    ? Array.isArray(singleApprovedRegisteredJoin.profiles)
-      ? singleApprovedRegisteredJoin.profiles[0]
-      : singleApprovedRegisteredJoin.profiles
+  const singleJoinProfile = singleApprovedJoin
+    ? Array.isArray(singleApprovedJoin.profiles)
+      ? singleApprovedJoin.profiles[0]
+      : singleApprovedJoin.profiles
     : null;
-  const singleJoinName = singleJoinProfile?.display_name || (lang === "ko" ? "참여자" : "Jugador");
+  const singleJoinName = singleJoinProfile?.display_name || singleApprovedJoin?.guest_name || (lang === "ko" ? "참여자" : "Jugador");
   const opponentIsGuest = singleJoinProfile?.is_guest === true;
   const canConfirmResult =
     !!matchResult &&
@@ -607,14 +647,14 @@ export default async function PostDetailPage({
           <p className="notice">{copy.resultNotStarted}</p>
         ) : null}
 
-        {canUseResultFeature && playerB ? (
+        {canUseResultFeature && singleApprovedJoin ? (
           <article className="card">
             <strong>{copy.resultTitle}</strong>
             {!matchResult ? (
               <form className="section" action={createResult}>
                 <select className="select" name="winner_id">
                   <option value={post.host_id}>{hostName}</option>
-                  <option value={playerB}>{singleJoinName}</option>
+                  <option value={playerB ?? "__opponent__"}>{singleJoinName}</option>
                 </select>
                 <input className="input" name="score" placeholder={copy.scorePlaceholder} required autoFocus={shouldFocusRecord} />
                 <SubmitButton idleLabel={copy.registerResult} pendingLabel={copy.registeringResult} />
