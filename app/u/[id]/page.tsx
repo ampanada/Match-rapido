@@ -30,8 +30,9 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           title: "공개 프로필",
           total: "총 경기",
           wins: "승리",
+          draws: "무승부",
           losses: "패배",
-          wl: "승/패",
+          wdl: "승/무/패",
           winRate: "승률",
           streak: "현재 연승",
           bestStreak: "최고 연승",
@@ -53,8 +54,9 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           title: "Perfil publico",
           total: "Total partidos",
           wins: "Victorias",
+          draws: "Empates",
           losses: "Derrotas",
-          wl: "Victorias/Derrotas",
+          wdl: "V/E/D",
           winRate: "Porcentaje de victoria",
           streak: "Racha actual",
           bestStreak: "Mejor racha",
@@ -89,7 +91,15 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
     );
   }
 
-  const [{ data: profile }, { data: recentResults }, { data: rivalRows }, { count: totalConfirmedCount }, { count: winsCount }, { data: streakRows }] = await Promise.all([
+  const [
+    { data: profile },
+    { data: recentResults },
+    { data: rivalRows },
+    { count: totalConfirmedCount },
+    { count: winsCount },
+    { count: drawsCount },
+    { data: streakRows }
+  ] = await Promise.all([
     supabase
       .from("profiles")
       .select("id,display_name,avatar_url,wins,losses,total_matches,current_streak,best_streak")
@@ -115,14 +125,18 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
       .from("match_results")
       .select("id", { count: "exact", head: true })
       .eq("status", "confirmed")
-      .neq("score", "6-6")
       .or(`player_a.eq.${id},player_b.eq.${id}`),
     supabase
       .from("match_results")
       .select("id", { count: "exact", head: true })
       .eq("status", "confirmed")
-      .neq("score", "6-6")
       .eq("winner_id", id)
+      .or(`player_a.eq.${id},player_b.eq.${id}`),
+    supabase
+      .from("match_results")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "confirmed")
+      .eq("score", "6-6")
       .or(`player_a.eq.${id},player_b.eq.${id}`),
     supabase
       .from("match_results")
@@ -210,7 +224,8 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
 
   const computedTotal = totalConfirmedCount ?? 0;
   const computedWins = winsCount ?? 0;
-  const computedLosses = Math.max(0, computedTotal - computedWins);
+  const computedDraws = drawsCount ?? 0;
+  const computedLosses = Math.max(0, computedTotal - computedWins - computedDraws);
   const winRate = computedTotal > 0 ? Math.round((computedWins / computedTotal) * 100) : 0;
 
   const winnerSequence = (streakRows ?? []).map((row) => row.winner_id);
@@ -256,7 +271,12 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
       </header>
 
       <section className="card profile-stat-card">
-        <p className="profile-highlight">{copy.winRate} {winRate}%</p>
+        <p className="profile-highlight">
+          {copy.winRate} {winRate}%
+          <span className="profile-highlight-sub">
+            {copy.wdl} {computedWins}/{computedDraws}/{computedLosses}
+          </span>
+        </p>
         <div className="profile-stat-grid">
           <div className="profile-stat-item">
             <span>{copy.total}</span>
@@ -267,14 +287,12 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
             <strong className="winner-name">{computedWins}</strong>
           </div>
           <div className="profile-stat-item">
-            <span>{copy.losses}</span>
-            <strong className="loss-name">{computedLosses}</strong>
+            <span>{copy.draws}</span>
+            <strong>{computedDraws}</strong>
           </div>
           <div className="profile-stat-item">
-            <span>{copy.wl}</span>
-            <strong>
-              {computedWins} / {computedLosses}
-            </strong>
+            <span>{copy.losses}</span>
+            <strong className="loss-name">{computedLosses}</strong>
           </div>
           <div className="profile-stat-item">
             <span>{copy.streak}</span>

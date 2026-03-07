@@ -49,7 +49,7 @@ export default async function ResultsPage({
           unknownCourt: "코트 미지정",
           streakUnit: "연승",
           bestStreak: "최고",
-          wlLabel: "전적",
+          wdlLabel: "승/무/패",
           winRateLabel: "승률"
         }
       : {
@@ -81,7 +81,7 @@ export default async function ResultsPage({
           unknownCourt: "Cancha sin definir",
           streakUnit: "seguidas",
           bestStreak: "mejor",
-          wlLabel: "W/L",
+          wdlLabel: "W/D/L",
           winRateLabel: "Win %"
         };
 
@@ -120,6 +120,51 @@ export default async function ResultsPage({
       ? await supabase.from("profiles").select("id,display_name,avatar_url").in("id", missingProfileIds)
       : { data: [] as { id: string; display_name: string | null; avatar_url: string | null }[] };
 
+  const streakLeaderIds = (streakLeaders ?? []).map((player) => player.id).filter(Boolean);
+  const streakLeaderIdList = streakLeaderIds.join(",");
+  const { data: streakMatches } =
+    streakLeaderIds.length > 0
+      ? await supabase
+          .from("match_results")
+          .select("player_a,player_b,winner_id,score")
+          .eq("status", "confirmed")
+          .or(`player_a.in.(${streakLeaderIdList}),player_b.in.(${streakLeaderIdList})`)
+          .limit(5000)
+      : { data: [] as { player_a: string; player_b: string; winner_id: string | null; score: string | null }[] };
+
+  const streakStatsMap = new Map<string, { wins: number; draws: number; losses: number; total: number }>();
+  for (const playerId of streakLeaderIds) {
+    streakStatsMap.set(playerId, { wins: 0, draws: 0, losses: 0, total: 0 });
+  }
+
+  for (const match of streakMatches ?? []) {
+    const participants = [match.player_a, match.player_b].filter((playerId) => streakStatsMap.has(playerId));
+    for (const participantId of participants) {
+      const entry = streakStatsMap.get(participantId)!;
+      entry.total += 1;
+      if (isDrawScore(match.score)) {
+        entry.draws += 1;
+      } else if (match.winner_id === participantId) {
+        entry.wins += 1;
+      } else {
+        entry.losses += 1;
+      }
+    }
+  }
+
+  const sortedStreakLeaders = [...(streakLeaders ?? [])]
+    .sort((a, b) => {
+      const aStats = streakStatsMap.get(a.id) ?? { wins: 0, draws: 0, losses: 0, total: 0 };
+      const bStats = streakStatsMap.get(b.id) ?? { wins: 0, draws: 0, losses: 0, total: 0 };
+      return (
+        (b.current_streak ?? 0) - (a.current_streak ?? 0) ||
+        bStats.total - aStats.total ||
+        bStats.wins - aStats.wins ||
+        (b.best_streak ?? 0) - (a.best_streak ?? 0)
+      );
+    })
+    .slice(0, 5);
+
   const fallbackProfileMap = new Map((fallbackProfiles ?? []).map((profile) => [profile.id, profile]));
   const dateLocale = lang === "ko" ? "ko-KR" : "es-AR";
   const todayKey = getCordobaDateString();
@@ -142,7 +187,7 @@ export default async function ResultsPage({
             {showGuide ? copy.mechanismClose : copy.mechanismOpen}
           </Link>
         </div>
-        {(streakLeaders ?? []).slice(0, 5).map((player, index) => (
+        {sortedStreakLeaders.map((player, index) => (
           <MotionProfileLink className="activity-link" href={`/u/${player.id}`} key={`mini-streak-${player.id}`}>
             <article className="activity-item streak-top-item">
               <div className="streak-top-main">
@@ -157,10 +202,8 @@ export default async function ResultsPage({
                 </p>
               </div>
               {(() => {
-                const wins = Number(player.wins ?? 0);
-                const losses = Number(player.losses ?? 0);
-                const totalMatches = Number(player.total_matches ?? wins + losses);
-                const winRate = totalMatches > 0 ? Math.round((wins / totalMatches) * 100) : 0;
+                const stats = streakStatsMap.get(player.id) ?? { wins: 0, draws: 0, losses: 0, total: 0 };
+                const winRate = stats.total > 0 ? Math.round((stats.wins / stats.total) * 100) : 0;
 
                 return (
                   <div className="streak-top-metrics">
@@ -168,7 +211,7 @@ export default async function ResultsPage({
                       <strong>{player.current_streak}</strong> {copy.streakUnit}
                     </span>
                     <span className="streak-pill">
-                      {copy.wlLabel} <strong>{wins}/{losses}</strong>
+                      {copy.wdlLabel} <strong>{stats.wins}/{stats.draws}/{stats.losses}</strong>
                     </span>
                     <span className="streak-pill streak-pill-accent">
                       {copy.winRateLabel} <strong>{winRate}%</strong>
