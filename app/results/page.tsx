@@ -30,7 +30,7 @@ export default async function ResultsPage({
           mechanismClose: "계산 기준 닫기",
           mechanism1: "포함: status=confirmed 결과만 집계",
           mechanism2: "제외: pending/cancelled 결과, 미확정 매치",
-          mechanism3: "승률 공식: (승 / 확정 총경기) × 100",
+          mechanism3: "승률 공식: (승 / (승+패)) × 100 · 무승부 제외",
           mechanism4: "연승: 최신 확정 경기부터 연속 승리 횟수",
           mechanism5: "1 Set Slam 단식 결과 기준으로 업데이트",
           empty: "아직 확정된 결과가 없습니다.",
@@ -62,7 +62,7 @@ export default async function ResultsPage({
           mechanismClose: "Ocultar calculo",
           mechanism1: "Incluye solo resultados con status=confirmed",
           mechanism2: "Excluye pending/cancelled y partidos sin confirmar",
-          mechanism3: "Formula: (victorias / total confirmado) × 100",
+          mechanism3: "Formula: (victorias / (victorias+derrotas)) × 100 · empates fuera",
           mechanism4: "Racha: victorias consecutivas desde el partido confirmado mas reciente",
           mechanism5: "Actualiza con resultados de 1 Set Slam (individual)",
           empty: "Aun no hay resultados confirmados.",
@@ -203,7 +203,8 @@ export default async function ResultsPage({
               </div>
               {(() => {
                 const stats = streakStatsMap.get(player.id) ?? { wins: 0, draws: 0, losses: 0, total: 0 };
-                const winRate = stats.total > 0 ? Math.round((stats.wins / stats.total) * 100) : 0;
+                const decisiveTotal = stats.wins + stats.losses;
+                const winRate = decisiveTotal > 0 ? Math.round((stats.wins / decisiveTotal) * 100) : 0;
 
                 return (
                   <div className="streak-top-metrics">

@@ -102,7 +102,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
   ] = await Promise.all([
     supabase
       .from("profiles")
-      .select("id,display_name,avatar_url,wins,losses,total_matches,current_streak,best_streak,is_guest")
+      .select("id,display_name,avatar_url,wins,losses,total_matches,current_streak,best_streak,is_guest,whatsapp")
       .eq("id", id)
       .maybeSingle(),
     supabase
@@ -150,7 +150,20 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
   ]);
 
   let aggregateIds = [id];
-  if (profile?.is_guest && profile.display_name) {
+  if (profile?.whatsapp) {
+    const { data: sameWhatsappProfiles } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("whatsapp", profile.whatsapp)
+      .limit(200);
+
+    const mergedIds = Array.from(
+      new Set([id, ...(sameWhatsappProfiles ?? []).map((row) => row.id).filter(Boolean)])
+    );
+    if (mergedIds.length > 0) {
+      aggregateIds = mergedIds;
+    }
+  } else if (profile?.is_guest && profile.display_name) {
     const { data: sameNameGuestProfiles } = await supabase
       .from("profiles")
       .select("id")
@@ -316,7 +329,8 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
   const computedWins = effectiveWinsCount;
   const computedDraws = effectiveDrawsCount;
   const computedLosses = Math.max(0, computedTotal - computedWins - computedDraws);
-  const winRate = computedTotal > 0 ? Math.round((computedWins / computedTotal) * 100) : 0;
+  const decisiveTotal = computedWins + computedLosses;
+  const winRate = decisiveTotal > 0 ? Math.round((computedWins / decisiveTotal) * 100) : 0;
 
   const winnerSequence = effectiveStreakRows.map((row) => row.winner_id);
   const computedCurrentStreak = (() => {
