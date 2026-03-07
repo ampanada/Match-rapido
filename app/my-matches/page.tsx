@@ -807,7 +807,7 @@ export default async function MyMatchesPage({
                 </div>
                 {item.hostManualClose ? <p className="notice">{copy.hostManualClose}</p> : null}
                 {renderGuestManager(item)}
-                {item.host_id === user.id ? (
+                {item.host_id === user.id && !item.hostManualClose ? (
                   <Link className="link-btn" href={`/post/${item.id}/edit`}>
                     {copy.editPost}
                   </Link>
