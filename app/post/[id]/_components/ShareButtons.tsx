@@ -58,8 +58,7 @@ export default function ShareButtons({ url, dateTimeLabel, courtNo, format, leve
       if (navigator.share) {
         await navigator.share({
           title: "Match Rapido",
-          text,
-          url: absoluteUrl
+          text
         });
         showFeedback("Compartido ✅");
         return;

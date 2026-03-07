@@ -49,8 +49,7 @@ export default function ShareMini({ postId, startAtLabel, courtNo, formatLabel, 
       if (navigator.share) {
         await navigator.share({
           title: "Match Rapido",
-          text: message,
-          url
+          text: message
         });
         showFeedback(lang === "ko" ? "공유됨 ✅" : "Compartido ✅");
         return;
