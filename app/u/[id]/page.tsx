@@ -48,6 +48,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           rivalsEmpty: "상대전적 데이터가 아직 없습니다.",
           rivalsTotal: "전적",
           rivalsRate: "승률",
+          streakBadge: "연승",
           settings: "설정"
         }
       : {
@@ -72,6 +73,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           rivalsEmpty: "Aun no hay datos de rivales.",
           rivalsTotal: "Historial",
           rivalsRate: "Porcentaje",
+          streakBadge: "racha",
           settings: "Ajustes"
         };
 
@@ -365,7 +367,12 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
       <header className="top">
         <div className="my-hero-row">
           <ProfileAvatar name={safeProfile.display_name || copy.title} avatarUrl={safeProfile.avatar_url} size="md" />
-          <h1>{safeProfile.display_name || copy.title}</h1>
+          <div className="profile-name-stack">
+            <h1>{safeProfile.display_name || copy.title}</h1>
+            {computedCurrentStreak >= 2 ? (
+              <span className="profile-streak-badge">🔥 {computedCurrentStreak} {copy.streakBadge}</span>
+            ) : null}
+          </div>
         </div>
         {user?.id === id ? (
           <Link className="profile-settings-btn" href="/my">

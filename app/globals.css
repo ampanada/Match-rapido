@@ -248,6 +248,32 @@ a {
   gap: 10px;
 }
 
+.profile-name-stack {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.profile-name-stack h1 {
+  margin: 0;
+  line-height: 1.1;
+}
+
+.profile-streak-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 190, 126, 0.52);
+  background: linear-gradient(135deg, rgba(255, 210, 140, 0.3), rgba(255, 140, 79, 0.28));
+  color: #ffe7c0;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.18px;
+  line-height: 1;
+  padding: 3px 8px;
+}
+
 .my-avatar {
   width: 40px;
   height: 40px;
@@ -1139,6 +1165,21 @@ a {
 
 .result-card .participant-name {
   font-size: 10px;
+}
+
+.result-streak-mini {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 193, 125, 0.5);
+  background: linear-gradient(135deg, rgba(255, 209, 136, 0.26), rgba(255, 138, 78, 0.24));
+  color: #ffe3b7;
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.14px;
+  padding: 2px 5px;
 }
 
 .result-card .participant-role {

@@ -117,7 +117,8 @@ export default async function ResultsPage({
           wdlLabel: "승/무/패",
           winRateLabel: "승률",
           h2hLabel: "상대전적",
-          h2hRateEmpty: "데이터 없음"
+          h2hRateEmpty: "데이터 없음",
+          streakLabel: "연승"
         }
       : {
           title: "Resultados en vivo",
@@ -151,7 +152,8 @@ export default async function ResultsPage({
           wdlLabel: "G/E/P",
           winRateLabel: "Win %",
           h2hLabel: "H2H",
-          h2hRateEmpty: "Sin datos"
+          h2hRateEmpty: "Sin datos",
+          streakLabel: "racha"
         };
 
   const supabase = await createClient();
@@ -160,7 +162,7 @@ export default async function ResultsPage({
     supabase
       .from("match_results")
       .select(
-        "id,score,winner_id,confirmed_at,created_at,player_a,player_b,player_a_profile:profiles!match_results_player_a_fkey(id,display_name,avatar_url),player_b_profile:profiles!match_results_player_b_fkey(id,display_name,avatar_url),posts!match_results_post_id_fkey(start_at,court_no,host_id)"
+        "id,score,winner_id,confirmed_at,created_at,player_a,player_b,player_a_profile:profiles!match_results_player_a_fkey(id,display_name,avatar_url,current_streak),player_b_profile:profiles!match_results_player_b_fkey(id,display_name,avatar_url,current_streak),posts!match_results_post_id_fkey(start_at,court_no,host_id)"
       )
       .eq("status", "confirmed")
       .order("confirmed_at", { ascending: false })
@@ -186,8 +188,8 @@ export default async function ResultsPage({
 
   const { data: fallbackProfiles } =
     missingProfileIds.length > 0
-      ? await supabase.from("profiles").select("id,display_name,avatar_url").in("id", missingProfileIds)
-      : { data: [] as { id: string; display_name: string | null; avatar_url: string | null }[] };
+      ? await supabase.from("profiles").select("id,display_name,avatar_url,current_streak").in("id", missingProfileIds)
+      : { data: [] as { id: string; display_name: string | null; avatar_url: string | null; current_streak: number | null }[] };
 
   const resultPairKeys = new Set<string>();
   const resultParticipantIds = new Set<string>();
@@ -461,6 +463,10 @@ export default async function ResultsPage({
             playerB?.avatar_url ??
             (playerBId ? fallbackProfileMap.get(playerBId)?.avatar_url : null) ??
             null;
+          const playerAStreak =
+            Number(playerA?.current_streak ?? (playerAId ? fallbackProfileMap.get(playerAId)?.current_streak : 0) ?? 0);
+          const playerBStreak =
+            Number(playerB?.current_streak ?? (playerBId ? fallbackProfileMap.get(playerBId)?.current_streak : 0) ?? 0);
           const courtLabel = post?.court_no ? `${copy.court} ${post.court_no}` : copy.unknownCourt;
           const winnerName = isAWinner ? playerAName : playerBName;
           const mainResultVerb = lang === "ko" ? "승리" : "gano";
@@ -474,8 +480,8 @@ export default async function ResultsPage({
           const playerBRate = h2hDecisiveTotal > 0 ? Math.round((playerBWins / h2hDecisiveTotal) * 100) : 0;
           const h2hDisplay = h2hDecisiveTotal > 0 ? `${playerARate}% - ${playerBRate}%` : copy.h2hRateEmpty;
           const participants = [
-            { id: playerAId, name: playerAName, avatar: playerAAvatar, isWinner: isAWinner },
-            { id: playerBId, name: playerBName, avatar: playerBAvatar, isWinner: isBWinner }
+            { id: playerAId, name: playerAName, avatar: playerAAvatar, isWinner: isAWinner, streak: playerAStreak },
+            { id: playerBId, name: playerBName, avatar: playerBAvatar, isWinner: isBWinner, streak: playerBStreak }
           ];
 
           return (
@@ -515,6 +521,9 @@ export default async function ResultsPage({
                         <span className={`result-outcome-marker ${markerClass}`}>{marker}</span>
                         <ProfileAvatar name={player.name} avatarUrl={player.avatar} size="sm" />
                         <strong className="participant-name">{player.name}</strong>
+                        {player.streak >= 2 ? (
+                          <span className="result-streak-mini">🔥 {player.streak} {copy.streakLabel}</span>
+                        ) : null}
                         {player.id && post?.host_id && player.id === post.host_id ? <span className="participant-role">{copy.hostTag}</span> : null}
                       </span>
                     );
