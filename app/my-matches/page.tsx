@@ -37,6 +37,7 @@ type MatchItem = {
   format: string;
   needed: number;
   court_no: number | null;
+  note: string | null;
   status: string;
   profiles:
     | { id: string; display_name: string | null; avatar_url: string | null }
@@ -184,7 +185,7 @@ export default async function MyMatchesPage({
     supabase
       .from("posts")
       .select(
-        "id,host_id,start_at,format,needed,court_no,status,profiles!posts_host_id_fkey(id,display_name,avatar_url,wins,losses,total_matches),joins(id,status,user_id,guest_name,guest_whatsapp,profiles!joins_user_id_fkey(id,display_name,avatar_url,wins,losses,total_matches))"
+        "id,host_id,start_at,format,needed,court_no,note,status,profiles!posts_host_id_fkey(id,display_name,avatar_url,wins,losses,total_matches),joins(id,status,user_id,guest_name,guest_whatsapp,profiles!joins_user_id_fkey(id,display_name,avatar_url,wins,losses,total_matches))"
       )
       .eq("host_id", user.id)
       .order("start_at", { ascending: false })
@@ -192,7 +193,7 @@ export default async function MyMatchesPage({
     supabase
       .from("joins")
       .select(
-        "post_id,posts!joins_post_id_fkey(id,host_id,start_at,format,needed,court_no,status,profiles!posts_host_id_fkey(id,display_name,avatar_url,wins,losses,total_matches),joins(id,status,user_id,guest_name,guest_whatsapp,profiles!joins_user_id_fkey(id,display_name,avatar_url,wins,losses,total_matches)))"
+        "post_id,posts!joins_post_id_fkey(id,host_id,start_at,format,needed,court_no,note,status,profiles!posts_host_id_fkey(id,display_name,avatar_url,wins,losses,total_matches),joins(id,status,user_id,guest_name,guest_whatsapp,profiles!joins_user_id_fkey(id,display_name,avatar_url,wins,losses,total_matches)))"
       )
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
@@ -204,7 +205,7 @@ export default async function MyMatchesPage({
     const hostFallback = await supabase
       .from("posts")
       .select(
-        "id,host_id,start_at,format,needed,court_no,status,profiles!posts_host_id_fkey(id,display_name,avatar_url),joins(id,user_id,profiles!joins_user_id_fkey(id,display_name,avatar_url))"
+        "id,host_id,start_at,format,needed,court_no,note,status,profiles!posts_host_id_fkey(id,display_name,avatar_url),joins(id,user_id,profiles!joins_user_id_fkey(id,display_name,avatar_url))"
       )
       .eq("host_id", user.id)
       .order("start_at", { ascending: false })
@@ -219,7 +220,7 @@ export default async function MyMatchesPage({
     const joinFallback = await supabase
       .from("joins")
       .select(
-        "post_id,posts!joins_post_id_fkey(id,host_id,start_at,format,needed,court_no,status,profiles!posts_host_id_fkey(id,display_name,avatar_url),joins(id,user_id,profiles!joins_user_id_fkey(id,display_name,avatar_url)))"
+        "post_id,posts!joins_post_id_fkey(id,host_id,start_at,format,needed,court_no,note,status,profiles!posts_host_id_fkey(id,display_name,avatar_url),joins(id,user_id,profiles!joins_user_id_fkey(id,display_name,avatar_url)))"
       )
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
@@ -574,7 +575,7 @@ export default async function MyMatchesPage({
           : copy.guestFailed;
 
   const renderGuestManager = (item: (typeof normalized)[number]) => {
-    if (item.host_id !== user.id || item.isCompleted || item.hasConfirmedResult) {
+    if (item.host_id !== user.id || item.isCompleted || item.hasConfirmedResult || item.hostManualClose) {
       return null;
     }
 
@@ -706,6 +707,7 @@ export default async function MyMatchesPage({
                   <span className="my-match-meta-pill">{copy.players} {item.currentPlayers}/{item.needed}</span>
                   <span className="my-match-meta-pill">{formatLabel(item.format, lang)}</span>
                 </div>
+                {item.note?.trim() ? <p className="note">{item.note.trim()}</p> : null}
                 <div className="participant-list">
                   {item.participants.map((participant, idx) => (
                     participant.profile_id ? (
@@ -809,6 +811,7 @@ export default async function MyMatchesPage({
                   <span className="my-match-meta-pill">{copy.players} {item.currentPlayers}/{item.needed}</span>
                   <span className="my-match-meta-pill">{formatLabel(item.format, lang)}</span>
                 </div>
+                {item.note?.trim() ? <p className="note">{item.note.trim()}</p> : null}
                 <div className="participant-list">
                   {item.participants.map((participant, idx) => (
                     participant.profile_id ? (
@@ -866,6 +869,7 @@ export default async function MyMatchesPage({
                     <span className="my-match-meta-pill">{copy.players} {item.currentPlayers}/{item.needed}</span>
                     <span className="my-match-meta-pill">{copy.completedLabel}</span>
                   </div>
+                  {item.note?.trim() ? <p className="note">{item.note.trim()}</p> : null}
                   <div className="participant-list">
                     {item.participants.map((participant, idx) => (
                       participant.profile_id ? (
