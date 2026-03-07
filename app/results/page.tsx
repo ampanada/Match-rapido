@@ -48,7 +48,8 @@ export default async function ResultsPage({
           recorded: "기록됨",
           unknownCourt: "코트 미지정",
           streakUnit: "연승",
-          bestStreak: "최고"
+          bestStreak: "최고",
+          wlLabel: "전적"
         }
       : {
           title: "Resultados en vivo",
@@ -78,7 +79,8 @@ export default async function ResultsPage({
           recorded: "Registrado",
           unknownCourt: "Cancha sin definir",
           streakUnit: "seguidas",
-          bestStreak: "mejor"
+          bestStreak: "mejor",
+          wlLabel: "W/L"
         };
 
   const supabase = await createClient();
@@ -152,9 +154,14 @@ export default async function ResultsPage({
                   {player.display_name || (lang === "ko" ? "플레이어" : "Jugador")}
                 </p>
               </div>
-              <p className="activity-time">
-                {player.current_streak} {copy.streakUnit} · W/L {player.wins}/{player.losses}
-              </p>
+              <div className="streak-top-metrics">
+                <p className="streak-metric-line">
+                  <strong>{player.current_streak}</strong> <span>{copy.streakUnit}</span>
+                </p>
+                <p className="streak-metric-line">
+                  <span>{copy.wlLabel}</span> <strong>{player.wins}/{player.losses}</strong>
+                </p>
+              </div>
             </article>
           </MotionProfileLink>
         ))}
