@@ -105,6 +105,7 @@ export default async function MyMatchesPage({
           addGuestSavedEmpty: "저장된 게스트가 없습니다.",
           addGuestSavedUse: "선택해서 추가",
           addGuestSavedCount: "저장 게스트",
+          addGuestOpenHint: "눌러서 열기",
           addGuestManualToggle: "새 게스트 직접 입력",
           addGuestManualHint: "눌러서 입력창 열기",
           addGuestLocked: "매치 만료 후에는 게스트를 추가할 수 없습니다.",
@@ -148,6 +149,7 @@ export default async function MyMatchesPage({
           addGuestSavedEmpty: "No hay invitados guardados.",
           addGuestSavedUse: "Agregar este invitado",
           addGuestSavedCount: "Invitados guardados",
+          addGuestOpenHint: "Tocar para abrir",
           addGuestManualToggle: "Ingresar invitado nuevo",
           addGuestManualHint: "Pulsa para abrir el formulario",
           addGuestLocked: "No se pueden agregar invitados en partidos vencidos.",
@@ -547,89 +549,100 @@ export default async function MyMatchesPage({
 
     const isGuestExpired = item.startMs + 30 * 60 * 1000 < now;
     const showFeedback = guestFeedbackPostId === item.id;
+    const openByFeedback = showFeedback && (qs.guestAdded === "1" || qs.guestAdded === "exists" || !!qs.guestError);
 
     return (
-      <article className="guest-card my-match-guest-card">
-        <div className="guest-card-head">
-          <strong>{copy.addGuestTitle}</strong>
+      <details className="guest-card guest-card-collapsible my-match-guest-card" open={openByFeedback}>
+        <summary className="guest-card-toggle">
+          <span className="guest-card-toggle-main">
+            <span className="guest-card-toggle-icon" aria-hidden>
+              +
+            </span>
+            <span className="guest-card-toggle-text">
+              <strong>{copy.addGuestTitle}</strong>
+              <small>{copy.addGuestOpenHint}</small>
+            </span>
+          </span>
           <span className="badge guest-count-badge">
             {copy.addGuestSavedCount} {guestDirectory.length}
           </span>
-        </div>
+        </summary>
 
-        {showFeedback && qs.guestAdded === "1" ? (
-          <p className="notice success guest-feedback">
-            <span className="guest-feedback-icon" aria-hidden>
-              ✅
-            </span>
-            <span>
-              {copy.guestAddedDone}
-              {guestNameFromQs ? ` · ${guestNameFromQs}` : ""}
-            </span>
-          </p>
-        ) : null}
-        {showFeedback && qs.guestAdded === "exists" ? (
-          <p className="notice success guest-feedback">
-            <span className="guest-feedback-icon" aria-hidden>
-              ✅
-            </span>
-            <span>
-              {copy.guestAddedExists}
-              {guestNameFromQs ? ` · ${guestNameFromQs}` : ""}
-            </span>
-          </p>
-        ) : null}
-        {showFeedback && qs.guestError ? (
-          <p className="notice">
-            {guestErrorMessage}
-            {guestReason ? ` (${guestReason})` : ""}
-          </p>
-        ) : null}
-
-        <div className="guest-directory-main">
-          <p className="guest-directory-title">{copy.addGuestSavedTitle}</p>
-          {guestDirectory.length === 0 ? <p className="muted">{copy.addGuestSavedEmpty}</p> : null}
-          {guestDirectory.length > 0 ? (
-            <div className="guest-directory-list">
-              {guestDirectory.map((guest) => (
-                <form key={`${item.id}-${guest.key}`} action={addGuestJoinFromMyMatches}>
-                  <input type="hidden" name="post_id" value={item.id} />
-                  <input type="hidden" name="guest_name" value={guest.guest_name} />
-                  <input type="hidden" name="guest_whatsapp" value={guest.guest_whatsapp ?? ""} />
-                  <button className="guest-directory-btn" type="submit" disabled={isGuestExpired}>
-                    <span className="guest-directory-mainline">
-                      <ProfileAvatar name={guest.guest_name} avatarUrl={null} size="sm" />
-                      <span className="guest-directory-name">{guest.guest_name}</span>
-                    </span>
-                    <span className="guest-directory-cta">{copy.addGuestSavedUse}</span>
-                  </button>
-                </form>
-              ))}
-            </div>
+        <div className="guest-card-panel">
+          {showFeedback && qs.guestAdded === "1" ? (
+            <p className="notice success guest-feedback">
+              <span className="guest-feedback-icon" aria-hidden>
+                ✅
+              </span>
+              <span>
+                {copy.guestAddedDone}
+                {guestNameFromQs ? ` · ${guestNameFromQs}` : ""}
+              </span>
+            </p>
           ) : null}
-        </div>
+          {showFeedback && qs.guestAdded === "exists" ? (
+            <p className="notice success guest-feedback">
+              <span className="guest-feedback-icon" aria-hidden>
+                ✅
+              </span>
+              <span>
+                {copy.guestAddedExists}
+                {guestNameFromQs ? ` · ${guestNameFromQs}` : ""}
+              </span>
+            </p>
+          ) : null}
+          {showFeedback && qs.guestError ? (
+            <p className="notice">
+              {guestErrorMessage}
+              {guestReason ? ` (${guestReason})` : ""}
+            </p>
+          ) : null}
 
-        <details className="guest-mini-create">
-          <summary className="guest-mini-summary">
-            <span>{copy.addGuestManualToggle}</span>
-            <small>{copy.addGuestManualHint}</small>
-          </summary>
-          <form className="guest-mini-form" action={addGuestJoinFromMyMatches}>
-            <input type="hidden" name="post_id" value={item.id} />
-            <input className="input input-compact" name="guest_name" placeholder={copy.addGuestName} required disabled={isGuestExpired} />
-            <input
-              className="input input-compact"
-              name="guest_whatsapp"
-              placeholder={copy.addGuestWhatsapp}
-              inputMode="tel"
-              disabled={isGuestExpired}
-            />
-            <SubmitButton idleLabel={copy.addGuestSubmit} pendingLabel={copy.addGuestSubmitting} disabled={isGuestExpired} />
-          </form>
-        </details>
-        {isGuestExpired ? <p className="notice">{copy.addGuestLocked}</p> : null}
-        <p className="muted">{copy.addGuestHint}</p>
-      </article>
+          <div className="guest-directory-main">
+            <p className="guest-directory-title">{copy.addGuestSavedTitle}</p>
+            {guestDirectory.length === 0 ? <p className="muted">{copy.addGuestSavedEmpty}</p> : null}
+            {guestDirectory.length > 0 ? (
+              <div className="guest-directory-list">
+                {guestDirectory.map((guest) => (
+                  <form key={`${item.id}-${guest.key}`} action={addGuestJoinFromMyMatches}>
+                    <input type="hidden" name="post_id" value={item.id} />
+                    <input type="hidden" name="guest_name" value={guest.guest_name} />
+                    <input type="hidden" name="guest_whatsapp" value={guest.guest_whatsapp ?? ""} />
+                    <button className="guest-directory-btn" type="submit" disabled={isGuestExpired}>
+                      <span className="guest-directory-mainline">
+                        <ProfileAvatar name={guest.guest_name} avatarUrl={null} size="sm" />
+                        <span className="guest-directory-name">{guest.guest_name}</span>
+                      </span>
+                      <span className="guest-directory-cta">{copy.addGuestSavedUse}</span>
+                    </button>
+                  </form>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          <details className="guest-mini-create">
+            <summary className="guest-mini-summary">
+              <span>{copy.addGuestManualToggle}</span>
+              <small>{copy.addGuestManualHint}</small>
+            </summary>
+            <form className="guest-mini-form" action={addGuestJoinFromMyMatches}>
+              <input type="hidden" name="post_id" value={item.id} />
+              <input className="input input-compact" name="guest_name" placeholder={copy.addGuestName} required disabled={isGuestExpired} />
+              <input
+                className="input input-compact"
+                name="guest_whatsapp"
+                placeholder={copy.addGuestWhatsapp}
+                inputMode="tel"
+                disabled={isGuestExpired}
+              />
+              <SubmitButton idleLabel={copy.addGuestSubmit} pendingLabel={copy.addGuestSubmitting} disabled={isGuestExpired} />
+            </form>
+          </details>
+          {isGuestExpired ? <p className="notice">{copy.addGuestLocked}</p> : null}
+          <p className="muted">{copy.addGuestHint}</p>
+        </div>
+      </details>
     );
   };
 
