@@ -10,6 +10,13 @@ function isDrawScore(score: string | null | undefined) {
   return score === "6-6";
 }
 
+function buildPairKey(a: string | null | undefined, b: string | null | undefined) {
+  if (!a || !b) {
+    return null;
+  }
+  return [a, b].sort().join("::");
+}
+
 function normalizeWhatsapp(raw: string | null | undefined) {
   const compact = String(raw ?? "").replace(/\s+/g, "").replace(/-/g, "");
   if (!compact) {
@@ -109,8 +116,7 @@ export default async function ResultsPage({
           bestStreak: "최고",
           wdlLabel: "승/무/패",
           winRateLabel: "승률",
-          formatLabel: "형식",
-          singleLabel: "단식"
+          h2hLabel: "상대전적"
         }
       : {
           title: "Resultados en vivo",
@@ -143,8 +149,7 @@ export default async function ResultsPage({
           bestStreak: "mejor",
           wdlLabel: "G/E/P",
           winRateLabel: "Win %",
-          formatLabel: "Formato",
-          singleLabel: "Individual"
+          h2hLabel: "H2H"
         };
 
   const supabase = await createClient();
@@ -181,6 +186,54 @@ export default async function ResultsPage({
     missingProfileIds.length > 0
       ? await supabase.from("profiles").select("id,display_name,avatar_url").in("id", missingProfileIds)
       : { data: [] as { id: string; display_name: string | null; avatar_url: string | null }[] };
+
+  const resultPairKeys = new Set<string>();
+  const resultParticipantIds = new Set<string>();
+  for (const row of results ?? []) {
+    const playerA = Array.isArray((row as any).player_a_profile) ? (row as any).player_a_profile[0] : (row as any).player_a_profile;
+    const playerB = Array.isArray((row as any).player_b_profile) ? (row as any).player_b_profile[0] : (row as any).player_b_profile;
+    const playerAId = playerA?.id ?? (row as any).player_a ?? null;
+    const playerBId = playerB?.id ?? (row as any).player_b ?? null;
+    const pairKey = buildPairKey(playerAId, playerBId);
+    if (!pairKey) {
+      continue;
+    }
+    resultPairKeys.add(pairKey);
+    resultParticipantIds.add(playerAId);
+    resultParticipantIds.add(playerBId);
+  }
+
+  const participantIdList = Array.from(resultParticipantIds).join(",");
+  const { data: h2hRows } =
+    resultParticipantIds.size > 1
+      ? await supabase
+          .from("match_results")
+          .select("player_a,player_b,winner_id,score")
+          .eq("status", "confirmed")
+          .or(`player_a.in.(${participantIdList}),player_b.in.(${participantIdList})`)
+          .limit(5000)
+      : { data: [] as { player_a: string; player_b: string; winner_id: string | null; score: string | null }[] };
+
+  const h2hByPair = new Map<string, { winsByPlayer: Map<string, number>; draws: number }>();
+  for (const row of h2hRows ?? []) {
+    const pairKey = buildPairKey(row.player_a, row.player_b);
+    if (!pairKey || !resultPairKeys.has(pairKey)) {
+      continue;
+    }
+
+    const entry = h2hByPair.get(pairKey) ?? { winsByPlayer: new Map<string, number>(), draws: 0 };
+    if (isDrawScore(row.score)) {
+      entry.draws += 1;
+      h2hByPair.set(pairKey, entry);
+      continue;
+    }
+
+    if (row.winner_id) {
+      const prevWins = entry.winsByPlayer.get(row.winner_id) ?? 0;
+      entry.winsByPlayer.set(row.winner_id, prevWins + 1);
+    }
+    h2hByPair.set(pairKey, entry);
+  }
 
   const streakLeaderRows = streakLeaders ?? [];
   const leaderAggregateMap = new Map<string, Set<string>>();
@@ -411,6 +464,13 @@ export default async function ResultsPage({
           const courtLabel = post?.court_no ? `${copy.court} ${post.court_no}` : copy.unknownCourt;
           const winnerName = isAWinner ? playerAName : playerBName;
           const mainResultSummary = draw ? (lang === "ko" ? "무승부" : "empate") : lang === "ko" ? `${winnerName} 승리` : `gano ${winnerName}`;
+          const h2hKey = buildPairKey(playerAId, playerBId);
+          const h2hStats = h2hKey ? h2hByPair.get(h2hKey) : null;
+          const playerAWins = playerAId ? h2hStats?.winsByPlayer.get(playerAId) ?? 0 : 0;
+          const playerBWins = playerBId ? h2hStats?.winsByPlayer.get(playerBId) ?? 0 : 0;
+          const drawSuffix =
+            (h2hStats?.draws ?? 0) > 0 ? ` · ${copy.drawTag} ${h2hStats?.draws ?? 0}` : "";
+          const h2hDisplay = `${playerAWins}-${playerBWins}${drawSuffix}`;
           const participants = [
             { id: playerAId, name: playerAName, avatar: playerAAvatar, isWinner: isAWinner },
             { id: playerBId, name: playerBName, avatar: playerBAvatar, isWinner: isBWinner }
@@ -437,8 +497,8 @@ export default async function ResultsPage({
                   <strong className="result-info-value">{courtLabel}</strong>
                 </article>
                 <article className="result-info-card">
-                  <span className="result-info-label">{copy.formatLabel}</span>
-                  <strong className="result-info-value">{copy.singleLabel}</strong>
+                  <span className="result-info-label">{copy.h2hLabel}</span>
+                  <strong className="result-info-value">{h2hDisplay}</strong>
                 </article>
               </div>
               <div className="result-participants-card">
