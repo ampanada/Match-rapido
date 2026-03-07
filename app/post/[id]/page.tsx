@@ -34,6 +34,7 @@ export default async function PostDetailPage({
     record?: string;
     loggedIn?: string;
     updated?: string;
+    from?: string;
   }>;
 }) {
   noStore();
@@ -647,7 +648,11 @@ export default async function PostDetailPage({
 
         {post.format !== "single" ? <p className="muted">{copy.singleOnlyResult}</p> : null}
 
-        {!hasStarted && !!user && post.format === "single" && (isHost || user?.id === singleOpponentId) ? (
+        {!hasStarted &&
+        qs.from === "my-matches" &&
+        !!user &&
+        post.format === "single" &&
+        (isHost || user?.id === singleOpponentId) ? (
           <p className="notice">{copy.resultNotStarted}</p>
         ) : null}
 

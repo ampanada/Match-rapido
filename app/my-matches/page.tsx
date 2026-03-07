@@ -706,7 +706,7 @@ export default async function MyMatchesPage({
                   </Link>
                 ) : null}
                 {item.isSingleReady && !item.hasConfirmedResult && item.startMs <= now && !item.hostManualClose ? (
-                  <Link className="link-btn" href={`/post/${item.id}?record=1`}>
+                  <Link className="link-btn" href={`/post/${item.id}?record=1&from=my-matches`}>
                     {copy.record}
                   </Link>
                 ) : item.hasConfirmedResult ? (
@@ -854,7 +854,7 @@ export default async function MyMatchesPage({
                   {item.hostManualClose ? <p className="notice">{copy.hostManualClose}</p> : null}
                   {renderGuestManager(item)}
                   {item.isSingleReady && !item.hasConfirmedResult && item.startMs <= now && !item.hostManualClose ? (
-                    <Link className="link-btn" href={`/post/${item.id}?record=1`}>
+                    <Link className="link-btn" href={`/post/${item.id}?record=1&from=my-matches`}>
                       {copy.record}
                     </Link>
                   ) : item.hasConfirmedResult ? (
