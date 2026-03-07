@@ -913,8 +913,8 @@ a {
 }
 
 .result-card {
-  gap: 7px;
-  padding: 10px;
+  gap: 4px;
+  padding: 6px;
   border-color: #506585;
   background:
     radial-gradient(120% 100% at 0% -15%, rgba(114, 176, 255, 0.18), transparent 60%),
@@ -923,38 +923,38 @@ a {
 }
 
 .result-card .row {
-  gap: 8px;
+  gap: 5px;
 }
 
 .result-card .muted {
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .result-card .participant-list {
-  gap: 4px;
+  gap: 2px;
 }
 
 .result-card .participant-chip {
-  padding: 5px 8px;
-  border-radius: 10px;
+  padding: 3px 6px;
+  border-radius: 8px;
 }
 
 .result-card .participant-row {
-  gap: 6px;
+  gap: 4px;
 }
 
 .result-card .participant-index {
-  min-width: 50px;
-  font-size: 9px;
+  min-width: 42px;
+  font-size: 8px;
 }
 
 .result-card .participant-name {
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .result-card .participant-role {
-  font-size: 9px;
-  padding: 2px 6px;
+  font-size: 8px;
+  padding: 1px 5px;
 }
 
 .result-meta-strong {
@@ -972,12 +972,12 @@ a {
 
 .result-players {
   margin: 0;
-  font-size: 13px;
+  font-size: 11px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  line-height: 1.2;
+  gap: 4px;
+  line-height: 1.1;
 }
 
 .result-players > span {
@@ -988,8 +988,8 @@ a {
 .result-player-line {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  min-height: 24px;
+  gap: 4px;
+  min-height: 18px;
   vertical-align: middle;
 }
 
@@ -1065,11 +1065,11 @@ a {
   margin: 0;
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 5px;
 }
 
 .result-scoreline strong {
-  font-size: 16px;
+  font-size: 13px;
   letter-spacing: 0.4px;
 }
 
@@ -1081,21 +1081,21 @@ a {
 
 .result-date-hero {
   margin: 0;
-  min-height: 30px;
+  min-height: 18px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 .result-weekday {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.2px;
   color: #eaf3ff;
 }
 
 .result-date-text {
-  font-size: 12px;
+  font-size: 10px;
   color: #cad9f2;
 }
 
@@ -1104,8 +1104,8 @@ a {
   border: 1px solid rgba(138, 170, 230, 0.5);
   background: rgba(58, 82, 126, 0.34);
   border-radius: 999px;
-  padding: 2px 7px;
-  font-size: 10px;
+  padding: 1px 5px;
+  font-size: 9px;
   color: #dce9ff;
   font-weight: 700;
 }
