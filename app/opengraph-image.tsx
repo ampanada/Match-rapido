@@ -47,8 +47,8 @@ export default function OpengraphImage() {
                 width: "64px",
                 height: "64px",
                 borderRadius: "999px",
-                background: "#d9ff63",
-                border: "4px solid #0f2343",
+                background: "#d8ff4f",
+                border: "4px solid #111111",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -62,7 +62,7 @@ export default function OpengraphImage() {
                   width: "86px",
                   height: "86px",
                   borderRadius: "999px",
-                  border: "4px solid #0f2343",
+                  border: "4px solid #111111",
                   borderLeftColor: "transparent",
                   borderRightColor: "transparent",
                   transform: "rotate(32deg)"
@@ -74,7 +74,7 @@ export default function OpengraphImage() {
                   width: "86px",
                   height: "86px",
                   borderRadius: "999px",
-                  border: "4px solid #0f2343",
+                  border: "4px solid #111111",
                   borderTopColor: "transparent",
                   borderBottomColor: "transparent",
                   transform: "rotate(32deg)"
@@ -85,8 +85,7 @@ export default function OpengraphImage() {
                   fontSize: "17px",
                   fontWeight: 900,
                   letterSpacing: "-0.2px",
-                  color: "#f2ffc4",
-                  textShadow: "0 1px 0 rgba(15,35,67,0.45), 0 0 8px rgba(15,35,67,0.35)",
+                  color: "#111111",
                   zIndex: 2
                 }}
               >
@@ -132,7 +131,7 @@ export default function OpengraphImage() {
               lineHeight: 1
             }}
           >
-            1 Set Slam
+            Club Tennis
           </div>
           <div
             style={{
@@ -141,7 +140,7 @@ export default function OpengraphImage() {
               color: "#d8e7ff"
             }}
           >
-            Encontra rival rapido
+            Match en minutos
           </div>
         </div>
 
