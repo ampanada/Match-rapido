@@ -841,12 +841,48 @@ a {
 }
 
 .result-card {
-  gap: 10px;
+  gap: 7px;
+  padding: 10px;
   border-color: #506585;
   background:
     radial-gradient(120% 100% at 0% -15%, rgba(114, 176, 255, 0.18), transparent 60%),
     radial-gradient(130% 120% at 100% 100%, rgba(255, 154, 206, 0.1), transparent 62%),
     linear-gradient(160deg, #1d2a42 0%, #182238 55%, #141d2f 100%);
+}
+
+.result-card .row {
+  gap: 8px;
+}
+
+.result-card .muted {
+  font-size: 11px;
+}
+
+.result-card .participant-list {
+  gap: 4px;
+}
+
+.result-card .participant-chip {
+  padding: 5px 8px;
+  border-radius: 10px;
+}
+
+.result-card .participant-row {
+  gap: 6px;
+}
+
+.result-card .participant-index {
+  min-width: 50px;
+  font-size: 9px;
+}
+
+.result-card .participant-name {
+  font-size: 11px;
+}
+
+.result-card .participant-role {
+  font-size: 9px;
+  padding: 2px 6px;
 }
 
 .result-meta-strong {
@@ -864,11 +900,11 @@ a {
 
 .result-players {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   line-height: 1.2;
 }
 
@@ -880,8 +916,8 @@ a {
 .result-player-line {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-height: 28px;
+  gap: 5px;
+  min-height: 24px;
   vertical-align: middle;
 }
 
@@ -897,8 +933,8 @@ a {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  padding: 2px 7px;
-  font-size: 10px;
+  padding: 1px 6px;
+  font-size: 9px;
   font-weight: 800;
   line-height: 1.1;
 }
@@ -961,7 +997,7 @@ a {
 }
 
 .result-scoreline strong {
-  font-size: 19px;
+  font-size: 16px;
   letter-spacing: 0.4px;
 }
 
@@ -973,21 +1009,21 @@ a {
 
 .result-date-hero {
   margin: 0;
-  min-height: 42px;
+  min-height: 30px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .result-weekday {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 900;
   letter-spacing: 0.2px;
   color: #eaf3ff;
 }
 
 .result-date-text {
-  font-size: 13px;
+  font-size: 12px;
   color: #cad9f2;
 }
 
@@ -996,8 +1032,8 @@ a {
   border: 1px solid rgba(138, 170, 230, 0.5);
   background: rgba(58, 82, 126, 0.34);
   border-radius: 999px;
-  padding: 3px 9px;
-  font-size: 11px;
+  padding: 2px 7px;
+  font-size: 10px;
   color: #dce9ff;
   font-weight: 700;
 }

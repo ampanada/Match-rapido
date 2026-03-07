@@ -100,7 +100,6 @@ export default async function ResultsPage({
     supabase
       .from("profiles")
       .select("id,display_name,avatar_url,current_streak,best_streak,wins,losses,total_matches")
-      .gt("total_matches", 0)
       .order("current_streak", { ascending: false })
       .order("total_matches", { ascending: false })
       .order("wins", { ascending: false })
