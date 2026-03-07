@@ -748,6 +748,78 @@ a {
     linear-gradient(160deg, #21293a 0%, #1c2332 55%, #171f2b 100%);
 }
 
+.my-match-card {
+  padding: 8px;
+  gap: 6px;
+  border-radius: 14px;
+}
+
+.my-match-card .row {
+  gap: 6px;
+}
+
+.my-match-card .match-date-line {
+  margin: 0;
+  min-height: 0;
+}
+
+.my-match-card .match-date-line strong {
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.my-match-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+}
+
+.my-match-meta-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(139, 172, 232, 0.44);
+  background: linear-gradient(150deg, rgba(58, 84, 134, 0.4), rgba(41, 61, 99, 0.34));
+  color: #d8e6ff;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.my-match-card .participant-list {
+  gap: 4px;
+}
+
+.my-match-card .participant-chip {
+  border-radius: 10px;
+  padding: 5px 8px;
+}
+
+.my-match-card .participant-row {
+  gap: 6px;
+}
+
+.my-match-card .participant-index {
+  min-width: 48px;
+  font-size: 9px;
+}
+
+.my-match-card .participant-name {
+  font-size: 11px;
+}
+
+.my-match-card .participant-role {
+  font-size: 9px;
+  padding: 2px 6px;
+}
+
+.my-match-card .link-btn {
+  font-size: 12px;
+  padding: 8px 10px;
+}
+
 .participant-list {
   display: grid;
   grid-template-columns: 1fr;

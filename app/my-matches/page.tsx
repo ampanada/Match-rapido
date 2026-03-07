@@ -1,4 +1,5 @@
 import BottomNav from "@/components/BottomNav";
+import { formatLabel } from "@/lib/constants/filters";
 import { formatCordobaDate, formatSlotRange, getCordobaDateString, getCordobaHHMM, getCordobaWeekday, SLOT_MINUTES } from "@/lib/constants/slots";
 import { getServerLang } from "@/lib/i18n-server";
 import { createClient } from "@/lib/supabase/server";
@@ -543,7 +544,7 @@ export default async function MyMatchesPage({
           : copy.guestFailed;
 
   const renderGuestManager = (item: (typeof normalized)[number]) => {
-    if (item.host_id !== user.id) {
+    if (item.host_id !== user.id || item.isCompleted || item.hasConfirmedResult) {
       return null;
     }
 
@@ -660,7 +661,7 @@ export default async function MyMatchesPage({
             const startHHMM = getCordobaHHMM(item.start_at);
             const weekday = getCordobaWeekday(getCordobaDateString(new Date(item.startMs)), dateLocale);
             return (
-              <article key={`today-${item.id}`} className="card match-card match-card-today">
+              <article key={`today-${item.id}`} className="card match-card match-card-today my-match-card">
                 <div className="row">
                   <span className="badge">{copy.todayBadge}</span>
                   <span className="muted">{item.isPlayingNow ? copy.todayBadge : copy.completedLabel}</span>
@@ -670,8 +671,11 @@ export default async function MyMatchesPage({
                     {formatCordobaDate(item.start_at, dateLocale)} ({weekday}) · {formatSlotRange(startHHMM)}
                   </strong>
                 </p>
-                <p className="muted">{item.court_no ? `${copy.court} ${item.court_no}` : copy.noCourt}</p>
-                <p className="muted">{copy.participants}</p>
+                <div className="my-match-meta-row">
+                  <span className="my-match-meta-pill">{item.court_no ? `${copy.court} ${item.court_no}` : copy.noCourt}</span>
+                  <span className="my-match-meta-pill">{copy.players} {item.currentPlayers}/{item.needed}</span>
+                  <span className="my-match-meta-pill">{formatLabel(item.format, lang)}</span>
+                </div>
                 <div className="participant-list">
                   {item.participants.map((participant, idx) => (
                     participant.profile_id ? (
@@ -764,17 +768,17 @@ export default async function MyMatchesPage({
             const startHHMM = getCordobaHHMM(item.start_at);
             const weekday = getCordobaWeekday(getCordobaDateString(new Date(item.startMs)), dateLocale);
             return (
-              <article key={`upcoming-${item.id}`} className="card match-card match-card-upcoming">
+              <article key={`upcoming-${item.id}`} className="card match-card match-card-upcoming my-match-card">
                 <p className="match-date-line">
                   <strong>
                     {formatCordobaDate(item.start_at, dateLocale)} ({weekday}) · {formatSlotRange(startHHMM)}
                   </strong>
                 </p>
-                <p className="muted">{item.court_no ? `${copy.court} ${item.court_no}` : copy.noCourt}</p>
-                <p className="muted">
-                  {copy.players}: {item.currentPlayers}/{item.needed}
-                </p>
-                <p className="muted">{copy.participants}</p>
+                <div className="my-match-meta-row">
+                  <span className="my-match-meta-pill">{item.court_no ? `${copy.court} ${item.court_no}` : copy.noCourt}</span>
+                  <span className="my-match-meta-pill">{copy.players} {item.currentPlayers}/{item.needed}</span>
+                  <span className="my-match-meta-pill">{formatLabel(item.format, lang)}</span>
+                </div>
                 <div className="participant-list">
                   {item.participants.map((participant, idx) => (
                     participant.profile_id ? (
@@ -821,10 +825,17 @@ export default async function MyMatchesPage({
               const startHHMM = getCordobaHHMM(item.start_at);
               const weekday = getCordobaWeekday(getCordobaDateString(new Date(item.startMs)), dateLocale);
               return (
-                <article key={`completed-${item.id}`} className="card match-card match-card-completed">
-                  <p className="compact-line">
-                    {formatCordobaDate(item.start_at, dateLocale)} ({weekday}) | {formatSlotRange(startHHMM)} | {item.court_no ? `${copy.court} ${item.court_no}` : copy.noCourt} | {copy.completedLabel}
+                <article key={`completed-${item.id}`} className="card match-card match-card-completed my-match-card">
+                  <p className="match-date-line">
+                    <strong>
+                      {formatCordobaDate(item.start_at, dateLocale)} ({weekday}) · {formatSlotRange(startHHMM)}
+                    </strong>
                   </p>
+                  <div className="my-match-meta-row">
+                    <span className="my-match-meta-pill">{item.court_no ? `${copy.court} ${item.court_no}` : copy.noCourt}</span>
+                    <span className="my-match-meta-pill">{copy.players} {item.currentPlayers}/{item.needed}</span>
+                    <span className="my-match-meta-pill">{copy.completedLabel}</span>
+                  </div>
                   <div className="participant-list">
                     {item.participants.map((participant, idx) => (
                       participant.profile_id ? (
@@ -852,7 +863,6 @@ export default async function MyMatchesPage({
                     ))}
                   </div>
                   {item.hostManualClose ? <p className="notice">{copy.hostManualClose}</p> : null}
-                  {renderGuestManager(item)}
                   {item.isSingleReady && !item.hasConfirmedResult && item.startMs <= now && !item.hostManualClose ? (
                     <Link className="link-btn" href={`/post/${item.id}?record=1&from=my-matches`}>
                       {copy.record}
