@@ -38,6 +38,12 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           bestStreak: "최고 연승",
           recent: "최근 10경기",
           noRecent: "확정된 경기 결과가 없습니다.",
+          formTitle: "최근 10경기 폼",
+          formSubtitle: "최신 경기부터 순서대로",
+          formEmpty: "폼 그래프를 표시할 경기가 아직 없습니다.",
+          formWinMark: "승",
+          formDrawMark: "무",
+          formLossMark: "패",
           win: "승",
           loss: "패",
           draw: "무",
@@ -63,6 +69,12 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           bestStreak: "Mejor racha",
           recent: "Ultimos 10 partidos",
           noRecent: "No hay resultados confirmados.",
+          formTitle: "Forma de los ultimos 10",
+          formSubtitle: "Del mas reciente al mas antiguo",
+          formEmpty: "Aun no hay partidos para mostrar la forma.",
+          formWinMark: "G",
+          formDrawMark: "E",
+          formLossMark: "P",
           win: "Victoria",
           loss: "Derrota",
           draw: "Empate",
@@ -362,6 +374,19 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
     return best;
   })();
 
+  const recentForm = (effectiveRecentResults ?? []).slice(0, 10).map((result) => {
+    const post = Array.isArray(result.posts) ? result.posts[0] : result.posts;
+    const when = post?.start_at ?? result.confirmed_at ?? new Date().toISOString();
+    const draw = isDrawScore(result.score);
+    const isWin = !draw && !!result.winner_id && aggregateIdSet.has(result.winner_id);
+
+    return {
+      id: result.id,
+      outcome: draw ? "draw" : isWin ? "win" : "loss",
+      whenLabel: `${formatCordobaDate(when, lang === "ko" ? "ko-KR" : "es-AR")} · ${result.score}`
+    };
+  });
+
   return (
     <main className="shell">
       <header className="top">
@@ -414,6 +439,39 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
             <strong>{computedBestStreak}</strong>
           </div>
         </div>
+      </section>
+
+      <section className="card profile-form-card">
+        <div className="row">
+          <strong>{copy.formTitle}</strong>
+          <span className="muted">{copy.formSubtitle}</span>
+        </div>
+        {recentForm.length === 0 ? <p className="notice">{copy.formEmpty}</p> : null}
+        {recentForm.length > 0 ? (
+          <>
+            <div className="profile-form-strip">
+              {recentForm.map((item) => (
+                <span
+                  key={`form-${item.id}`}
+                  className={`profile-form-cell ${item.outcome}`}
+                  title={item.whenLabel}
+                  aria-label={item.whenLabel}
+                >
+                  {item.outcome === "win"
+                    ? copy.formWinMark
+                    : item.outcome === "draw"
+                      ? copy.formDrawMark
+                      : copy.formLossMark}
+                </span>
+              ))}
+            </div>
+            <p className="profile-form-legend">
+              <span className="profile-form-legend-item win">● {copy.formWinMark}</span>
+              <span className="profile-form-legend-item draw">● {copy.formDrawMark}</span>
+              <span className="profile-form-legend-item loss">● {copy.formLossMark}</span>
+            </p>
+          </>
+        ) : null}
       </section>
 
       <section className="section">
