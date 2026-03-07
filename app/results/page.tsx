@@ -361,7 +361,6 @@ export default async function ResultsPage({
 
   const fallbackProfileMap = new Map((fallbackProfiles ?? []).map((profile) => [profile.id, profile]));
   const dateLocale = lang === "ko" ? "ko-KR" : "es-AR";
-  const todayKey = getCordobaDateString();
 
   return (
     <main className="shell">
@@ -440,7 +439,6 @@ export default async function ResultsPage({
           const when = post?.start_at ?? result.created_at;
           const whenDate = getCordobaDateString(new Date(when));
           const weekday = getCordobaWeekday(whenDate, dateLocale);
-          const isToday = whenDate === todayKey;
           const slotLabel = post?.start_at ? formatSlotRange(getCordobaHHMM(post.start_at)) : "";
           const draw = isDrawScore(result.score);
           const isAWinner = !draw && result.winner_id === playerA?.id;
@@ -482,15 +480,13 @@ export default async function ResultsPage({
 
           return (
             <article className="card match-card match-card-completed my-match-card result-card" key={result.id}>
-              <div className="row">
-                {isToday ? <span className="badge">{copy.todayBadge}</span> : <span className="badge">{copy.completedLabel}</span>}
-                <span className="muted">{copy.completedLabel}</span>
+              <div className="result-date-card">
+                <span className="result-weekday-pill">{weekday}</span>
+                <p className="result-date-meta">
+                  <strong>{formatCordobaDate(when, dateLocale)}</strong>
+                  {slotLabel ? <span className="result-date-time">{slotLabel}</span> : null}
+                </p>
               </div>
-              <p className="match-date-line result-date-line">
-                <strong>
-                  {weekday} · {formatCordobaDate(when, dateLocale)}{slotLabel ? ` · ${slotLabel}` : ""}
-                </strong>
-              </p>
               <p className="result-main-headline">
                 <strong>{result.score}</strong>
                 <span className="result-main-summary">
