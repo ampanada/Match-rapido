@@ -81,7 +81,7 @@ export default async function ResultsPage({
           unknownCourt: "Cancha sin definir",
           streakUnit: "seguidas",
           bestStreak: "mejor",
-          wdlLabel: "W/D/L",
+          wdlLabel: "G/E/P",
           winRateLabel: "Win %"
         };
 
