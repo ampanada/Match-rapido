@@ -10,6 +10,39 @@ function isDrawScore(score: string | null | undefined) {
   return score === "6-6";
 }
 
+function normalizeWhatsapp(raw: string | null | undefined) {
+  const compact = String(raw ?? "").replace(/\s+/g, "").replace(/-/g, "");
+  if (!compact) {
+    return "";
+  }
+  if (compact.startsWith("+")) {
+    return `+${compact.slice(1).replace(/[^\d]/g, "")}`;
+  }
+  return `+${compact.replace(/[^\d]/g, "")}`;
+}
+
+function getLeaderDedupKey(player: {
+  id: string;
+  whatsapp?: string | null;
+  display_name?: string | null;
+  is_guest?: boolean | null;
+  email?: string | null;
+}) {
+  const whatsapp = normalizeWhatsapp(player.whatsapp);
+  if (whatsapp) {
+    return `wa:${whatsapp}`;
+  }
+
+  const displayName = String(player.display_name ?? "").trim().toLowerCase();
+  const email = String(player.email ?? "").trim().toLowerCase();
+  const guestLike = player.is_guest === true || email.endsWith("@guest.local");
+  if (guestLike && displayName) {
+    return `guest:${displayName}`;
+  }
+
+  return `id:${player.id}`;
+}
+
 function resolveLeaderName(player: {
   display_name?: string | null;
   email?: string | null;
@@ -239,6 +272,7 @@ export default async function ResultsPage({
     }
   }
 
+  const seenLeaderKeys = new Set<string>();
   const sortedStreakLeaders = [...(streakLeaders ?? [])]
     .sort((a, b) => {
       const aStats = streakStatsMap.get(a.id) ?? { wins: 0, draws: 0, losses: 0, total: 0 };
@@ -255,6 +289,14 @@ export default async function ResultsPage({
       const hasDisplayName = String(player.display_name ?? "").trim().length > 0;
       const hasAnyActivity = (player.current_streak ?? 0) > 0 || (player.total_matches ?? 0) > 0 || stats.total > 0;
       return hasDisplayName || hasAnyActivity;
+    })
+    .filter((player) => {
+      const dedupKey = getLeaderDedupKey(player);
+      if (seenLeaderKeys.has(dedupKey)) {
+        return false;
+      }
+      seenLeaderKeys.add(dedupKey);
+      return true;
     })
     .slice(0, 5);
 
