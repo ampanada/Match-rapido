@@ -966,8 +966,8 @@ a {
   letter-spacing: 0.5px;
 }
 
-.result-main-headline span {
-  font-size: 11.5px;
+.result-main-summary {
+  font-size: 11px;
   font-weight: 700;
   color: #e5f0ff;
   text-align: left;
@@ -975,9 +975,35 @@ a {
   border: 1px solid rgba(149, 185, 240, 0.42);
   background: rgba(58, 84, 133, 0.36);
   border-radius: 999px;
-  padding: 2px 8px;
+  padding: 3px 9px;
   justify-self: start;
   max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.result-main-verb {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.35px;
+  text-transform: uppercase;
+  color: #cfe1ff;
+}
+
+.result-main-player {
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.1px;
+  color: #ffffff;
+}
+
+.result-main-draw {
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.25px;
+  color: #dce8ff;
+  text-transform: uppercase;
 }
 
 .result-meta-row {
@@ -1059,23 +1085,37 @@ a {
 }
 
 .result-outcome-marker {
-  min-width: 12px;
-  font-size: 10px;
+  min-width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(145, 177, 231, 0.4);
+  background: rgba(47, 68, 106, 0.5);
+  font-size: 11.5px;
   font-weight: 900;
   line-height: 1;
+  letter-spacing: 0.1px;
   text-align: center;
 }
 
 .result-outcome-marker.win {
-  color: #47da96;
+  color: #4df0a7;
+  border-color: rgba(87, 242, 167, 0.55);
+  background: rgba(23, 82, 58, 0.56);
 }
 
 .result-outcome-marker.loss {
-  color: #ff6e78;
+  color: #ff7f8f;
+  border-color: rgba(255, 126, 140, 0.6);
+  background: rgba(114, 35, 47, 0.55);
 }
 
 .result-outcome-marker.draw {
-  color: #c8d2e2;
+  color: #d7e0ef;
+  border-color: rgba(170, 182, 208, 0.5);
+  background: rgba(61, 70, 90, 0.6);
 }
 
 .result-card .participant-name {

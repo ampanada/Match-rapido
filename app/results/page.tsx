@@ -465,7 +465,8 @@ export default async function ResultsPage({
             null;
           const courtLabel = post?.court_no ? `${copy.court} ${post.court_no}` : copy.unknownCourt;
           const winnerName = isAWinner ? playerAName : playerBName;
-          const mainResultSummary = draw ? (lang === "ko" ? "무승부" : "empate") : lang === "ko" ? `${winnerName} 승리` : `gano ${winnerName}`;
+          const mainResultVerb = lang === "ko" ? "승리" : "gano";
+          const mainResultDraw = lang === "ko" ? "무승부" : "empate";
           const h2hKey = buildPairKey(playerAId, playerBId);
           const h2hStats = h2hKey ? h2hByPair.get(h2hKey) : null;
           const playerAWins = playerAId ? h2hStats?.winsByPlayer.get(playerAId) ?? 0 : 0;
@@ -492,7 +493,16 @@ export default async function ResultsPage({
               </p>
               <p className="result-main-headline">
                 <strong>{result.score}</strong>
-                <span>{mainResultSummary}</span>
+                <span className="result-main-summary">
+                  {draw ? (
+                    <strong className="result-main-draw">{mainResultDraw}</strong>
+                  ) : (
+                    <>
+                      <span className="result-main-verb">{mainResultVerb}</span>
+                      <strong className="result-main-player">{winnerName}</strong>
+                    </>
+                  )}
+                </span>
               </p>
               <div className="my-match-meta-row result-meta-row">
                 <span className="my-match-meta-pill result-meta-pill">{courtLabel}</span>
