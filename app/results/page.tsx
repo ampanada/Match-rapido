@@ -99,7 +99,7 @@ export default async function ResultsPage({
       .limit(50),
     supabase
       .from("profiles")
-      .select("id,display_name,avatar_url,current_streak,best_streak,wins,losses,total_matches")
+      .select("id,display_name,avatar_url,whatsapp,is_guest,current_streak,best_streak,wins,losses,total_matches")
       .order("current_streak", { ascending: false })
       .order("total_matches", { ascending: false })
       .order("wins", { ascending: false })
@@ -120,15 +120,56 @@ export default async function ResultsPage({
       ? await supabase.from("profiles").select("id,display_name,avatar_url").in("id", missingProfileIds)
       : { data: [] as { id: string; display_name: string | null; avatar_url: string | null }[] };
 
-  const streakLeaderIds = (streakLeaders ?? []).map((player) => player.id).filter(Boolean);
-  const streakLeaderIdList = streakLeaderIds.join(",");
+  const streakLeaderRows = streakLeaders ?? [];
+  const leaderAggregateMap = new Map<string, Set<string>>();
+
+  await Promise.all(
+    streakLeaderRows.map(async (player: any) => {
+      const aggregateIds = new Set<string>([player.id]);
+
+      if (player.whatsapp) {
+        const { data: samePhoneProfiles } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("whatsapp", player.whatsapp)
+          .limit(200);
+        for (const row of samePhoneProfiles ?? []) {
+          if (row.id) {
+            aggregateIds.add(row.id);
+          }
+        }
+      } else if (player.is_guest && player.display_name) {
+        const { data: sameNameGuestProfiles } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("is_guest", true)
+          .eq("display_name", player.display_name)
+          .limit(200);
+        for (const row of sameNameGuestProfiles ?? []) {
+          if (row.id) {
+            aggregateIds.add(row.id);
+          }
+        }
+      }
+
+      leaderAggregateMap.set(player.id, aggregateIds);
+    })
+  );
+
+  const streakLeaderIds = streakLeaderRows.map((player: any) => player.id).filter(Boolean);
+  const allTrackedProfileIds = Array.from(
+    new Set(
+      streakLeaderIds.flatMap((leaderId) => Array.from(leaderAggregateMap.get(leaderId) ?? new Set([leaderId])))
+    )
+  );
+  const trackedProfileIdList = allTrackedProfileIds.join(",");
   const { data: streakMatches } =
-    streakLeaderIds.length > 0
+    allTrackedProfileIds.length > 0
       ? await supabase
           .from("match_results")
           .select("player_a,player_b,winner_id,score")
           .eq("status", "confirmed")
-          .or(`player_a.in.(${streakLeaderIdList}),player_b.in.(${streakLeaderIdList})`)
+          .or(`player_a.in.(${trackedProfileIdList}),player_b.in.(${trackedProfileIdList})`)
           .limit(5000)
       : { data: [] as { player_a: string; player_b: string; winner_id: string | null; score: string | null }[] };
 
@@ -137,14 +178,35 @@ export default async function ResultsPage({
     streakStatsMap.set(playerId, { wins: 0, draws: 0, losses: 0, total: 0 });
   }
 
+  const trackedProfileToLeaderIds = new Map<string, string[]>();
+  for (const [leaderId, profileIds] of leaderAggregateMap.entries()) {
+    for (const profileId of profileIds) {
+      const bucket = trackedProfileToLeaderIds.get(profileId) ?? [];
+      bucket.push(leaderId);
+      trackedProfileToLeaderIds.set(profileId, bucket);
+    }
+  }
+
   for (const match of streakMatches ?? []) {
-    const participants = [match.player_a, match.player_b].filter((playerId) => streakStatsMap.has(playerId));
-    for (const participantId of participants) {
-      const entry = streakStatsMap.get(participantId)!;
+    const affectedLeaderIds = new Set<string>();
+    for (const participantId of [match.player_a, match.player_b]) {
+      const leaderIds = trackedProfileToLeaderIds.get(participantId) ?? [];
+      for (const leaderId of leaderIds) {
+        affectedLeaderIds.add(leaderId);
+      }
+    }
+
+    for (const leaderId of affectedLeaderIds) {
+      const entry = streakStatsMap.get(leaderId);
+      const aggregateIds = leaderAggregateMap.get(leaderId);
+      if (!entry || !aggregateIds) {
+        continue;
+      }
+
       entry.total += 1;
       if (isDrawScore(match.score)) {
         entry.draws += 1;
-      } else if (match.winner_id === participantId) {
+      } else if (match.winner_id && aggregateIds.has(match.winner_id)) {
         entry.wins += 1;
       } else {
         entry.losses += 1;
